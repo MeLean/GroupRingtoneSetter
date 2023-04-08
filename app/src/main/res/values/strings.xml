@@ -11,4 +11,6 @@
     <string name="file_not_accessible">The fille is not accessible</string>
     <string name="contacts">Contacts</string>
     <string name="close_app">Close the application</string>
+    <string name="ad_id_banner">ca-app-pub-3940256099942544/6300978111</string>
+    <string name="reward_ad_id">ca-app-pub-3940256099942544/5354046379</string>
 </resources>

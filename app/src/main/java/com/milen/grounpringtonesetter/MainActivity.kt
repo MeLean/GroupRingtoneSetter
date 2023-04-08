@@ -24,7 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.android.gms.ads.*
+import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAd
+import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.ui.composables.*
 import com.milen.grounpringtonesetter.ui.screenstate.LabelListScreenState
@@ -35,9 +39,13 @@ import kotlinx.coroutines.flow.StateFlow
 
 class MainActivity : ComponentActivity() {
     private val viewModel: ListViewModel by viewModels()
+    private var rewardedInterstitialAd: RewardedInterstitialAd? = null
+    private var loadAddErrors: Int = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        MobileAds.initialize(this) { loadAd() }
 
         setContent {
             LabelRingtoneSetterTheme {
@@ -51,6 +59,39 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onDestroy() {
+        rewardedInterstitialAd = null
+        super.onDestroy()
+    }
+
+    private fun loadAd() {
+        loadRewardAd(adId = getString(R.string.reward_ad_id)) { ad ->
+            ad?.let { rewardedInterstitialAd = it } ?: run {
+                loadAddErrors++
+                if (loadAddErrors <= 3) {
+                    loadAd()
+                }
+            }
+        }
+    }
+
+    private fun Context.loadRewardAd(
+        adId: String,
+        onDone: (RewardedInterstitialAd?) -> Unit
+    ) {
+        RewardedInterstitialAd.load(this, adId,
+            AdRequest.Builder().build(), object : RewardedInterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: RewardedInterstitialAd) {
+                    onDone(ad)
+                }
+
+                override fun onAdFailedToLoad(adError: LoadAdError) {
+                    onDone(null)
+                }
+            }
+        )
     }
 
     private fun onPermissionDenied() {
@@ -71,7 +112,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setRingTones(items: MutableList<GroupItem>) {
-        viewModel.setRingTones(items, contentResolver)
+        rewardedInterstitialAd?.let {
+            it.show(this) { viewModel.setRingTones(items, contentResolver) }
+        }
     }
 }
 
@@ -168,28 +211,46 @@ private fun LabelScreenBottomBar(
     screenState: LabelListScreenState,
     onSetRingtones: (MutableList<GroupItem>) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .padding(PaddingValues(16.dp))
-            .fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RoundCornerButton(
-            modifier = Modifier.weight(1f),
-            btnLabel = stringResource(R.string.refresh_groups),
-            onClick = { fetchLabels() },
+    Column {
+        Row(
+            modifier = Modifier
+                .padding(PaddingValues(16.dp))
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RoundCornerButton(
+                modifier = Modifier.weight(1f),
+                btnLabel = stringResource(R.string.refresh_groups),
+                onClick = { fetchLabels() },
+
+                )
+            Spacer(modifier = Modifier.width(16.dp))
+            RoundCornerButton(
+                modifier = Modifier.weight(1f),
+                btnLabel = stringResource(R.string.do_the_magic),
+                isEnabled = screenState.groupItems.isEmpty().not(),
+                onClick = { onSetRingtones(screenState.groupItems) }
 
             )
-        Spacer(modifier = Modifier.width(16.dp))
-        RoundCornerButton(
-            modifier = Modifier.weight(1f),
-            btnLabel = stringResource(R.string.do_the_magic),
-            isEnabled = screenState.groupItems.isEmpty().not(),
-            onClick = { onSetRingtones(screenState.groupItems) }
+        }
 
-        )
+        AdView(modifier = Modifier.fillMaxWidth())
     }
+}
+
+@Composable
+fun AdView(modifier: Modifier = Modifier) {
+    AndroidView(
+        modifier = modifier.fillMaxWidth(),
+        factory = { context ->
+            AdView(context).apply {
+                setAdSize(AdSize.BANNER)
+                adUnitId = context.getString(R.string.ad_id_banner)
+                loadAd(AdRequest.Builder().build())
+            }
+        }
+    )
 }
 
 @Composable

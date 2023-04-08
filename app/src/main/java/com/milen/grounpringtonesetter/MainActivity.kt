@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun loadAd() {
-        loadRewardAd(adId = getString(R.string.reward_ad_id)) { ad ->
+        loadRewardAd(adId = getString(R.string.ad_id_reward)) { ad ->
             ad?.let { rewardedInterstitialAd = it } ?: run {
                 loadAddErrors++
                 if (loadAddErrors <= 3) {

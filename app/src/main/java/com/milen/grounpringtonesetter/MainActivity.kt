@@ -2,7 +2,6 @@ package com.milen.grounpringtonesetter
 
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -26,13 +25,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.ads.*
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdSize
+import com.google.android.gms.ads.AdView
+import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAd
-import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.ui.composables.*
 import com.milen.grounpringtonesetter.ui.screenstate.LabelListScreenState
 import com.milen.grounpringtonesetter.ui.theme.LabelRingtoneSetterTheme
+import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
+import com.milen.grounpringtonesetter.utils.loadRewardAd
 import com.milen.grounpringtonesetter.viewmodel.ListViewModel
 import kotlinx.coroutines.flow.StateFlow
 
@@ -45,9 +48,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        MobileAds.initialize(this) { loadAd() }
 
         setContent {
+            MobileAds.initialize(this) { loadAd() }
             LabelRingtoneSetterTheme {
                 LabelsListScreen(
                     uiState = viewModel.uiState,
@@ -77,23 +80,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun Context.loadRewardAd(
-        adId: String,
-        onDone: (RewardedInterstitialAd?) -> Unit
-    ) {
-        RewardedInterstitialAd.load(this, adId,
-            AdRequest.Builder().build(), object : RewardedInterstitialAdLoadCallback() {
-                override fun onAdLoaded(ad: RewardedInterstitialAd) {
-                    onDone(ad)
-                }
-
-                override fun onAdFailedToLoad(adError: LoadAdError) {
-                    onDone(null)
-                }
-            }
-        )
-    }
-
     private fun onPermissionDenied() {
         Toast.makeText(this, getString(R.string.need_permission_to_run), Toast.LENGTH_LONG).show()
         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -103,19 +89,19 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun fetchLabels() {
+    private fun fetchLabels(): Unit =
         viewModel.fetchLabels(contentResolver)
-    }
 
-    private fun onRingtoneChosen(label: String, uri: Uri?) {
+    private fun onRingtoneChosen(label: String, uri: Uri?): Unit =
         viewModel.onRingtoneChosen(label, uri)
-    }
 
-    private fun setRingTones(items: MutableList<GroupItem>) {
+    private fun setRingTones(items: MutableList<GroupItem>): Unit =
         rewardedInterstitialAd?.let {
-            it.show(this) { viewModel.setRingTones(items, contentResolver) }
-        }
-    }
+            it.show(this) { setRingtone(items) }
+        } ?: setRingtone(items)
+
+    private fun setRingtone(items: MutableList<GroupItem>): Unit =
+        viewModel.setRingTones(items, contentResolver)
 }
 
 @Composable
@@ -355,23 +341,3 @@ private fun LabelListItem(item: GroupItem, onRingtoneChosen: (String, Uri?) -> U
         )
     }
 }
-
-private fun Uri?.getFileNameOrEmpty(context: Context): String =
-    this?.let {
-        try {
-            val cursor = context.contentResolver.query(
-                this,
-                arrayOf(MediaStore.Audio.Media.DATA),
-                null,
-                null,
-                null
-            )
-            cursor?.use {
-                val columnIndex = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                it.moveToFirst()
-                it.getString(columnIndex).substringAfterLast("/")
-            }
-        } catch (e: SecurityException) {
-            context.getString(R.string.file_not_accessible)
-        }
-    } ?: ""

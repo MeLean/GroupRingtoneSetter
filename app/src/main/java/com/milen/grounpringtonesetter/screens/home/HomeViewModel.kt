@@ -10,7 +10,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.GroupItem
-import com.milen.grounpringtonesetter.ui.callbacks.HomeViewModelCallbacks
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -23,8 +22,22 @@ class HomeViewModel : ViewModel() {
             uiState = _uiState,
             fetchLabels = ::fetchLabels,
             onSetRingtones = ::onSetRingTones,
-            onRingtoneChosen = ::onRingtoneChosen
+            onRingtoneChosen = ::onRingtoneChosen,
+            hideLoading = ::hideLoading
         )
+
+    private fun onPermissionDenied() {
+
+    }
+
+    private fun hideLoading() {
+        _uiState.tryEmit(
+            _uiState.value.copy(
+                isLoading = false,
+                shouldShowAd = false
+            )
+        )
+    }
 
     @Suppress("KotlinConstantConditions")
     private fun onSetRingTones(

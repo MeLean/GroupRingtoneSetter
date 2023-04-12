@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.ui.composables
+package com.milen.grounpringtonesetter.composables.eventobservers
 
 import android.content.Context
 import android.net.ConnectivityManager

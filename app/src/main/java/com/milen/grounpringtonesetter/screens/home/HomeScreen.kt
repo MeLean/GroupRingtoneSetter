@@ -1,5 +1,6 @@
 package com.milen.grounpringtonesetter.screens.home
 
+import android.Manifest
 import android.app.Activity
 import android.content.ContentResolver
 import android.content.Intent
@@ -15,26 +16,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.LoadAdError
-import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAd
-import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.composables.eventobservers.InternetConnectivity
+import com.milen.grounpringtonesetter.composables.ui.ads.ShowAd
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.navigation.Destination
-import com.milen.grounpringtonesetter.ui.callbacks.HomeViewModelCallbacks
 import com.milen.grounpringtonesetter.ui.composables.*
-import com.milen.grounpringtonesetter.ui.composables.eventobservers.observeAsState
+import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
-import com.milen.grounpringtonesetter.utils.openAppDetailsSettings
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 
 @Composable
@@ -45,14 +37,20 @@ fun HomeScreen(
 ) {
     val screenState by callbacks.uiState.collectAsStateWithLifecycle()
     val activity = LocalContext.current as Activity
-    val lifecycleState = LocalLifecycleOwner.current.lifecycle.observeAsState()
+    val permissions = listOf(
+        Manifest.permission.READ_EXTERNAL_STORAGE,
+        Manifest.permission.WRITE_CONTACTS,
+        Manifest.permission.READ_CONTACTS
+    )
 
     val launcherMultiplePermissions = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissionsMap ->
-        when (permissionsMap.values.reduce { acc, next -> acc && next }) {
-            true -> callbacks.fetchLabels(activity.contentResolver)
-            else -> activity.openAppDetailsSettings(infoTextId = R.string.need_permission_to_run)
+    ) {
+        when {
+            activity.areAllPermissionsGranted(permissions) -> callbacks.fetchLabels(activity.contentResolver)
+            else -> {
+                callbacks.hideLoading()
+            }
         }
     }
 
@@ -84,68 +82,25 @@ fun HomeScreen(
     }
 
     if (screenState.shouldShowAd) {
-        ShowAd {
-            callbacks.onSetRingtones(
-                screenState.groupItems,
-                activity.contentResolver,
-                false
-            )
-        }
-    }
-
-    LaunchedEffect(lifecycleState.value) {
-        if (lifecycleState.value == Lifecycle.Event.ON_RESUME) {
-            launcherMultiplePermissions.launch(
-                arrayOf(
-                    android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                    android.Manifest.permission.WRITE_CONTACTS,
-                    android.Manifest.permission.READ_CONTACTS
+        ShowAd(
+            onDone = {
+                callbacks.onSetRingtones(
+                    screenState.groupItems,
+                    activity.contentResolver,
+                    false
                 )
-            )
-        }
-    }
-}
-
-
-@Composable
-private fun ShowAd(onDone: () -> Unit) {
-    val maxTries = 3
-    val triesToLoadState = remember { mutableStateOf(0) }
-    val activity = LocalContext.current as Activity
-    val adRequest = remember { AdRequest.Builder().build() }
-    val coroutineScope = rememberCoroutineScope()
-
-    DisposableEffect(triesToLoadState.value) {
-        val loadJob = coroutineScope.launch {
-            withContext(Dispatchers.Main) {
-                if (triesToLoadState.value >= maxTries) {
-                    onDone()
-                } else {
-                    try {
-                        RewardedInterstitialAd.load(
-                            activity,
-                            activity.getString(R.string.ad_id_reward),
-                            adRequest,
-                            object : RewardedInterstitialAdLoadCallback() {
-                                override fun onAdLoaded(ad: RewardedInterstitialAd) {
-                                    coroutineScope.launch {
-                                        ad.show(activity) { onDone() }
-                                    }
-                                }
-
-                                override fun onAdFailedToLoad(loadError: LoadAdError) {
-                                    triesToLoadState.value++
-                                }
-                            })
-                    } catch (e: Exception) {
-                        triesToLoadState.value++
-                    }
-                }
+            },
+            onAdLoaded = {
+                callbacks.hideLoading()
             }
-        }
+        )
+    }
 
-        onDispose {
-            loadJob.cancel()
+    LaunchedEffect(Unit) {
+        if (activity.areAllPermissionsGranted(permissions)) {
+            callbacks.fetchLabels(activity.contentResolver)
+        } else {
+            launcherMultiplePermissions.launch(permissions.toTypedArray())
         }
     }
 }
@@ -204,8 +159,7 @@ private fun HomeScreenBottomBar(
                 modifier = Modifier.weight(1f),
                 btnLabel = stringResource(R.string.refresh_groups),
                 onClick = { fetchLabels(contentResolver) },
-
-                )
+            )
             Spacer(modifier = Modifier.width(16.dp))
             RoundCornerButton(
                 modifier = Modifier.weight(1f),

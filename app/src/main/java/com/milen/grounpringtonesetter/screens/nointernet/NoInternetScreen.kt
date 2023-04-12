@@ -14,8 +14,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.composables.eventobservers.InternetConnectivity
 import com.milen.grounpringtonesetter.navigation.Destination
-import com.milen.grounpringtonesetter.ui.composables.InternetConnectivity
 import com.milen.grounpringtonesetter.ui.composables.RoundCornerButton
 import com.milen.grounpringtonesetter.ui.composables.RowWithEndButton
 import com.milen.grounpringtonesetter.ui.composables.TextWidget

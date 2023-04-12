@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.ui.composables.eventobservers
+package com.milen.grounpringtonesetter.composables.eventobservers
 
 import androidx.compose.runtime.*
 import androidx.lifecycle.Lifecycle

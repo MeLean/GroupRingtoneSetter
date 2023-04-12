@@ -13,4 +13,8 @@
     <string name="close_app">Close the application</string>
     <string name="ad_id_banner">ca-app-pub-6177746105485183/9034496655</string>
     <string name="ad_id_reward">ca-app-pub-6177746105485183/3399026599</string>
+    <string name="open_network_settings">Open WiFi settings</string>
+    <string name="no_internet_description">No Internet Connection. To work properly the app needs Internet</string>
+    <string name="close">Close</string>
+    <string name="home">Home</string>
 </resources>

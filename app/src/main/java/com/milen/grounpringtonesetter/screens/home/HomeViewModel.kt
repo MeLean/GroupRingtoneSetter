@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.viewmodel
+package com.milen.grounpringtonesetter.screens.home
 
 import android.annotation.SuppressLint
 import android.content.ContentResolver
@@ -10,41 +10,61 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.GroupItem
-import com.milen.grounpringtonesetter.ui.screenstate.LabelListScreenState
+import com.milen.grounpringtonesetter.ui.callbacks.HomeViewModelCallbacks
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
-class ListViewModel : ViewModel() {
-    private val _uiState: MutableStateFlow<LabelListScreenState> =
-        MutableStateFlow(LabelListScreenState())
-    val uiState: StateFlow<LabelListScreenState> = _uiState.asStateFlow()
+class HomeViewModel : ViewModel() {
+    private val _uiState =
+        MutableStateFlow(HomeScreenState())
 
-    fun setRingTones(groupItems: MutableList<GroupItem>, contentResolver: ContentResolver): Unit =
-        with(groupItems) {
-            showLoading()
+    fun getHomeViewModelCallbacks(): HomeViewModelCallbacks =
+        HomeViewModelCallbacks(
+            uiState = _uiState,
+            fetchLabels = ::fetchLabels,
+            onSetRingtones = ::onSetRingTones,
+            onRingtoneChosen = ::onRingtoneChosen
+        )
 
-            viewModelScope.launch {
-                map {
-                    it.ringtoneUri?.let { uri ->
-                        setRingToneToGroupName(
-                            contentResolver = contentResolver,
-                            groupName = it.groupName,
-                            newRingtoneUri = uri
-                        )
-                    }
-                }
-                _uiState.tryEmit(
-                    _uiState.value.copy(
-                        isLoading = false,
-                        isAllDone = true
-                    )
+    @Suppress("KotlinConstantConditions")
+    private fun onSetRingTones(
+        groupItems: MutableList<GroupItem>,
+        contentResolver: ContentResolver,
+        showAdd: Boolean = true
+    ) {
+        if (showAdd) {
+            _uiState.tryEmit(
+                _uiState.value.copy(
+                    isLoading = true,
+                    shouldShowAd = showAdd
                 )
+            )
+        } else {
+            with(groupItems) {
+                showLoading()
+                viewModelScope.async {
+                    map {
+                        it.ringtoneUri?.let { uri ->
+                            setRingToneToGroupName(
+                                contentResolver = contentResolver,
+                                groupName = it.groupName,
+                                newRingtoneUri = uri
+                            )
+                        }
+                    }
+                    _uiState.tryEmit(
+                        _uiState.value.copy(
+                            isLoading = false,
+                            isAllDone = true,
+                            shouldShowAd = showAdd
+                        )
+                    )
+                }
             }
         }
+    }
 
-    fun onRingtoneChosen(label: String, uri: Uri?) {
+    private fun onRingtoneChosen(label: String, uri: Uri?) {
         _uiState.value.groupItems.apply {
             firstOrNull { it.groupName == label }?.let {
                 it.ringtoneUri = uri
@@ -63,7 +83,7 @@ class ListViewModel : ViewModel() {
     fun fetchLabels(contentResolver: ContentResolver) {
         showLoading()
 
-        viewModelScope.launch {
+        viewModelScope.async {
             mutableListOf<String>().apply {
                 contentResolver.query(
                     ContactsContract.Groups.CONTENT_URI,
@@ -105,7 +125,6 @@ class ListViewModel : ViewModel() {
                 )
             }
     }
-
 
     @SuppressLint("Range")
     private fun String.getContactsByGroupName(
@@ -237,4 +256,3 @@ private fun List<Contact>.allContactsHaveSameRingtoneUri(): Uri? =
         if (all { contact -> contact.ringtoneUri == ringtoneUri })
             ringtoneUri else null
     }
-

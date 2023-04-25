@@ -1,11 +1,12 @@
 package com.milen.grounpringtonesetter.utils
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.provider.MediaStore
 import androidx.core.content.ContextCompat
+import androidx.documentfile.provider.DocumentFile
 import com.milen.grounpringtonesetter.R
 
 fun Activity.areAllPermissionsGranted(permissions: List<String>): Boolean =
@@ -16,17 +17,16 @@ fun Activity.areAllPermissionsGranted(permissions: List<String>): Boolean =
 fun Uri?.getFileNameOrEmpty(context: Context): String =
     this?.let {
         try {
-            val cursor = context.contentResolver.query(
-                this,
-                arrayOf(MediaStore.Audio.Media.DATA),
-                null,
-                null,
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                )
+                == PackageManager.PERMISSION_GRANTED
+            ) {
+                val documentFile = DocumentFile.fromSingleUri(context, this)
+                documentFile?.name
+            } else {
                 null
-            )
-            cursor?.use {
-                val columnIndex = it.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                it.moveToFirst()
-                it.getString(columnIndex).substringAfterLast("/")
             }
         } catch (e: SecurityException) {
             context.getString(R.string.file_not_accessible)

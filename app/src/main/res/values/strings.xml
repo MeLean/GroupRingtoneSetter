@@ -8,7 +8,7 @@
     <string name="choose_ringtone">Choose\nRingtone</string>
     <string name="refresh_groups">Refresh groups</string>
     <string name="do_the_magic">Do the magic</string>
-    <string name="file_not_accessible">The fille is not accessible</string>
+    <string name="file_not_accessible">The file\'s name is not accessible</string>
     <string name="contacts">Contacts</string>
     <string name="close_app">Close the application</string>
     <string name="ad_id_banner">ca-app-pub-6177746105485183/9034496655</string>

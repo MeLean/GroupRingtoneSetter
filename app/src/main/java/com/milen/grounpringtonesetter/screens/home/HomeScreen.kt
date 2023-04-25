@@ -3,9 +3,7 @@ package com.milen.grounpringtonesetter.screens.home
 import android.Manifest
 import android.app.Activity
 import android.content.ContentResolver
-import android.content.Intent
 import android.net.Uri
-import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -181,9 +179,9 @@ private fun LabelListItem(
     val context = LocalContext.current
 
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-        onResult = { result ->
-            result.data?.data?.let {
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri ->
+            uri?.let {
                 onRingtoneChosen(item.groupName, it)
             }
         }
@@ -231,12 +229,7 @@ private fun LabelListItem(
             RoundCornerButton(
                 btnLabel = stringResource(R.string.choose_ringtone),
                 onClick = {
-                    Intent(Intent.ACTION_PICK, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI).apply {
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                        type = MediaStore.Audio.Media.CONTENT_TYPE
-                    }.also {
-                        launcher.launch(it)
-                    }
+                    launcher.launch("audio/*")
                 }
             )
         }

@@ -67,8 +67,8 @@ fun HomeScreen(
         screenState.isAllDone ->
             CenteredTextWithButtonScreen(
                 text = stringResource(R.string.everything_set),
-                btnLabel = stringResource(R.string.close_app),
-                onClick = onFinish
+                btnLabel = stringResource(R.string.ok),
+                onClick = { callbacks.showAd() }
             )
         else -> LabelsList(
             screenState,
@@ -81,16 +81,8 @@ fun HomeScreen(
 
     if (screenState.shouldShowAd) {
         ShowAd(
-            onDone = {
-                callbacks.onSetRingtones(
-                    screenState.groupItems,
-                    activity.contentResolver,
-                    false
-                )
-            },
-            onAdLoaded = {
-                callbacks.hideLoading()
-            }
+            onDone = { onFinish() },
+            onAdLoaded = { callbacks.hideLoading() }
         )
     }
 

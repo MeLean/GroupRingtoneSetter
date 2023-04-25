@@ -23,11 +23,17 @@ class HomeViewModel : ViewModel() {
             fetchLabels = ::fetchLabels,
             onSetRingtones = ::onSetRingTones,
             onRingtoneChosen = ::onRingtoneChosen,
-            hideLoading = ::hideLoading
+            hideLoading = ::hideLoading,
+            showAd = ::showAd
         )
 
-    private fun onPermissionDenied() {
-
+    private fun showAd() {
+        _uiState.tryEmit(
+            _uiState.value.copy(
+                isLoading = true,
+                shouldShowAd = true
+            )
+        )
     }
 
     private fun hideLoading() {
@@ -43,36 +49,27 @@ class HomeViewModel : ViewModel() {
     private fun onSetRingTones(
         groupItems: MutableList<GroupItem>,
         contentResolver: ContentResolver,
-        showAdd: Boolean = true
+        showAdd: Boolean = false
     ) {
-        if (showAdd) {
-            _uiState.tryEmit(
-                _uiState.value.copy(
-                    isLoading = true,
-                    shouldShowAd = showAdd
-                )
-            )
-        } else {
-            with(groupItems) {
-                showLoading()
-                viewModelScope.async {
-                    map {
-                        it.ringtoneUri?.let { uri ->
-                            setRingToneToGroupName(
-                                contentResolver = contentResolver,
-                                groupName = it.groupName,
-                                newRingtoneUri = uri
-                            )
-                        }
-                    }
-                    _uiState.tryEmit(
-                        _uiState.value.copy(
-                            isLoading = false,
-                            isAllDone = true,
-                            shouldShowAd = showAdd
+        groupItems.run {
+            showLoading()
+            viewModelScope.async {
+                map {
+                    it.ringtoneUri?.let { uri ->
+                        setRingToneToGroupName(
+                            contentResolver = contentResolver,
+                            groupName = it.groupName,
+                            newRingtoneUri = uri
                         )
-                    )
+                    }
                 }
+                _uiState.tryEmit(
+                    _uiState.value.copy(
+                        isLoading = false,
+                        isAllDone = true,
+                        shouldShowAd = showAdd
+                    )
+                )
             }
         }
     }

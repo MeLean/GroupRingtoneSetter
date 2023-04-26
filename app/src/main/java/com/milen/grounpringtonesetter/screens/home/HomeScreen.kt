@@ -62,13 +62,15 @@ fun HomeScreen(
             CenteredTextWithButtonScreen(
                 text = stringResource(R.string.groups_not_found),
                 btnLabel = stringResource(R.string.close_app),
-                onClick = onFinish
+                onClick = onFinish,
+                onClose = onFinish
             )
         screenState.isAllDone ->
             CenteredTextWithButtonScreen(
                 text = stringResource(R.string.everything_set),
                 btnLabel = stringResource(R.string.ok),
-                onClick = { callbacks.showAd() }
+                onClick = { callbacks.showAd() },
+                onClose = onFinish
             )
         else -> LabelsList(
             screenState,

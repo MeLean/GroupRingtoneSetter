@@ -44,6 +44,10 @@ fun ShowAd(onAdLoaded: () -> Unit = {}, onDone: () -> Unit) {
                                                 override fun onUserEarnedReward(p0: RewardItem) {
                                                     onDone()
                                                 }
+
+                                                override fun onAdDismissedFullScreenContent() {
+                                                    onDone()
+                                                }
                                             })
 
                                         onAdLoaded()

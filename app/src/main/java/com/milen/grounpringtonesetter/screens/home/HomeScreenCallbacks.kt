@@ -10,5 +10,6 @@ data class HomeViewModelCallbacks(
     val fetchLabels: (ContentResolver) -> Unit,
     val onSetRingtones: (MutableList<GroupItem>, ContentResolver, Boolean) -> Unit,
     val onRingtoneChosen: (String, Uri?) -> Unit,
-    val hideLoading: () -> Unit
+    val hideLoading: () -> Unit,
+    val showAd: () -> Unit
 )

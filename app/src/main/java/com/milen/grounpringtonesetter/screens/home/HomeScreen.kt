@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.composables.eventobservers.InternetConnectivity
-import com.milen.grounpringtonesetter.composables.ui.ads.ShowAd
+import com.milen.grounpringtonesetter.composables.ui.ads.BannerAdView
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.navigation.Destination
 import com.milen.grounpringtonesetter.ui.composables.*
@@ -68,8 +68,8 @@ fun HomeScreen(
         screenState.isAllDone ->
             CenteredTextWithButtonScreen(
                 text = stringResource(R.string.everything_set),
-                btnLabel = stringResource(R.string.ok),
-                onClick = { callbacks.showAd() },
+                btnLabel = stringResource(R.string.close_app),
+                onClick = onFinish,
                 onClose = onFinish
             )
         else -> LabelsList(
@@ -78,13 +78,6 @@ fun HomeScreen(
             callbacks.onSetRingtones,
             callbacks.fetchLabels,
             onFinish
-        )
-    }
-
-    if (screenState.shouldShowAd) {
-        ShowAd(
-            onDone = { onFinish() },
-            onAdLoaded = { callbacks.hideLoading() }
         )
     }
 
@@ -161,7 +154,10 @@ private fun HomeScreenBottomBar(
             )
         }
 
-        BannerAdView(modifier = Modifier.fillMaxWidth())
+        BannerAdView(
+            modifier = Modifier.fillMaxWidth(),
+            adId = stringResource(R.string.ad_id_banner)
+        )
     }
 }
 

@@ -10,8 +10,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.GroupItem
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 class HomeViewModel : ViewModel() {
     private val _uiState =
@@ -45,7 +45,6 @@ class HomeViewModel : ViewModel() {
         )
     }
 
-    @Suppress("KotlinConstantConditions")
     private fun onSetRingTones(
         groupItems: MutableList<GroupItem>,
         contentResolver: ContentResolver,
@@ -53,7 +52,7 @@ class HomeViewModel : ViewModel() {
     ) {
         groupItems.run {
             showLoading()
-            viewModelScope.async {
+            viewModelScope.launch {
                 map {
                     it.ringtoneUri?.let { uri ->
                         setRingToneToGroupName(
@@ -93,7 +92,7 @@ class HomeViewModel : ViewModel() {
     fun fetchLabels(contentResolver: ContentResolver) {
         showLoading()
 
-        viewModelScope.async {
+        viewModelScope.launch {
             mutableListOf<String>().apply {
                 contentResolver.query(
                     ContactsContract.Groups.CONTENT_URI,
@@ -218,7 +217,8 @@ class HomeViewModel : ViewModel() {
         groupCursor?.close()
 
         val contactsUri = ContactsContract.Data.CONTENT_URI
-        val contactProjection = arrayOf(ContactsContract.Data.CONTACT_ID)
+        val contactProjection =
+            arrayOf(ContactsContract.Data.CONTACT_ID, ContactsContract.Contacts.DISPLAY_NAME)
         val contactSelection =
             "${ContactsContract.Data.MIMETYPE} = ? AND ${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} = ?"
         val contactSelectionArgs = arrayOf(
@@ -243,7 +243,11 @@ class HomeViewModel : ViewModel() {
             )
 
             val values = ContentValues()
-            values.put(ContactsContract.Contacts.CUSTOM_RINGTONE, newRingtoneUri.toString())
+            val str = newRingtoneUri.toString()
+            values.apply {
+                put(ContactsContract.Data.RAW_CONTACT_ID, contactId)
+                put(ContactsContract.Contacts.CUSTOM_RINGTONE, str)
+            }
             contentResolver.update(contactUri, values, null, null)
         }
 

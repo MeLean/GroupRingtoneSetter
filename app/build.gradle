@@ -17,14 +17,14 @@ android {
         }
     }
     namespace 'com.milen.grounpringtonesetter'
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.milen.grounpringtonesetter"
         minSdk 27
-        targetSdk 33
-        versionCode 8
-        versionName "1.0.8"
+        targetSdk 34
+        versionCode 109
+        versionName "1.0.9"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true

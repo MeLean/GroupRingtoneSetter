@@ -97,7 +97,9 @@ fun HomeScreen(
                 btnLabel = stringResource(R.string.close_app),
                 onClick = onFinish,
                 onClose = onFinish
-            )
+            ).also {
+                callbacks.showAd(activity)
+            }
 
         else -> LabelsList(
             screenState,
@@ -109,6 +111,7 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
+        callbacks.loadAd(activity, activity.getString(R.string.ad_id_interstitial))
         if (activity.areAllPermissionsGranted(permissions)) {
             callbacks.fetchLabels(activity.contentResolver)
         } else {
@@ -121,7 +124,7 @@ fun HomeScreen(
 private fun LabelsList(
     screenState: HomeScreenState,
     onRingtoneChosen: (String, Uri?) -> Unit,
-    onSetRingtones: (MutableList<GroupItem>, ContentResolver, Boolean) -> Unit,
+    onSetRingtones: (MutableList<GroupItem>, ContentResolver) -> Unit,
     fetchLabels: (ContentResolver) -> Unit,
     onFinish: () -> Unit
 ) {
@@ -156,7 +159,7 @@ private fun LabelsList(
 private fun HomeScreenBottomBar(
     fetchLabels: (ContentResolver) -> Unit,
     screenState: HomeScreenState,
-    onSetRingtones: (MutableList<GroupItem>, ContentResolver, Boolean) -> Unit
+    onSetRingtones: (MutableList<GroupItem>, ContentResolver) -> Unit
 ) {
     val contentResolver = LocalContext.current.contentResolver
     Column {
@@ -177,7 +180,7 @@ private fun HomeScreenBottomBar(
                 modifier = Modifier.weight(1f),
                 btnLabel = stringResource(R.string.do_the_magic),
                 isEnabled = screenState.groupItems.isEmpty().not(),
-                onClick = { onSetRingtones(screenState.groupItems, contentResolver, true) }
+                onClick = { onSetRingtones(screenState.groupItems, contentResolver) }
             )
         }
 

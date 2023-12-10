@@ -1,5 +1,6 @@
 package com.milen.grounpringtonesetter.screens.home
 
+import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.milen.grounpringtonesetter.data.GroupItem
 
 data class HomeScreenState(
@@ -8,5 +9,5 @@ data class HomeScreenState(
     var isLoading: Boolean = true,
     val areLabelsFetched: Boolean = false,
     val isAllDone: Boolean = false,
-    val shouldShowAd: Boolean = false
+    val onDoneAd: InterstitialAd? = null
 )

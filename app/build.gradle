@@ -22,11 +22,10 @@ android {
     defaultConfig {
         applicationId "com.milen.grounpringtonesetter"
         minSdk 27
-        release/rc_version_1.0.9
         targetSdk 34
         versionCode 109
         versionName "1.0.9"
-       
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary true

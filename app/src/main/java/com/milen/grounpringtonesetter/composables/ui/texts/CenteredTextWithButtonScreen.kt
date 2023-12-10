@@ -1,7 +1,16 @@
-package com.milen.grounpringtonesetter.ui.composables
+package com.milen.grounpringtonesetter.composables.ui.texts
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.Text
+import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
@@ -12,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.composables.ui.ads.BannerAdView
+import com.milen.grounpringtonesetter.composables.ui.buttons.RoundCornerButton
 
 @Composable
 fun CenteredTextWithButtonScreen(

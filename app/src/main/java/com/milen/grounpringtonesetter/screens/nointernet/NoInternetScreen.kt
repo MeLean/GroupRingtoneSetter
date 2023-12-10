@@ -4,7 +4,12 @@ import BackPressHandler
 import android.app.Activity
 import android.content.Intent
 import android.provider.Settings
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -15,10 +20,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.composables.eventobservers.InternetConnectivity
+import com.milen.grounpringtonesetter.composables.ui.buttons.RoundCornerButton
+import com.milen.grounpringtonesetter.composables.ui.texts.TextWidget
 import com.milen.grounpringtonesetter.navigation.Destination
-import com.milen.grounpringtonesetter.ui.composables.RoundCornerButton
 import com.milen.grounpringtonesetter.ui.composables.RowWithEndButton
-import com.milen.grounpringtonesetter.ui.composables.TextWidget
 
 @Composable
 fun NoInternetScreen(

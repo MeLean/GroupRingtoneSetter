@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.ui.composables
+package com.milen.grounpringtonesetter.composables.ui.texts
 
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text

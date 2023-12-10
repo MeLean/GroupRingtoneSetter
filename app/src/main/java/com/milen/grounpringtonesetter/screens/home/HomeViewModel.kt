@@ -1,21 +1,29 @@
 package com.milen.grounpringtonesetter.screens.home
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
+import android.content.Context
 import android.net.Uri
 import android.provider.ContactsContract
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.LoadAdError
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.GroupItem
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 class HomeViewModel : ViewModel() {
     private val _uiState =
         MutableStateFlow(HomeScreenState())
+
+    private var interstitialAd: InterstitialAd? = null
 
     fun getHomeViewModelCallbacks(): HomeViewModelCallbacks =
         HomeViewModelCallbacks(
@@ -24,36 +32,42 @@ class HomeViewModel : ViewModel() {
             onSetRingtones = ::onSetRingTones,
             onRingtoneChosen = ::onRingtoneChosen,
             hideLoading = ::hideLoading,
+            loadAd = ::loadAd,
             showAd = ::showAd
         )
 
-    private fun showAd() {
-        _uiState.tryEmit(
-            _uiState.value.copy(
-                isLoading = true,
-                shouldShowAd = true
-            )
-        )
+    private fun loadAd(context: Context, adUnitId: String) {
+        val adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(context, adUnitId, adRequest, object : InterstitialAdLoadCallback() {
+            override fun onAdLoaded(ad: InterstitialAd) {
+                interstitialAd = ad
+            }
+
+            override fun onAdFailedToLoad(adError: LoadAdError) {
+                interstitialAd = null
+            }
+        })
+    }
+
+    private fun showAd(activity: Activity) {
+        interstitialAd?.show(activity)
     }
 
     private fun hideLoading() {
         _uiState.tryEmit(
             _uiState.value.copy(
-                isLoading = false,
-                shouldShowAd = false
+                isLoading = false
             )
         )
     }
 
-    @Suppress("KotlinConstantConditions")
     private fun onSetRingTones(
         groupItems: MutableList<GroupItem>,
-        contentResolver: ContentResolver,
-        showAdd: Boolean = false
+        contentResolver: ContentResolver
     ) {
         groupItems.run {
             showLoading()
-            viewModelScope.async {
+            viewModelScope.launch {
                 map {
                     it.ringtoneUri?.let { uri ->
                         setRingToneToGroupName(
@@ -67,7 +81,7 @@ class HomeViewModel : ViewModel() {
                     _uiState.value.copy(
                         isLoading = false,
                         isAllDone = true,
-                        shouldShowAd = showAdd
+                        onDoneAd = interstitialAd
                     )
                 )
             }
@@ -93,7 +107,7 @@ class HomeViewModel : ViewModel() {
     fun fetchLabels(contentResolver: ContentResolver) {
         showLoading()
 
-        viewModelScope.async {
+        viewModelScope.launch {
             mutableListOf<String>().apply {
                 contentResolver.query(
                     ContactsContract.Groups.CONTENT_URI,
@@ -218,7 +232,8 @@ class HomeViewModel : ViewModel() {
         groupCursor?.close()
 
         val contactsUri = ContactsContract.Data.CONTENT_URI
-        val contactProjection = arrayOf(ContactsContract.Data.CONTACT_ID)
+        val contactProjection =
+            arrayOf(ContactsContract.Data.CONTACT_ID, ContactsContract.Contacts.DISPLAY_NAME)
         val contactSelection =
             "${ContactsContract.Data.MIMETYPE} = ? AND ${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} = ?"
         val contactSelectionArgs = arrayOf(
@@ -243,7 +258,11 @@ class HomeViewModel : ViewModel() {
             )
 
             val values = ContentValues()
-            values.put(ContactsContract.Contacts.CUSTOM_RINGTONE, newRingtoneUri.toString())
+            val str = newRingtoneUri.toString()
+            values.apply {
+                put(ContactsContract.Data.RAW_CONTACT_ID, contactId)
+                put(ContactsContract.Contacts.CUSTOM_RINGTONE, str)
+            }
             contentResolver.update(contactUri, values, null, null)
         }
 

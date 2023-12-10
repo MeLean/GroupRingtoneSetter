@@ -6,11 +6,29 @@ import android.content.ContentResolver
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.*
-import androidx.compose.runtime.*
+import androidx.compose.material.AlertDialog
+import androidx.compose.material.Card
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -22,8 +40,14 @@ import com.milen.grounpringtonesetter.composables.eventobservers.InternetConnect
 import com.milen.grounpringtonesetter.composables.ui.ads.BannerAdView
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.navigation.Destination
-import com.milen.grounpringtonesetter.ui.composables.*
+import com.milen.grounpringtonesetter.ui.composables.CenteredTextWithButtonScreen
+import com.milen.grounpringtonesetter.ui.composables.CircleWithText
+import com.milen.grounpringtonesetter.ui.composables.FullScreenLoading
+import com.milen.grounpringtonesetter.ui.composables.RoundCornerButton
+import com.milen.grounpringtonesetter.ui.composables.RowWithEndButton
+import com.milen.grounpringtonesetter.ui.composables.TextWidget
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
+import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 
 
@@ -35,11 +59,12 @@ fun HomeScreen(
 ) {
     val screenState by callbacks.uiState.collectAsStateWithLifecycle()
     val activity = LocalContext.current as Activity
-    val permissions = listOf(
-        Manifest.permission.READ_EXTERNAL_STORAGE,
+    val permissions = mutableListOf(
         Manifest.permission.WRITE_CONTACTS,
-        Manifest.permission.READ_CONTACTS
-    )
+        Manifest.permission.READ_CONTACTS,
+    ).also {
+        it.add(audioPermissionSdkBased())
+    }
 
     val launcherMultiplePermissions = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -65,13 +90,17 @@ fun HomeScreen(
                 onClick = onFinish,
                 onClose = onFinish
             )
+
         screenState.isAllDone ->
             CenteredTextWithButtonScreen(
                 text = stringResource(R.string.everything_set),
                 btnLabel = stringResource(R.string.close_app),
                 onClick = onFinish,
                 onClose = onFinish
-            )
+            ).also {
+                callbacks.showAd(activity)
+            }
+
         else -> LabelsList(
             screenState,
             callbacks.onRingtoneChosen,
@@ -82,6 +111,7 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
+        callbacks.loadAd(activity, activity.getString(R.string.ad_id_interstitial))
         if (activity.areAllPermissionsGranted(permissions)) {
             callbacks.fetchLabels(activity.contentResolver)
         } else {
@@ -94,7 +124,7 @@ fun HomeScreen(
 private fun LabelsList(
     screenState: HomeScreenState,
     onRingtoneChosen: (String, Uri?) -> Unit,
-    onSetRingtones: (MutableList<GroupItem>, ContentResolver, Boolean) -> Unit,
+    onSetRingtones: (MutableList<GroupItem>, ContentResolver) -> Unit,
     fetchLabels: (ContentResolver) -> Unit,
     onFinish: () -> Unit
 ) {
@@ -129,7 +159,7 @@ private fun LabelsList(
 private fun HomeScreenBottomBar(
     fetchLabels: (ContentResolver) -> Unit,
     screenState: HomeScreenState,
-    onSetRingtones: (MutableList<GroupItem>, ContentResolver, Boolean) -> Unit
+    onSetRingtones: (MutableList<GroupItem>, ContentResolver) -> Unit
 ) {
     val contentResolver = LocalContext.current.contentResolver
     Column {
@@ -150,7 +180,7 @@ private fun HomeScreenBottomBar(
                 modifier = Modifier.weight(1f),
                 btnLabel = stringResource(R.string.do_the_magic),
                 isEnabled = screenState.groupItems.isEmpty().not(),
-                onClick = { onSetRingtones(screenState.groupItems, contentResolver, true) }
+                onClick = { onSetRingtones(screenState.groupItems, contentResolver) }
             )
         }
 

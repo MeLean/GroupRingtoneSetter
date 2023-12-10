@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.ui.composables
+package com.milen.grounpringtonesetter.composables.ui.buttons
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight

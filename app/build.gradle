@@ -23,8 +23,8 @@ android {
         applicationId "com.milen.grounpringtonesetter"
         minSdk 27
         targetSdk 34
-        versionCode 109
-        versionName "1.0.9"
+        versionCode 112
+        versionName "1.1.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -63,34 +63,50 @@ android {
 }
 
 dependencies {
+    implementation 'androidx.documentfile:documentfile:1.0.1'
 
-    implementation 'androidx.core:core-ktx:1.7.0'
-    implementation "androidx.compose.ui:ui:$compose_ui_version"
-    implementation "androidx.compose.ui:ui-tooling-preview:$compose_ui_version"
-    implementation 'androidx.compose.material:material:1.2.0'
-    implementation 'androidx.activity:activity-compose:1.4.0'
-    implementation "androidx.compose.ui:ui-tooling:1.1.0-alpha03"
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.1'
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.0"
-    implementation "androidx.lifecycle:lifecycle-runtime-compose:2.6.0"
-    implementation "androidx.navigation:navigation-compose:2.5.3"
+    // Define the version for Compose and other dependencies
+    def core_ktx_version = '1.12.0'
+    def compose_version = '1.5.4'
+    def lifecycle_version = "2.6.2"
+    def accompanist_version = '0.30.0'
+    def play_services_ads_version = '22.6.0'
+    def activity_compose_version = '1.8.1'
+    def fragment_compose_version = '1.6.2'
+    def navigation_compose_version = '2.7.5'
+    def coroutines_version = '1.7.1'
 
-    implementation 'com.google.accompanist:accompanist-permissions:0.30.0'
-    implementation 'com.google.android.gms:play-services-ads:22.0.0'
 
-    def lifecycle_version = "2.4.0-beta01"
+    // Core and Compose dependencies
+    implementation "androidx.core:core-ktx:$core_ktx_version"
+    implementation "androidx.compose.ui:ui:$compose_version"
+    implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
+    implementation "androidx.compose.material:material:$compose_version"
+    implementation "androidx.activity:activity-compose:$activity_compose_version"
+    implementation "androidx.fragment:fragment-ktx:$fragment_compose_version"
+    implementation "androidx.compose.ui:ui-tooling:$compose_version"
+
+    // Lifecycle and Coroutines
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:$lifecycle_version"
+    implementation "androidx.lifecycle:lifecycle-runtime-compose:$lifecycle_version"
     implementation "androidx.lifecycle:lifecycle-viewmodel-compose:$lifecycle_version"
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_version"
 
-    def compose_version = "1.1.0-alpha04"
-    implementation "androidx.compose.runtime:runtime:$compose_version"
-    implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
-    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.4.0"
+    // Navigation
+    implementation "androidx.navigation:navigation-compose:$navigation_compose_version"
 
+    // Accompanist
+    implementation "com.google.accompanist:accompanist-permissions:$accompanist_version"
+
+    // Google Play Services
+    implementation "com.google.android.gms:play-services-ads:$play_services_ads_version"
+
+    // Test dependencies
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_ui_version"
-    debugImplementation "androidx.compose.ui:ui-tooling:$compose_ui_version"
-    debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_ui_version"
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_version"
+    debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
+    debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_version"
 }

@@ -68,13 +68,13 @@ dependencies {
     // Define the version for Compose and other dependencies
     def core_ktx_version = '1.12.0'
     def compose_version = '1.5.4'
-    def lifecycle_version = "2.6.2"
+    def lifecycle_version = "2.7.0"
     def accompanist_version = '0.30.0'
     def play_services_ads_version = '22.6.0'
-    def activity_compose_version = '1.8.1'
+    def activity_compose_version = '1.8.2'
     def fragment_compose_version = '1.6.2'
-    def navigation_compose_version = '2.7.5'
-    def coroutines_version = '1.7.1'
+    def navigation_compose_version = '2.7.6'
+    def coroutines_version = '1.7.3'
 
 
     // Core and Compose dependencies

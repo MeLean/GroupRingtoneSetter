@@ -6,6 +6,7 @@ import android.content.ContentResolver
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
@@ -32,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,9 +42,11 @@ import com.milen.grounpringtonesetter.composables.eventobservers.InternetConnect
 import com.milen.grounpringtonesetter.composables.ui.ads.BannerAdView
 import com.milen.grounpringtonesetter.composables.ui.buttons.RoundCornerButton
 import com.milen.grounpringtonesetter.composables.ui.screens.FullScreenLoading
+import com.milen.grounpringtonesetter.composables.ui.screens.FullscreenImageWithContent
 import com.milen.grounpringtonesetter.composables.ui.texts.CenteredTextWithButtonScreen
 import com.milen.grounpringtonesetter.composables.ui.texts.CircleWithText
-import com.milen.grounpringtonesetter.composables.ui.texts.TextWidget
+import com.milen.grounpringtonesetter.composables.ui.texts.TextH6Widget
+import com.milen.grounpringtonesetter.composables.ui.widgets.TransparentScaffold
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.navigation.Destination
 import com.milen.grounpringtonesetter.ui.composables.RowWithEndButton
@@ -84,30 +88,38 @@ fun HomeScreen(
     when {
         screenState.isLoading -> FullScreenLoading()
         screenState.groupItems.isEmpty() ->
-            CenteredTextWithButtonScreen(
-                text = stringResource(R.string.groups_not_found),
-                btnLabel = stringResource(R.string.close_app),
-                onClick = onFinish,
-                onClose = onFinish
-            )
-
-        screenState.isAllDone ->
-            CenteredTextWithButtonScreen(
-                text = stringResource(R.string.everything_set),
-                btnLabel = stringResource(R.string.close_app),
-                onClick = onFinish,
-                onClose = onFinish
-            ).also {
-                callbacks.showAd(activity)
+            FullscreenImageWithContent(painterResource(id = R.drawable.ringtone_background_3)) {
+                CenteredTextWithButtonScreen(
+                    text = stringResource(R.string.groups_not_found),
+                    btnLabel = stringResource(R.string.close_app),
+                    onClick = onFinish,
+                    onClose = onFinish
+                )
             }
 
-        else -> LabelsList(
-            screenState,
-            callbacks.onRingtoneChosen,
-            callbacks.onSetRingtones,
-            callbacks.fetchLabels,
-            onFinish
-        )
+
+        screenState.isAllDone ->
+            FullscreenImageWithContent(painterResource(id = R.drawable.ringtone_background_3)) {
+                CenteredTextWithButtonScreen(
+                    text = stringResource(R.string.everything_set),
+                    btnLabel = stringResource(R.string.close_app),
+                    onClick = onFinish,
+                    onClose = onFinish
+                ).also {
+                    callbacks.showAd(activity)
+                }
+            }
+
+        else ->
+            FullscreenImageWithContent(painterResource(id = R.drawable.ringtone_background_3)) {
+                LabelsList(
+                    screenState,
+                    callbacks.onRingtoneChosen,
+                    callbacks.onSetRingtones,
+                    callbacks.fetchLabels,
+                    onFinish
+                )
+            }
     }
 
     LaunchedEffect(Unit) {
@@ -128,7 +140,7 @@ private fun LabelsList(
     fetchLabels: (ContentResolver) -> Unit,
     onFinish: () -> Unit
 ) {
-    Scaffold(
+    TransparentScaffold(
         topBar = {
             RowWithEndButton(label = stringResource(R.string.home)) { onFinish() }
         },
@@ -213,8 +225,10 @@ private fun LabelListItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp, horizontal = 16.dp),
-        elevation = 8.dp,
-        shape = RoundedCornerShape(16.dp)
+        elevation = 16.dp,
+        shape = RoundedCornerShape(16.dp),
+        backgroundColor = colorResource(id = R.color.very_transparent_black),
+        border = BorderStroke(2.dp, color = colorResource(id = R.color.textColor))
     ) {
         Row(
             modifier = Modifier
@@ -226,12 +240,12 @@ private fun LabelListItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.Center,
                 content = {
-                    TextWidget(
+                    TextH6Widget(
                         text = item.groupName,
                         style = MaterialTheme.typography.h6,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
-                    TextWidget(
+                    TextH6Widget(
                         text = item.ringtoneUri.getFileNameOrEmpty(context),
                         style = MaterialTheme.typography.body2,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -261,7 +275,7 @@ private fun LabelListItem(
             modifier = Modifier.padding(8.dp),
             onDismissRequest = { setIsDialogOpen(false) },
             title = {
-                TextWidget(
+                TextH6Widget(
                     modifier = Modifier.padding(8.dp),
                     text = stringResource(R.string.contacts),
                     style = MaterialTheme.typography.h6,
@@ -274,7 +288,7 @@ private fun LabelListItem(
                         key = { i -> contacts[i].name }
                     ) { index ->
                         with(contacts[index]) {
-                            TextWidget(
+                            TextH6Widget(
                                 text = name,
                                 style = MaterialTheme.typography.subtitle2,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),

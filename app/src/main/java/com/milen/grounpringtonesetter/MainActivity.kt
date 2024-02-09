@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import com.google.android.gms.ads.MobileAds
 import com.milen.grounpringtonesetter.navigation.Destination
 import com.milen.grounpringtonesetter.navigation.MainNavHost
+import com.milen.grounpringtonesetter.ui.theme.LabelRingtoneSetterTheme
 import com.milen.grounpringtonesetter.utils.hasInternetConnection
 
 
@@ -21,10 +22,12 @@ class MainActivity : ComponentActivity() {
         MobileAds.initialize(this) {}
 
         setContent {
-            MainNavHost(
-                navController = rememberNavController(),
-                startDestination = getStartDestination()
-            )
+            LabelRingtoneSetterTheme {
+                MainNavHost(
+                    navController = rememberNavController(),
+                    startDestination = getStartDestination()
+                )
+            }
         }
     }
 

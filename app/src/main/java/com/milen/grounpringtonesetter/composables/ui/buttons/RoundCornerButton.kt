@@ -8,8 +8,10 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.milen.grounpringtonesetter.R
 
 @Composable
 fun RoundCornerButton(
@@ -29,7 +31,8 @@ fun RoundCornerButton(
         Text(
             text = btnLabel,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(4.dp)
+            modifier = Modifier.padding(4.dp),
+            color = colorResource(id = R.color.textColor)
         )
     }
 }

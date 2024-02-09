@@ -11,7 +11,6 @@ import androidx.navigation.compose.composable
 import com.milen.grounpringtonesetter.screens.home.HomeScreen
 import com.milen.grounpringtonesetter.screens.home.HomeViewModel
 import com.milen.grounpringtonesetter.screens.nointernet.NoInternetScreen
-import com.milen.grounpringtonesetter.ui.theme.LabelRingtoneSetterTheme
 
 @Composable
 @ExperimentalFoundationApi
@@ -28,22 +27,18 @@ fun MainNavHost(
         val ctx = LocalContext.current as ComponentActivity
         val viewModel: HomeViewModel by ctx.viewModels()
         viewModel.run {
-            LabelRingtoneSetterTheme {
-                HomeScreen(
-                    callbacks = viewModel.getHomeViewModelCallbacks(),
-                    navigate = navController::navigate,
-                    onFinish = { ctx.finish() },
-                )
-            }
+            HomeScreen(
+                callbacks = viewModel.getHomeViewModelCallbacks(),
+                navigate = navController::navigate,
+                onFinish = { ctx.finish() },
+            )
         }
     }
 
     composable(route = Destination.NO_INTERNET.route) {
-        LabelRingtoneSetterTheme {
-            NoInternetScreen(
-                navigate = navController::navigate
-            )
-        }
+        NoInternetScreen(
+            navigate = navController::navigate
+        )
     }
 }
 

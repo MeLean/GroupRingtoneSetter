@@ -4,4 +4,12 @@
     <style name="Theme.GroupRingtoneSetter" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@color/purple_700</item>
     </style>
+
+    <style name="Theme.App.SplashScreen" parent="Theme.SplashScreen">
+        <item name="postSplashScreenTheme">@style/MySlashTheme</item>
+    </style>
+
+    <style name="MySlashTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@drawable/ringtone_background_3</item>
+    </style>
 </resources>

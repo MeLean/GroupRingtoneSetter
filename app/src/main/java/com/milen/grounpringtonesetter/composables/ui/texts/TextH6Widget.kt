@@ -4,12 +4,14 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import com.milen.grounpringtonesetter.R
 
 @Composable
-fun TextWidget(
+fun TextH6Widget(
     modifier: Modifier = Modifier,
     text: String,
     style: TextStyle = MaterialTheme.typography.h6,
@@ -23,6 +25,7 @@ fun TextWidget(
         style = style,
         maxLines = maxLines,
         overflow = overflow,
-        textAlign = textAlign
+        textAlign = textAlign,
+        color = colorResource(R.color.textColor),
     )
 }

@@ -20,7 +20,7 @@ import com.milen.grounpringtonesetter.R
 fun CircleWithText(
     text: String = "",
     backgroundColor: Color = colorResource(R.color.purple_200),
-    textColor: Color = colorResource(R.color.white),
+    textColor: Color = colorResource(R.color.textColor),
     onClick: () -> Unit = {}
 ) {
     Box(

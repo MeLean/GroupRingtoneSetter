@@ -1,18 +1,12 @@
 package com.milen.grounpringtonesetter.composables.ui.texts
 
+import TransparentToolbar
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Scaffold
-import androidx.compose.material.Text
-import androidx.compose.material.TopAppBar
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.composables.ui.ads.BannerAdView
 import com.milen.grounpringtonesetter.composables.ui.buttons.RoundCornerButton
+import com.milen.grounpringtonesetter.composables.ui.widgets.TransparentScaffold
 
 @Composable
 fun CenteredTextWithButtonScreen(
@@ -31,18 +26,9 @@ fun CenteredTextWithButtonScreen(
     onClick: () -> Unit,
     onClose: () -> Unit,
 ) {
-    Scaffold(
+    TransparentScaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    IconButton(onClick = { onClose() }) {
-                        Icon(Icons.Filled.Close, "Close")
-                    }
-                },
-                backgroundColor = MaterialTheme.colors.surface,
-                elevation = 0.dp
-            )
+            TransparentToolbar(title = title, onClose = onClose)
         },
         content = {
             Box(
@@ -51,7 +37,7 @@ fun CenteredTextWithButtonScreen(
                     .padding(it),
                 contentAlignment = Alignment.Center
             ) {
-                TextWidget(
+                TextH6Widget(
                     text = text,
                     style = MaterialTheme.typography.h4,
                     textAlign = TextAlign.Center

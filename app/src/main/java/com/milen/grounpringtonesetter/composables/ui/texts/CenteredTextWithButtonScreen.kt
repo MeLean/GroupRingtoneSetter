@@ -1,6 +1,5 @@
 package com.milen.grounpringtonesetter.composables.ui.texts
 
-import TransparentToolbar
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +16,7 @@ import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.composables.ui.ads.BannerAdView
 import com.milen.grounpringtonesetter.composables.ui.buttons.RoundCornerButton
 import com.milen.grounpringtonesetter.composables.ui.widgets.TransparentScaffold
+import com.milen.grounpringtonesetter.composables.ui.widgets.TransparentToolbar
 
 @Composable
 fun CenteredTextWithButtonScreen(
@@ -37,7 +37,7 @@ fun CenteredTextWithButtonScreen(
                     .padding(it),
                 contentAlignment = Alignment.Center
             ) {
-                TextH6Widget(
+                TextWidget(
                     text = text,
                     style = MaterialTheme.typography.h4,
                     textAlign = TextAlign.Center

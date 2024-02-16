@@ -6,7 +6,6 @@ import android.content.ContentResolver
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,24 +15,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.AlertDialog
-import androidx.compose.material.Card
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
-import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,17 +30,15 @@ import com.milen.grounpringtonesetter.composables.eventobservers.InternetConnect
 import com.milen.grounpringtonesetter.composables.ui.ads.BannerAdView
 import com.milen.grounpringtonesetter.composables.ui.buttons.RoundCornerButton
 import com.milen.grounpringtonesetter.composables.ui.screens.FullScreenLoading
-import com.milen.grounpringtonesetter.composables.ui.screens.FullscreenImageWithContent
+import com.milen.grounpringtonesetter.composables.ui.screens.FullscreenImageWithCenteredContent
 import com.milen.grounpringtonesetter.composables.ui.texts.CenteredTextWithButtonScreen
-import com.milen.grounpringtonesetter.composables.ui.texts.CircleWithText
-import com.milen.grounpringtonesetter.composables.ui.texts.TextH6Widget
+import com.milen.grounpringtonesetter.composables.ui.widgets.GroupItemRow
 import com.milen.grounpringtonesetter.composables.ui.widgets.TransparentScaffold
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.navigation.Destination
 import com.milen.grounpringtonesetter.ui.composables.RowWithEndButton
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
-import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 
 
 @Composable
@@ -74,10 +60,8 @@ fun HomeScreen(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
         when {
-            activity.areAllPermissionsGranted(permissions) -> callbacks.fetchLabels(activity.contentResolver)
-            else -> {
-                callbacks.hideLoading()
-            }
+            activity.areAllPermissionsGranted(permissions) -> callbacks.fetchGroups()
+            else -> callbacks.hideLoading()
         }
     }
 
@@ -88,7 +72,7 @@ fun HomeScreen(
     when {
         screenState.isLoading -> FullScreenLoading()
         screenState.groupItems.isEmpty() ->
-            FullscreenImageWithContent(painterResource(id = R.drawable.ringtone_background_3)) {
+            FullscreenImageWithCenteredContent {
                 CenteredTextWithButtonScreen(
                     text = stringResource(R.string.groups_not_found),
                     btnLabel = stringResource(R.string.close_app),
@@ -97,9 +81,8 @@ fun HomeScreen(
                 )
             }
 
-
         screenState.isAllDone ->
-            FullscreenImageWithContent(painterResource(id = R.drawable.ringtone_background_3)) {
+            FullscreenImageWithCenteredContent {
                 CenteredTextWithButtonScreen(
                     text = stringResource(R.string.everything_set),
                     btnLabel = stringResource(R.string.close_app),
@@ -111,13 +94,17 @@ fun HomeScreen(
             }
 
         else ->
-            FullscreenImageWithContent(painterResource(id = R.drawable.ringtone_background_3)) {
+            FullscreenImageWithCenteredContent {
                 LabelsList(
-                    screenState,
-                    callbacks.onRingtoneChosen,
-                    callbacks.onSetRingtones,
-                    callbacks.fetchLabels,
-                    onFinish
+                    screenState = screenState,
+                    onRingtoneChosen = callbacks.onRingtoneChosen,
+                    onSetRingtones = callbacks.onSetRingtones,
+                    createGroup = callbacks.onCreateGroup,
+                    onGroupDeleted = callbacks.onGroupDeleted,
+                    setUpGroupNamePicking = callbacks.setUpGroupNamePicking,
+                    setUpContactsPicking = callbacks.setUpContactsPicking,
+                    onFinish = onFinish,
+                    navigate = navigate
                 )
             }
     }
@@ -125,7 +112,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         callbacks.loadAd(activity, activity.getString(R.string.ad_id_interstitial))
         if (activity.areAllPermissionsGranted(permissions)) {
-            callbacks.fetchLabels(activity.contentResolver)
+            callbacks.fetchGroups()
         } else {
             launcherMultiplePermissions.launch(permissions.toTypedArray())
         }
@@ -135,10 +122,14 @@ fun HomeScreen(
 @Composable
 private fun LabelsList(
     screenState: HomeScreenState,
-    onRingtoneChosen: (String, Uri?) -> Unit,
-    onSetRingtones: (MutableList<GroupItem>, ContentResolver) -> Unit,
-    fetchLabels: (ContentResolver) -> Unit,
-    onFinish: () -> Unit
+    onRingtoneChosen: (Long, Uri?) -> Unit,
+    onSetRingtones: (List<GroupItem>, ContentResolver) -> Unit,
+    createGroup: (String?) -> Unit,
+    onGroupDeleted: (Long) -> Unit,
+    onFinish: () -> Unit,
+    navigate: (String) -> Unit,
+    setUpGroupNamePicking: (GroupItem) -> Unit,
+    setUpContactsPicking: (GroupItem) -> Unit,
 ) {
     TransparentScaffold(
         topBar = {
@@ -151,28 +142,34 @@ private fun LabelsList(
                     .padding(padding)
             ) {
                 screenState.groupItems.let {
-                    items(
-                        count = it.size,
-                        key = { i -> it[i].groupName }
-                    )
-                    { index ->
-                        LabelListItem(it[index], onRingtoneChosen)
+                    items(count = it.size, key = { i -> it[i].id }) { index ->
+                        GroupItemRow(
+                            item = it[index],
+                            onRingtoneChosen = onRingtoneChosen,
+                            onGroupDeleted = onGroupDeleted,
+                            setUpGroupNamePicking = setUpGroupNamePicking,
+                            setUpContactsPicking = setUpContactsPicking,
+                            navigate = navigate
+                        )
                     }
                 }
             }
         },
         bottomBar = {
-            HomeScreenBottomBar(fetchLabels, screenState, onSetRingtones)
+            HomeScreenBottomBar(screenState, onSetRingtones) {
+                createGroup(it)
+            }
         }
     )
 }
 
 @Composable
 private fun HomeScreenBottomBar(
-    fetchLabels: (ContentResolver) -> Unit,
     screenState: HomeScreenState,
-    onSetRingtones: (MutableList<GroupItem>, ContentResolver) -> Unit
+    onSetRingtones: (List<GroupItem>, ContentResolver) -> Unit,
+    onCreateGroup: (String?) -> Unit,
 ) {
+    // TODO create launcher for the picker and use onCreateGroup
     val contentResolver = LocalContext.current.contentResolver
     Column {
         Row(
@@ -184,8 +181,8 @@ private fun HomeScreenBottomBar(
         ) {
             RoundCornerButton(
                 modifier = Modifier.weight(1f),
-                btnLabel = stringResource(R.string.refresh_groups),
-                onClick = { fetchLabels(contentResolver) },
+                btnLabel = stringResource(R.string.add_group),
+                onClick = { onCreateGroup("NewGroup1") }, //TODO CRETE GROUP NAME
             )
             Spacer(modifier = Modifier.width(16.dp))
             RoundCornerButton(
@@ -199,109 +196,6 @@ private fun HomeScreenBottomBar(
         BannerAdView(
             modifier = Modifier.fillMaxWidth(),
             adId = stringResource(R.string.ad_id_banner)
-        )
-    }
-}
-
-@Composable
-private fun LabelListItem(
-    item: GroupItem,
-    onRingtoneChosen: (String, Uri?) -> Unit
-) {
-    val context = LocalContext.current
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = { uri ->
-            uri?.let {
-                onRingtoneChosen(item.groupName, it)
-            }
-        }
-    )
-
-    val (isDialogOpen, setIsDialogOpen) = remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = 16.dp),
-        elevation = 16.dp,
-        shape = RoundedCornerShape(16.dp),
-        backgroundColor = colorResource(id = R.color.very_transparent_black),
-        border = BorderStroke(2.dp, color = colorResource(id = R.color.textColor))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center,
-                content = {
-                    TextH6Widget(
-                        text = item.groupName,
-                        style = MaterialTheme.typography.h6,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                    TextH6Widget(
-                        text = item.ringtoneUri.getFileNameOrEmpty(context),
-                        style = MaterialTheme.typography.body2,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                    CircleWithText(
-                        text = "${item.contacts.size}",
-                        onClick = {
-                            if (item.contacts.isNotEmpty()) {
-                                setIsDialogOpen(true)
-                            }
-                        }
-                    )
-                }
-            )
-            RoundCornerButton(
-                btnLabel = stringResource(R.string.choose_ringtone),
-                onClick = {
-                    launcher.launch("audio/*")
-                }
-            )
-        }
-    }
-
-    if (isDialogOpen) {
-        val contacts = item.contacts
-        AlertDialog(
-            modifier = Modifier.padding(8.dp),
-            onDismissRequest = { setIsDialogOpen(false) },
-            title = {
-                TextH6Widget(
-                    modifier = Modifier.padding(8.dp),
-                    text = stringResource(R.string.contacts),
-                    style = MaterialTheme.typography.h6,
-                )
-            },
-            text = {
-                LazyColumn(Modifier.wrapContentHeight()) {
-                    items(
-                        count = contacts.size,
-                        key = { i -> contacts[i].name }
-                    ) { index ->
-                        with(contacts[index]) {
-                            TextH6Widget(
-                                text = name,
-                                style = MaterialTheme.typography.subtitle2,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { setIsDialogOpen(false) }) {
-                    Text(stringResource(R.string.ok))
-                }
-            }
         )
     }
 }

@@ -1,3 +1,5 @@
+package com.milen.grounpringtonesetter.composables.ui.widgets
+
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.Text
@@ -14,10 +16,14 @@ import com.milen.grounpringtonesetter.R
 fun TransparentToolbar(title: String, onClose: () -> Unit) {
     TopAppBar(
         backgroundColor = Color.Transparent,
-        title = { Text(title, color = colorResource(R.color.textColor)) },
+        title = { Text(title, color = colorResource(id = R.color.textColor)) },
         navigationIcon = {
             IconButton(onClick = { onClose() }) {
-                Icon(Icons.Filled.Close, contentDescription = "Close")
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    tint = colorResource(id = R.color.textColor),
+                    contentDescription = "Close"
+                )
             }
         },
         elevation = 0.dp

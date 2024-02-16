@@ -21,8 +21,8 @@ import androidx.compose.ui.unit.dp
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.composables.eventobservers.InternetConnectivity
 import com.milen.grounpringtonesetter.composables.ui.buttons.RoundCornerButton
-import com.milen.grounpringtonesetter.composables.ui.screens.FullscreenImageWithContent
-import com.milen.grounpringtonesetter.composables.ui.texts.TextH6Widget
+import com.milen.grounpringtonesetter.composables.ui.screens.FullscreenImageWithCenteredContent
+import com.milen.grounpringtonesetter.composables.ui.texts.TextWidget
 import com.milen.grounpringtonesetter.composables.ui.widgets.TransparentScaffold
 import com.milen.grounpringtonesetter.navigation.Destination
 import com.milen.grounpringtonesetter.ui.composables.RowWithEndButton
@@ -36,7 +36,7 @@ fun NoInternetScreen(
 
     BackPressHandler { finishActivity() }
 
-    FullscreenImageWithContent(painter = painterResource(id = R.drawable.ringtone_background_3)) {
+    FullscreenImageWithCenteredContent(painter = painterResource(id = R.drawable.ringtone_background_3)) {
         TransparentScaffold(
             topBar = {
                 RowWithEndButton(label = stringResource(R.string.home)) { finishActivity() }
@@ -49,7 +49,7 @@ fun NoInternetScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    TextH6Widget(
+                    TextWidget(
                         text = stringResource(R.string.no_internet_description),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -66,9 +66,9 @@ fun NoInternetScreen(
                         modifier = Modifier.padding(vertical = 16.dp, horizontal = 32.dp),
                         btnLabel = stringResource(R.string.open_network_settings)
                     ) {
-                        Intent(Settings.ACTION_WIFI_SETTINGS).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }.also { activity.startActivity(it) }
+                        Intent(Settings.ACTION_WIFI_SETTINGS)
+                            .apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
+                            .also { activity.startActivity(it) }
                     }
                 }
 

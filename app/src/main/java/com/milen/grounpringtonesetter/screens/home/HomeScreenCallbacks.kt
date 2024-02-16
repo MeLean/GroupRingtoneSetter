@@ -9,9 +9,13 @@ import kotlinx.coroutines.flow.StateFlow
 
 data class HomeViewModelCallbacks(
     val uiState: StateFlow<HomeScreenState>,
-    val fetchLabels: (ContentResolver) -> Unit,
-    val onSetRingtones: (MutableList<GroupItem>, ContentResolver) -> Unit,
-    val onRingtoneChosen: (String, Uri?) -> Unit,
+    val onCreateGroup: (String?) -> Unit,
+    val onSetRingtones: (List<GroupItem>, ContentResolver) -> Unit,
+    val onRingtoneChosen: (Long, Uri?) -> Unit,
+    val onGroupDeleted: (Long) -> Unit,
+    val setUpGroupNamePicking: (GroupItem) -> Unit,
+    val setUpContactsPicking: (GroupItem) -> Unit,
+    val fetchGroups: () -> Unit,
     val hideLoading: () -> Unit,
     val loadAd: (Context, String) -> Unit,
     val showAd: (Activity) -> Unit

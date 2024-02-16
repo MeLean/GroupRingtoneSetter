@@ -8,13 +8,11 @@ import androidx.compose.ui.graphics.Color
 @Composable
 fun TransparentScaffold(
     topBar: @Composable () -> Unit,
+    bottomBar: @Composable () -> Unit,
     content: @Composable (paddingValues: PaddingValues) -> Unit,
-    bottomBar: @Composable () -> Unit
-) {
-    Scaffold(
-        backgroundColor = Color.Transparent,
-        topBar = topBar,
-        content = content,
-        bottomBar = bottomBar
-    )
-}
+) = Scaffold(
+    backgroundColor = Color.Transparent,
+    topBar = topBar,
+    content = content,
+    bottomBar = bottomBar
+)

@@ -11,21 +11,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.milen.grounpringtonesetter.R
 
 @Composable
-fun TextH6Widget(
+fun TextWidget(
     modifier: Modifier = Modifier,
     text: String,
     style: TextStyle = MaterialTheme.typography.h6,
-    maxLines: Int = 1,
+    maxLines: Int? = null,
     overflow: TextOverflow = TextOverflow.Ellipsis,
     textAlign: TextAlign = TextAlign.Start
-) {
-    Text(
-        modifier = modifier,
-        text = text,
-        style = style,
-        maxLines = maxLines,
-        overflow = overflow,
-        textAlign = textAlign,
-        color = colorResource(R.color.textColor),
-    )
-}
+) = Text(
+    modifier = modifier,
+    text = text,
+    style = style,
+    maxLines = maxLines ?: Int.MAX_VALUE,
+    overflow = overflow,
+    textAlign = textAlign,
+    color = colorResource(R.color.textColor),
+)

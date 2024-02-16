@@ -1,6 +1,7 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'kotlin-parcelize'
 }
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -23,8 +24,8 @@ android {
         applicationId "com.milen.grounpringtonesetter"
         minSdk 27
         targetSdk 34
-        versionCode 112
-        versionName "1.1.2"
+        versionCode 200
+        versionName "2.0.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -64,6 +65,7 @@ android {
 
 dependencies {
     implementation 'androidx.documentfile:documentfile:1.0.1'
+    implementation 'com.google.android.engage:engage-core:1.3.1'
 
     // Define the version for Compose and other dependencies
     def core_ktx_version = '1.12.0'

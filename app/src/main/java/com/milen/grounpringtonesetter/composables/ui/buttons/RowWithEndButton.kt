@@ -17,7 +17,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.milen.grounpringtonesetter.R
-import com.milen.grounpringtonesetter.composables.ui.texts.TextH6Widget
+import com.milen.grounpringtonesetter.composables.ui.texts.TextWidget
 
 
 @Composable
@@ -32,7 +32,7 @@ fun RowWithEndButton(
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        TextH6Widget(
+        TextWidget(
             text = label,
             textAlign = TextAlign.Center,
             modifier = Modifier.align(Alignment.Center),

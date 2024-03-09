@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">Установщик группового звонка</string>
+    <string name="items_not_found">Элементы не найдены</string>
+    <string name="everything_set">Все настроено!</string>
+    <string name="permission_required">Требуется разрешение</string>
+    <string name="need_permission_to_run">Пожалуйста, предоставьте разрешение на использование приложения. Перезапустите приложение или предоставьте их вручную в настройках устройства.</string>
+    <string name="ok">OK</string>
+    <string name="choose_ringtone">Выберите\nМелодию звонка</string>
+    <string name="add_group">Добавить новую группу</string>
+    <string name="do_the_magic">Сделайте волшебство</string>
+    <string name="file_name_not_accessible">Имя файла недоступно</string>
+    <string name="contacts">Контакты</string>
+    <string name="close_app">Закрыть приложение</string>
+    <string name="open_network_settings">Открыть настройки Wi-Fi</string>
+    <string name="no_internet_description">Отсутствует интернет-соединение. Для правильной работы приложения необходимо подключение к интернету.</string>
+    <string name="close">Закрыть</string>
+    <string name="done">Готово</string>
+    <string name="cancel">Отмена</string>
+    <string name="confirm">Подтвердить</string>
+    <string name="home">Главная</string>
+    <string name="enter_group_name">Введите имя группы</string>
+    <string name="edit_group_name">Редактировать имя группы</string>
+    <string name="edit_group_name_desc">Хотите отредактировать имя группы? Это действие переназначит контакты в вновь названную группу, сохраняя их назначенные мелодии звонка.</string>
+    <string name="delete_group">Удалить группу</string>
+    <string name="delete_group_desc">Хотите удалить эту группу? Это действие удалит контакты из группы, но их назначенные мелодии звонка останутся неизменными.</string>
+    <string name="manage_contacts_group_name">Управление контактами группы</string>
+    <string name="manage_contacts_group_name_desc">Хотите добавить или удалить контакты из этой группы? Это действие присвоит/удалит контакты из группы. Изменение мелодии звонка вступит в силу после завершения процесса!</string>
+    <string name="something_went_wrong">Что-то пошло не так</string>
+    <string name="loading">Загрузка. . .</string>
+    <string name="error">Ошибка</string>
+    <string name="info">Информация</string>
+    <string name="info_text">Для оптимальной производительности убедитесь, что ваши контакты сохранены непосредственно на вашем устройстве.</string>
+    <string name="no_ringtone_selected">Мелодия звонка не выбрана</string>
+</resources>

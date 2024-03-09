@@ -1,9 +1,8 @@
 package com.milen.grounpringtonesetter.data
 
-import android.net.Uri
-
 data class GroupItem(
+    val id: Long,
     val groupName: String,
     val contacts: List<Contact>,
-    var ringtoneUri: Uri? = null
+    val ringtoneUriStr: String? = null
 )

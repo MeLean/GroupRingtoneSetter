@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "284320849917",
+    "project_id": "group-ringtone-setter",
+    "storage_bucket": "group-ringtone-setter.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:284320849917:android:8e20401d4bf29f28f20394",
+        "android_client_info": {
+          "package_name": "com.milen.grounpringtonesetter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDH1AEth4U3Pf6KtUnNnQcgNr4K0mmv_ps"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

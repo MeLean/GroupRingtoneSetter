@@ -1,8 +1,8 @@
 package com.milen.grounpringtonesetter.data
 
-import android.net.Uri
-
 data class Contact(
+    val id: Long,
     val name: String,
-    val ringtoneUri: Uri?
+    val phone: String?,
+    val ringtoneUriStr: String?
 )

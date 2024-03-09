@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="CustomRoundedButton">
+        <attr name="buttonLabel" format="reference|string" />
+    </declare-styleable>
+
+    <declare-styleable name="CustomRowWithEndButton">
+        <attr name="endButtonIcon" format="reference|string" />
+        <attr name="labelText" format="string" />
+    </declare-styleable>
+
+    <declare-styleable name="CustomTextColorImageButton">
+        <attr name="iconDrawable" format="reference" />
+    </declare-styleable>
+
+    <declare-styleable name="CustomCircleWithTextView">
+        <attr name="circleText" format="string" />
+    </declare-styleable>
+
+    <declare-styleable name="CustomInputView">
+        <attr name="android:hint" />
+        <attr name="initialText" format="string" />
+    </declare-styleable>
+</resources>

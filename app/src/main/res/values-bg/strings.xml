@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">Задай мелодия на звънене</string>
+    <string name="items_not_found">Не са намерени елементи</string>
+    <string name="everything_set">Всичко е настроено!</string>
+    <string name="permission_required">Изисква се разрешение</string>
+    <string name="need_permission_to_run">Моля, разрешете използването на приложението. Рестартирайте приложението или ги дайте ръчно от настройките на устройството.</string>
+    <string name="ok">Добре</string>
+    <string name="choose_ringtone">Изберете\nМелодия за звънене</string>
+    <string name="add_group">Добавете нова група</string>
+    <string name="do_the_magic">Направете магията</string>
+    <string name="file_name_not_accessible">Името на файла не е достъпно</string>
+    <string name="contacts">Контакти</string>
+    <string name="close_app">Затворете приложението</string>
+    <string name="open_network_settings">Отворете настройките за Wi-Fi</string>
+    <string name="no_internet_description">Няма интернет връзка. За правилната работа на приложението е необходим интернет.</string>
+    <string name="close">Затвори</string>
+    <string name="done">Готово</string>
+    <string name="cancel">Отказ</string>
+    <string name="confirm">Потвърди</string>
+    <string name="home">Начало</string>
+    <string name="enter_group_name">Въведете име на групата</string>
+    <string name="edit_group_name">Редактиране на име на групата</string>
+    <string name="edit_group_name_desc">Искате ли да редактирате името на групата? Това действие ще присвои контактите на внова наименуваната група, като запази техните присвоени мелодии за звънене.</string>
+    <string name="delete_group">Изтриване на групата</string>
+    <string name="delete_group_desc">Искате ли да изтриете тази група? Това ще премахне контактите от групата, но техните присвоени мелодии за звънене ще останат непроменени.</string>
+    <string name="manage_contacts_group_name">Управление на контактите на групата</string>
+    <string name="manage_contacts_group_name_desc">Искате ли да добавите или премахнете контакти към тази група? Чрез това действие контактите ще бъдат присвоени/премахнати от групата. Промяната на мелодията за звънене ще влезе в сила, когато процесът бъде завършен!</string>
+    <string name="something_went_wrong">Нещо се обърка</string>
+    <string name="loading">Зареждане. . .</string>
+    <string name="error">Грешка</string>
+    <string name="info">Информация</string>
+    <string name="info_text">За оптимална производителност, моля уверете се, че вашите контакти са запазени директно на устройството ви.</string>
+    <string name="no_ringtone_selected">Няма избрана мелодия за звънене</string>
+</resources>

@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">ग्रुप रिंगटोन सेटर</string>
+    <string name="items_not_found">कोई आइटम नहीं मिला</string>
+    <string name="everything_set">सब कुछ सेट है!</string>
+    <string name="permission_required">अनुमति आवश्यक है</string>
+    <string name="need_permission_to_run">कृपया ऐप्लिकेशन का उपयोग करने के लिए अनुमति प्रदान करें। ऐप को फिर से आरंभ करें या उपकरण सेटिंग्स से मैन्युअल रूप से दें।</string>
+    <string name="ok">ठीक है</string>
+    <string name="choose_ringtone">रिंगटोन चुनें\n</string>
+    <string name="add_group">नया समूह जोड़ें</string>
+    <string name="do_the_magic">जादू करें</string>
+    <string name="file_name_not_accessible">फ़ाइल का नाम अनुपलब्ध है</string>
+    <string name="contacts">संपर्क</string>
+    <string name="close_app">ऐप्लिकेशन बंद करें</string>
+    <string name="open_network_settings">वाईफ़ाई सेटिंग्स खोलें</string>
+    <string name="no_internet_description">कोई इंटरनेट कनेक्शन नहीं है। सही ढंग से काम करने के लिए ऐप को इंटरनेट की आवश्यकता होती है</string>
+    <string name="close">बंद करें</string>
+    <string name="done">हो गया</string>
+    <string name="cancel">रद्द करें</string>
+    <string name="confirm">पुष्टि करें</string>
+    <string name="home">होम</string>
+    <string name="enter_group_name">समूह का नाम दर्ज करें</string>
+    <string name="edit_group_name">समूह का नाम संपादित करें</string>
+    <string name="edit_group_name_desc">क्या आप समूह का नाम संपादित करना चाहेंगे? इस क्रिया के दौरान संपर्क नए नाम वाले समूह में आपस्तित किए जाएंगे, जबकि उनकी नियुक्त रिंगटोन परिवर्तित नहीं की जाएगी।</string>
+    <string name="delete_group">समूह हटाएं</string>
+    <string name="delete_group_desc">क्या आप इस समूह को हटाना चाहेंगे? ऐसा करने से समूह से संपर्क हट जाएंगे, लेकिन उनकी नियुक्त रिंगटोन बरकरार रहेगी।</string>
+    <string name="manage_contacts_group_name">समूह में संपर्क प्रबंधित करें</string>
+    <string name="manage_contacts_group_name_desc">क्या आप इस समूह में संपर्क जोड़ना या हटाना चाहेंगे? इस क्रिया के द्वारा, संपर्क समूह में नियुक्त/अनियुक्त किए जाएंगे। रिंगटोन परिवर्तन लागू होगा जब प्रक्रिया पूरी होगी!</string>
+    <string name="something_went_wrong">कुछ गलत हो गया</string>
+    <string name="loading">लोड हो रहा है. . .</string>
+    <string name="error">त्रुटि</string>
+    <string name="info">जानकारी</string>
+    <string name="info_text">उत्कृष्ट प्रदर्शन के लिए, कृपया सुनिश्चित करें कि आपके संपर्क आपके उपकरण पर सीधे सहेजे गए हैं।</string>
+    <string name="no_ringtone_selected">कोई रिंगटोन चयनित नहीं है</string>
+</resources>

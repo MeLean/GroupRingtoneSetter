@@ -1,201 +1,161 @@
 package com.milen.grounpringtonesetter.screens.home
 
-import android.Manifest
-import android.app.Activity
-import android.content.ContentResolver
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
-import com.milen.grounpringtonesetter.composables.eventobservers.InternetConnectivity
-import com.milen.grounpringtonesetter.composables.ui.ads.BannerAdView
-import com.milen.grounpringtonesetter.composables.ui.buttons.RoundCornerButton
-import com.milen.grounpringtonesetter.composables.ui.screens.FullScreenLoading
-import com.milen.grounpringtonesetter.composables.ui.screens.FullscreenImageWithCenteredContent
-import com.milen.grounpringtonesetter.composables.ui.texts.CenteredTextWithButtonScreen
-import com.milen.grounpringtonesetter.composables.ui.widgets.GroupItemRow
-import com.milen.grounpringtonesetter.composables.ui.widgets.TransparentScaffold
+import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
+import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.data.GroupItem
-import com.milen.grounpringtonesetter.navigation.Destination
-import com.milen.grounpringtonesetter.ui.composables.RowWithEndButton
+import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
+import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModel
+import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModelFactory
+import com.milen.grounpringtonesetter.utils.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
+import com.milen.grounpringtonesetter.utils.changeMainTitle
+import com.milen.grounpringtonesetter.utils.collectScoped
+import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
+import com.milen.grounpringtonesetter.utils.handleLoading
+import com.milen.grounpringtonesetter.utils.navigateSingleTop
 
-
-@Composable
-fun HomeScreen(
-    callbacks: HomeViewModelCallbacks,
-    navigate: (String) -> Unit,
-    onFinish: () -> Unit
-) {
-    val screenState by callbacks.uiState.collectAsStateWithLifecycle()
-    val activity = LocalContext.current as Activity
-    val permissions = mutableListOf(
-        Manifest.permission.WRITE_CONTACTS,
-        Manifest.permission.READ_CONTACTS,
-    ).also {
-        it.add(audioPermissionSdkBased())
+class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
+    private lateinit var binding: FragmentHomeScreenBinding
+    private lateinit var groupsAdapter: GroupsAdapter
+    private val viewModel: MainViewModel by activityViewModels {
+        MainViewModelFactory.provideFactory(requireActivity())
     }
 
-    val launcherMultiplePermissions = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) {
-        when {
-            activity.areAllPermissionsGranted(permissions) -> callbacks.fetchGroups()
-            else -> callbacks.hideLoading()
-        }
-    }
+    private val permissions = mutableListOf(
+        android.Manifest.permission.READ_CONTACTS,
+        android.Manifest.permission.WRITE_CONTACTS
+    ).also { it.add(audioPermissionSdkBased()) }
 
-    InternetConnectivity(
-        onConnectionLost = { navigate(Destination.NO_INTERNET.route) }
-    )
-
-    when {
-        screenState.isLoading -> FullScreenLoading()
-        screenState.groupItems.isEmpty() ->
-            FullscreenImageWithCenteredContent {
-                CenteredTextWithButtonScreen(
-                    text = stringResource(R.string.groups_not_found),
-                    btnLabel = stringResource(R.string.close_app),
-                    onClick = onFinish,
-                    onClose = onFinish
-                )
-            }
-
-        screenState.isAllDone ->
-            FullscreenImageWithCenteredContent {
-                CenteredTextWithButtonScreen(
-                    text = stringResource(R.string.everything_set),
-                    btnLabel = stringResource(R.string.close_app),
-                    onClick = onFinish,
-                    onClose = onFinish
-                ).also {
-                    callbacks.showAd(activity)
-                }
-            }
-
-        else ->
-            FullscreenImageWithCenteredContent {
-                LabelsList(
-                    screenState = screenState,
-                    onRingtoneChosen = callbacks.onRingtoneChosen,
-                    onSetRingtones = callbacks.onSetRingtones,
-                    createGroup = callbacks.onCreateGroup,
-                    onGroupDeleted = callbacks.onGroupDeleted,
-                    setUpGroupNamePicking = callbacks.setUpGroupNamePicking,
-                    setUpContactsPicking = callbacks.setUpContactsPicking,
-                    onFinish = onFinish,
-                    navigate = navigate
-                )
-            }
-    }
-
-    LaunchedEffect(Unit) {
-        callbacks.loadAd(activity, activity.getString(R.string.ad_id_interstitial))
-        if (activity.areAllPermissionsGranted(permissions)) {
-            callbacks.fetchGroups()
-        } else {
-            launcherMultiplePermissions.launch(permissions.toTypedArray())
-        }
-    }
-}
-
-@Composable
-private fun LabelsList(
-    screenState: HomeScreenState,
-    onRingtoneChosen: (Long, Uri?) -> Unit,
-    onSetRingtones: (List<GroupItem>, ContentResolver) -> Unit,
-    createGroup: (String?) -> Unit,
-    onGroupDeleted: (Long) -> Unit,
-    onFinish: () -> Unit,
-    navigate: (String) -> Unit,
-    setUpGroupNamePicking: (GroupItem) -> Unit,
-    setUpContactsPicking: (GroupItem) -> Unit,
-) {
-    TransparentScaffold(
-        topBar = {
-            RowWithEndButton(label = stringResource(R.string.home)) { onFinish() }
-        },
-        content = { padding ->
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            ) {
-                screenState.groupItems.let {
-                    items(count = it.size, key = { i -> it[i].id }) { index ->
-                        GroupItemRow(
-                            item = it[index],
-                            onRingtoneChosen = onRingtoneChosen,
-                            onGroupDeleted = onGroupDeleted,
-                            setUpGroupNamePicking = setUpGroupNamePicking,
-                            setUpContactsPicking = setUpContactsPicking,
-                            navigate = navigate
-                        )
-                    }
-                }
-            }
-        },
-        bottomBar = {
-            HomeScreenBottomBar(screenState, onSetRingtones) {
-                createGroup(it)
+    private val requestMultiplePermissions =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            val allPermissionsGranted = permissions.entries.all { it.value }
+            when {
+                allPermissionsGranted -> viewModel.onPermissionsGranted()
+                else -> viewModel.onPermissionsRefused()
             }
         }
-    )
-}
 
-@Composable
-private fun HomeScreenBottomBar(
-    screenState: HomeScreenState,
-    onSetRingtones: (List<GroupItem>, ContentResolver) -> Unit,
-    onCreateGroup: (String?) -> Unit,
-) {
-    // TODO create launcher for the picker and use onCreateGroup
-    val contentResolver = LocalContext.current.contentResolver
-    Column {
-        Row(
-            modifier = Modifier
-                .padding(PaddingValues(16.dp))
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            RoundCornerButton(
-                modifier = Modifier.weight(1f),
-                btnLabel = stringResource(R.string.add_group),
-                onClick = { onCreateGroup("NewGroup1") }, //TODO CRETE GROUP NAME
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            RoundCornerButton(
-                modifier = Modifier.weight(1f),
-                btnLabel = stringResource(R.string.do_the_magic),
-                isEnabled = screenState.groupItems.isEmpty().not(),
-                onClick = { onSetRingtones(screenState.groupItems, contentResolver) }
-            )
+    private val pickAudioFileLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            uri?.let { viewModel.onRingtoneChosen(it, it.getFileNameOrEmpty(requireContext())) }
         }
 
-        BannerAdView(
-            modifier = Modifier.fillMaxWidth(),
-            adId = stringResource(R.string.ad_id_banner)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        groupsAdapter = GroupsAdapter(
+            this,
+            EncryptedPreferencesHelper(appContext = requireActivity().application)
         )
+
+        collectScoped(viewModel.homeUiState) {
+            handleLoading(it.isLoading)
+
+            when {
+                it.arePermissionsGranted.not() -> requestMultiplePermissions.launch(permissions.toTypedArray())
+
+                else -> groupsAdapter.submitList(it.groupItems)
+            }
+
+            binding.apply {
+                it.scrollToPosition?.let { position ->
+                    rwGroupItems.smoothScrollToPosition(position)
+                }
+
+                noItemDisclaimer.isVisible = it.groupItems.isEmpty() && it.isLoading.not()
+            }
+        }
+
+        checkPermissions()
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        binding = FragmentHomeScreenBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.rwGroupItems.adapter = groupsAdapter
+        binding.btnDoTheMagic.setOnClickListener {
+            viewModel.onSetRingtones()
+        }
+
+        binding.btnAddGroup.setOnClickListener {
+            viewModel.setUpGroupCreateRequest().also {
+                findNavController().navigateSingleTop(R.id.pickerFragment)
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        changeMainTitle(getString(R.string.app_name))
+    }
+
+    private fun checkPermissions() {
+        when {
+            requireContext().areAllPermissionsGranted(permissions = permissions) ->
+                viewModel.onPermissionsGranted()
+
+            else -> viewModel.onNoPermissions()
+        }
+    }
+
+    override fun onManageContacts(groupItem: GroupItem): Unit =
+        requireContext().showAlertDialog(
+            titleResId = R.string.manage_contacts_group_name,
+            message = getString(R.string.manage_contacts_group_name_desc),
+            confirmButtonData = ButtonData {
+                viewModel.setUpContactsManaging(groupItem)
+                    .also { findNavController().navigateSingleTop(R.id.pickerFragment) }
+            }
+        )
+
+
+    override fun onEditName(groupItem: GroupItem): Unit =
+        requireContext().showAlertDialog(
+            titleResId = R.string.edit_group_name,
+            message = getString(R.string.edit_group_name_desc),
+            confirmButtonData = ButtonData {
+                viewModel.setUpGroupNameEditing(groupItem)
+                    .also { findNavController().navigateSingleTop(R.id.pickerFragment) }
+            }
+        )
+
+    override fun onGroupDelete(groupItem: GroupItem): Unit =
+        requireContext().showAlertDialog(
+            titleResId = R.string.delete_group,
+            message = getString(R.string.delete_group_desc),
+            confirmButtonData = ButtonData {
+                viewModel.onGroupDeleted(groupItem)
+            }
+        )
+
+    override fun onChoseRingtoneIntent(groupItem: GroupItem) {
+        when {
+            requireContext().areAllPermissionsGranted(permissions = permissions) -> {
+                viewModel.selectingGroup = groupItem
+                pickAudioFileLauncher.launch("audio/*")
+            }
+
+            else -> viewModel.onNoPermissions()
+        }
     }
 }

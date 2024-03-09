@@ -2,12 +2,9 @@ package com.milen.grounpringtonesetter.utils
 
 import android.app.Application
 import android.content.ContentProviderOperation
-import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
-import android.net.Uri
 import android.provider.ContactsContract
-import android.util.Log
 import androidx.core.database.getStringOrNull
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.GroupItem
@@ -44,7 +41,7 @@ class ContactsHelper(private val appContext: Application) {
                             id = id,
                             name = name,
                             phone = phone,
-                            ringtoneUriString = ringtoneStr,
+                            ringtoneUriStr = ringtoneStr,
                         )
                     )
                 }
@@ -52,29 +49,6 @@ class ContactsHelper(private val appContext: Application) {
 
 
         return contacts
-    }
-
-    //TODO CHECK
-    private fun getDeviceStoredRawContactIds(): List<Long> {
-        val rawContactIds = mutableListOf<Long>()
-        val projection = arrayOf(ContactsContract.RawContacts._ID)
-        val selection = "${ContactsContract.RawContacts.ACCOUNT_TYPE} IS NULL"
-
-        appContext.contentResolver.query(
-            ContactsContract.RawContacts.CONTENT_URI,
-            projection,
-            selection,
-            null,
-            null
-        )?.use { cursor ->
-            val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts._ID)
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idIndex)
-                rawContactIds.add(id)
-            }
-        }
-
-        return rawContactIds
     }
 
     fun updateGroupName(groupId: Long, newGroupName: String) {
@@ -96,22 +70,15 @@ class ContactsHelper(private val appContext: Application) {
     fun deleteGroup(groupId: Long) {
         val operations = ArrayList<ContentProviderOperation>()
         val groupUri = ContentUris.withAppendedId(ContactsContract.Groups.CONTENT_URI, groupId)
-        operations.add(
-            ContentProviderOperation.newDelete(groupUri).build()
-        )
+        operations.add(ContentProviderOperation.newDelete(groupUri).build())
 
-        try {
-            appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, operations)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, operations)
     }
 
-    fun addAllContactsToGroup(groupId: Long, includedContacts: List<Contact>) {
+    fun addAllContactsToGroup(groupId: Long, includedContacts: List<Contact>): Unit =
         includedContacts.forEach {
             addSingleContactToGroup(groupId = groupId, contactId = it.id)
         }
-    }
 
     fun removeAllContactsFromGroup(groupId: Long, excludedContacts: List<Contact>) {
         val ops = ArrayList<ContentProviderOperation>()
@@ -134,11 +101,7 @@ class ContactsHelper(private val appContext: Application) {
             )
         }
 
-        try {
-            appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
     }
 
     fun getAllGroups(): List<GroupItem> {
@@ -147,71 +110,69 @@ class ContactsHelper(private val appContext: Application) {
         val projection = arrayOf(
             ContactsContract.Groups._ID,
             ContactsContract.Groups.TITLE,
-            ContactsContract.Groups.GROUP_IS_READ_ONLY
+            ContactsContract.Groups.GROUP_IS_READ_ONLY,
+            ContactsContract.Groups.DELETED
         )
 
-        appContext.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+        val selection =
+            "${ContactsContract.Groups.DELETED} = 0 AND ${ContactsContract.Groups.GROUP_IS_READ_ONLY} = 0"
+
+        appContext.contentResolver.query(uri, projection, selection, null, null)?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups._ID)
             val titleIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups.TITLE)
-            val readOnlyIndex =
-                cursor.getColumnIndexOrThrow(ContactsContract.Groups.GROUP_IS_READ_ONLY)
 
             while (cursor.moveToNext()) {
-                val isReadOnly = cursor.getInt(readOnlyIndex) > 0
-                if (!isReadOnly) {
-                    val id = cursor.getLong(idIndex)
-                    val title = cursor.getString(titleIndex)
-                    val contacts = getContactsForGroup(id)
+                val id = cursor.getLong(idIndex)
+                val title = cursor.getString(titleIndex)
+                val contacts = getContactsForGroup(id)
 
-                    groups.add(
-                        GroupItem(
-                            id = id,
-                            groupName = title,
-                            contacts = contacts,
-                            ringtoneUri = contacts.allContactsHaveSameRingtoneUri()
-                        )
+                groups.add(
+                    GroupItem(
+                        id = id,
+                        groupName = title,
+                        contacts = contacts,
+                        ringtoneUriStr = contacts.allContactsHaveSameRingtoneUri()
                     )
-                }
+                )
             }
         }
 
         return groups
     }
 
-    fun setRingtoneToGroup(
-        contentResolver: ContentResolver,
-        groupId: Long,
-        newRingtoneUri: Uri
+    fun setRingtoneToGroupContacts(
+        groupContacts: List<Contact>,
+        newRingtoneUriStr: String
     ): Unit =
-        getContactsForGroup(groupId).run {
-            ContentValues().apply {
-                put(ContactsContract.Contacts.CUSTOM_RINGTONE, newRingtoneUri.toString())
-            }.also {
-                forEach { contact ->
-                    contentResolver.update(
-                        ContentUris.withAppendedId(
-                            ContactsContract.Contacts.CONTENT_URI,
-                            contact.id
-                        ),
-                        it,
-                        null,
-                        null
+        groupContacts.forEach { contact ->
+            appContext.contentResolver.update(
+                ContentUris.withAppendedId(
+                    ContactsContract.Contacts.CONTENT_URI,
+                    contact.id
+                ),
+                ContentValues().apply {
+                    put(
+                        ContactsContract.Contacts.CUSTOM_RINGTONE,
+                        newRingtoneUriStr
                     )
-                }
-            }
+                },
+                null,
+                null
+            )
         }
 
-    fun createGroup(groupName: String) {
-        val values = ContentValues().apply {
-            put(ContactsContract.Groups.TITLE, groupName)
-        }
 
-        try {
-            appContext.contentResolver.insert(ContactsContract.Groups.CONTENT_URI, values)
-        } catch (e: Exception) {
-            Log.e("TEST_IT", "Error creating group", e)
+    fun createGroup(groupName: String): GroupItem? =
+        appContext.contentResolver.insert(
+            ContactsContract.Groups.CONTENT_URI,
+            ContentValues().apply { put(ContactsContract.Groups.TITLE, groupName) }
+        )?.let {
+            GroupItem(
+                id = ContentUris.parseId(it),
+                groupName = groupName,
+                contacts = emptyList()
+            )
         }
-    }
 
     private fun addSingleContactToGroup(groupId: Long, contactId: Long) {
         val ops = ArrayList<ContentProviderOperation>().apply {
@@ -230,12 +191,7 @@ class ContactsHelper(private val appContext: Application) {
             )
         }
 
-        try {
-            val results = appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
-            Log.d("TEST_IT", "Operation results: ${results.joinToString()}")
-        } catch (e: Exception) {
-            Log.e("TEST_IT", "Error adding single contact to group", e)
-        }
+        appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
     }
 
     private fun getContactsForGroup(groupId: Long): List<Contact> {
@@ -280,7 +236,7 @@ class ContactsHelper(private val appContext: Application) {
                         id = rawContactId,
                         name = displayName,
                         phone = phone,
-                        ringtoneUriString = ringtoneUriStr
+                        ringtoneUriStr = ringtoneUriStr
                     )
                 )
             }
@@ -310,8 +266,8 @@ class ContactsHelper(private val appContext: Application) {
     }
 }
 
-fun List<Contact>.allContactsHaveSameRingtoneUri(): Uri? =
-    this.firstOrNull()?.ringtoneUri?.let { ringtoneUri ->
-        if (all { contact -> contact.ringtoneUri == ringtoneUri })
-            ringtoneUri else null
+fun List<Contact>.allContactsHaveSameRingtoneUri(): String? =
+    this.firstOrNull()?.ringtoneUriStr?.let { ringtoneUriStr ->
+        if (all { contact -> contact.ringtoneUriStr == ringtoneUriStr })
+            ringtoneUriStr else null
     }

@@ -1,19 +1,23 @@
 package com.milen.grounpringtonesetter.screens.picker.data
 
 import com.milen.grounpringtonesetter.data.Contact
+import com.milen.grounpringtonesetter.data.GroupItem
 
 sealed interface PickerResultData {
-    data class GroupNameChanged(
-        val groupId: Long,
-        val oldName: String,
-        val newGroupName: String
+    data class GroupNameChange(
+        val groupItem: GroupItem,
+        val newGroupName: String? = null
     ) : PickerResultData
 
-    data class ContactsGroupChanged(
-        val groupId: Long,
-        val includedContacts: List<Contact>,
-        val excludedContacts: List<Contact>
+    data class GroupSetName(
+        val groupName: String = ""
     ) : PickerResultData
 
-    object Canceled : PickerResultData
+    data class ManageGroupContacts(
+        val group: GroupItem,
+        val selectedContacts: List<Contact> = emptyList(),
+        val allContacts: List<Contact>
+    ) : PickerResultData
+
+    data object Canceled : PickerResultData
 }

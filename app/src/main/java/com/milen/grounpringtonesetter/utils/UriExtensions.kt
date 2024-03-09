@@ -1,7 +1,6 @@
 package com.milen.grounpringtonesetter.utils
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -10,20 +9,18 @@ import android.provider.OpenableColumns
 import androidx.core.content.ContextCompat
 import com.milen.grounpringtonesetter.R
 
-fun Activity.areAllPermissionsGranted(permissions: List<String>): Boolean =
+fun Context.areAllPermissionsGranted(permissions: List<String>): Boolean =
     permissions.all {
         ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
     }
 
-fun Uri?.getFileNameOrEmpty(context: Context): String {
-    if (this == null) return ""
-
+fun Uri.getFileNameOrEmpty(context: Context): String {
     val errorMsg = context.getString(R.string.file_name_not_accessible)
-    val contentResolver = context.contentResolver
 
-    // Attempt to retrieve the file name using the content resolver and the URI
+    val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
+
     try {
-        contentResolver.query(this, null, null, null, null)
+        context.contentResolver.query(this, projection, null, null, null)
             ?.use {
                 if (it.moveToFirst()) {
                     val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
@@ -33,7 +30,6 @@ fun Uri?.getFileNameOrEmpty(context: Context): String {
                 }
             }
     } catch (e: SecurityException) {
-        // Handle the SecurityException by logging or other means
         return errorMsg
     }
 

@@ -2,6 +2,8 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'kotlin-parcelize'
+    id 'com.google.gms.google-services'
+    id 'com.google.firebase.crashlytics'
 }
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -38,6 +40,7 @@ android {
     buildTypes {
         release {
             minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 
             signingConfig signingConfigs.release
@@ -50,12 +53,11 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
-    buildFeatures {
-        compose true
+
+    viewBinding {
+        enabled = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.2.0'
-    }
+
     packagingOptions {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
@@ -64,43 +66,41 @@ android {
 }
 
 dependencies {
-    implementation 'androidx.documentfile:documentfile:1.0.1'
-    implementation 'com.google.android.engage:engage-core:1.3.1'
-
     // Define the version for Compose and other dependencies
     def core_ktx_version = '1.12.0'
-    def compose_version = '1.5.4'
     def lifecycle_version = "2.7.0"
     def accompanist_version = '0.30.0'
     def play_services_ads_version = '22.6.0'
-    def activity_compose_version = '1.8.2'
-    def fragment_compose_version = '1.6.2'
-    def navigation_compose_version = '2.7.6'
+    def navigation_version = '2.7.7'
     def coroutines_version = '1.7.3'
     def splash_version = '1.1.0-alpha02'
     def system_controller_version = '0.27.0'
+    def constraintlayout_version = '2.1.4'
+    def appcompat_version = '1.6.1'
+    def material_version = '1.11.0'
+    def crypto_version = '1.1.0-alpha06'
+    def firebase_bom_version = '32.7.4'
 
 
-    // Core and Compose dependencies
+    // Core dependencies
     implementation "androidx.core:core-ktx:$core_ktx_version"
-    implementation "androidx.compose.ui:ui:$compose_version"
-    implementation "androidx.compose.ui:ui-tooling-preview:$compose_version"
-    implementation "androidx.compose.material:material:$compose_version"
-    implementation "androidx.activity:activity-compose:$activity_compose_version"
-    implementation "androidx.fragment:fragment-ktx:$fragment_compose_version"
-    implementation "androidx.compose.ui:ui-tooling:$compose_version"
+    implementation "androidx.constraintlayout:constraintlayout:$constraintlayout_version"
+    implementation "androidx.appcompat:appcompat:$appcompat_version"
+    implementation "com.google.android.material:material:$material_version"
 
     // Lifecycle and Coroutines
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutines_version"
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:$lifecycle_version"
-    implementation "androidx.lifecycle:lifecycle-runtime-compose:$lifecycle_version"
-    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:$lifecycle_version"
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:$lifecycle_version"
     implementation "androidx.core:core-splashscreen:$splash_version"
     implementation "com.google.accompanist:accompanist-systemuicontroller:$system_controller_version"
 
+    //sharedpref
+    implementation "androidx.security:security-crypto:$crypto_version"
+
     // Navigation
-    implementation "androidx.navigation:navigation-compose:$navigation_compose_version"
+    implementation "androidx.navigation:navigation-fragment-ktx:$navigation_version"
+    implementation "androidx.navigation:navigation-ui-ktx:$navigation_version"
 
     // Accompanist
     implementation "com.google.accompanist:accompanist-permissions:$accompanist_version"
@@ -108,11 +108,13 @@ dependencies {
     // Google Play Services
     implementation "com.google.android.gms:play-services-ads:$play_services_ads_version"
 
+    //Firebase
+    implementation platform("com.google.firebase:firebase-bom:$firebase_bom_version")
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-crashlytics'
+
     // Test dependencies
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_version"
-    debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"
-    debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_version"
 }

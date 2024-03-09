@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge>
+
+    <com.google.android.material.button.MaterialButton xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:id="@+id/btnMain"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:enabled="true"
+        android:padding="8dp"
+        android:textAllCaps="false"
+        app:backgroundTint="@color/purple_500"
+        app:cornerRadius="16dp"
+        tools:text="Button" />
+</merge>

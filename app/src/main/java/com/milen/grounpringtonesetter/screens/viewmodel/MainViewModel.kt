@@ -16,6 +16,7 @@ import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 class MainViewModel(
     private val adHelper: AdLoadingHelper,
@@ -219,8 +220,9 @@ class MainViewModel(
     private fun manageGroupSet(result: PickerResultData.GroupSetName) {
         result.groupName.takeIf { it.isNotEmpty() }
             ?.let { str ->
-                contactsHelper.createGroup(str)?.let {
-                    _groups?.add(it)
+                contactsHelper.createGroup(str)?.let { newGroup ->
+                    _groups?.add(newGroup)
+                    _groups = contactsHelper.getAllGroups().toMutableList()
                 }
             }
             ?: throw IllegalArgumentException()
@@ -230,71 +232,57 @@ class MainViewModel(
         result.newGroupName.takeIf { it?.isNotEmpty() == true && it != result.groupItem.groupName }
             ?.let { name ->
                 contactsHelper.updateGroupName(result.groupItem.id, name)
-                _groups?.indexOfFirst { it.id == result.groupItem.id }
-                    ?.takeIf { it != -1 }?.let { index ->
-                        _groups!![index] = result.groupItem.copy(
-                            groupName = result.newGroupName.orEmpty()
-                        )
-                    }
+                val updatedGroups = contactsHelper.getAllGroups()
+                _groups = updatedGroups.toMutableList()
             }
             ?: throw IllegalArgumentException()
 
     private fun manageContacts(result: PickerResultData.ManageGroupContacts) {
         contactsHelper.addAllContactsToGroup(result.group.id, result.selectedContacts)
-        val excludedContacts =
-            result.group.contacts.filterNot { oldContact ->
-                result.selectedContacts.any { newContact ->
-                    newContact.id == oldContact.id
-                }
-            }
-
+        val excludedContacts = result.group.contacts.filterNot { oldContact ->
+            result.selectedContacts.any { newContact -> newContact.id == oldContact.id }
+        }
         contactsHelper.removeAllContactsFromGroup(result.group.id, excludedContacts)
 
-        _groups
-            ?.indexOfFirst { it.id == result.group.id }
-            ?.takeIf { it != -1 }?.let { index ->
-                _groups!![index] = result.group.copy(
-                    contacts = result.selectedContacts
-                )
-            }
+        val updatedGroups = contactsHelper.getAllGroups()
+
+        _groups = updatedGroups.toMutableList()
     }
 
     private fun updateGroupList(scrollTo: Int? = null) {
         launchOnIoResultInMain(
-            work = { groups.map { it } },
-            onSuccess = {
-                _homeUiState.tryEmit(
+            work = { groups },
+            onSuccess = { list ->
+                _homeUiState.update {
                     _homeUiState.value.copy(
                         isLoading = false,
-                        groupItems = it,
+                        groupItems = list,
                         scrollToPosition = scrollTo
                     )
-                )
+                }
             },
             onError = ::handleError
         )
     }
 
     private fun setPickerLoadingForResult(result: PickerResultData? = null) {
-        _pickerUiState.tryEmit(
+        _pickerUiState.update {
             _pickerUiState.value.copy(
                 isLoading = true,
                 pikerResultData = result
             )
-        )
+        }
     }
 
-    private fun showHomeLoading() {
-        _homeUiState.tryEmit(_homeUiState.value.copy(isLoading = true))
-    }
+    private fun showHomeLoading(): Unit =
+        _homeUiState.update { _homeUiState.value.copy(isLoading = true) }
 
-    private fun hideHomeLoading() {
-        _homeUiState.tryEmit(_homeUiState.value.copy(isLoading = false))
-    }
 
-    private fun hidePickerLoading() {
-        _pickerUiState.tryEmit(_pickerUiState.value.copy(isLoading = false))
-    }
+    private fun hideHomeLoading(): Unit =
+        _homeUiState.update { _homeUiState.value.copy(isLoading = false) }
+
+    private fun hidePickerLoading(): Unit =
+        _pickerUiState.update { _pickerUiState.value.copy(isLoading = false) }
 
     private fun getContactPickerData(group: GroupItem, allContacts: List<Contact> = emptyList()) =
         PickerResultData.ManageGroupContacts(

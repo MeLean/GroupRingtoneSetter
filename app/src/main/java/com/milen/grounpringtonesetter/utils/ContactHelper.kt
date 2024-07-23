@@ -4,6 +4,9 @@ import android.app.Application
 import android.content.ContentProviderOperation
 import android.content.ContentUris
 import android.content.ContentValues
+import android.content.Context
+import android.media.MediaScannerConnection
+import android.net.Uri
 import android.provider.ContactsContract
 import androidx.core.database.getStringOrNull
 import com.milen.grounpringtonesetter.data.Contact
@@ -145,20 +148,7 @@ class ContactsHelper(private val appContext: Application) {
         newRingtoneUriStr: String
     ): Unit =
         groupContacts.forEach { contact ->
-            appContext.contentResolver.update(
-                ContentUris.withAppendedId(
-                    ContactsContract.Contacts.CONTENT_URI,
-                    contact.id
-                ),
-                ContentValues().apply {
-                    put(
-                        ContactsContract.Contacts.CUSTOM_RINGTONE,
-                        newRingtoneUriStr
-                    )
-                },
-                null,
-                null
-            )
+            scanAndUpdate(appContext, newRingtoneUriStr, contact.id)
         }
 
 
@@ -173,6 +163,30 @@ class ContactsHelper(private val appContext: Application) {
                 contacts = emptyList()
             )
         }
+
+    private fun scanAndUpdate(context: Context, ringtoneStr: String, contactId: Long) {
+        val uriFromStr = Uri.parse(ringtoneStr)
+        MediaScannerConnection.scanFile(
+            context,
+            arrayOf(uriFromStr?.path),
+            null
+        ) { _, uri ->
+            appContext.contentResolver.update(
+                ContentUris.withAppendedId(
+                    ContactsContract.Contacts.CONTENT_URI,
+                    contactId
+                ),
+                ContentValues().apply {
+                    put(
+                        ContactsContract.Contacts.CUSTOM_RINGTONE,
+                        uri?.toString() ?: uriFromStr?.toString().orEmpty()
+                    )
+                },
+                null,
+                null
+            )
+        }
+    }
 
     private fun addSingleContactToGroup(groupId: Long, contactId: Long) {
         val ops = ArrayList<ContentProviderOperation>().apply {

@@ -44,7 +44,12 @@ internal class ContactsAdapter :
     }
 
     override fun submitList(list: List<SelectableContact>?) {
-        super.submitList(list?.sortedByDescending { it.isChecked })
+        super.submitList(
+            list?.sortedWith(
+                compareByDescending<SelectableContact> { it.isChecked }
+                    .thenBy { it.name }
+            )
+        )
     }
 
     private fun onContactChecked() {

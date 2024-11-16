@@ -135,13 +135,7 @@ class ContactsHelper(
                 val title = cursor.getString(titleIndex)
                 val contacts = getContactsForGroup(id)
 
-                val contactsUri = contacts.allContactsHaveSameRingtoneUri()
-
-                if (contactsUri == null) {
-                    "Group name: $title, contactsUrls: ${
-                        contacts.mapNotNull { it.ringtoneUriStr }.distinct().joinToString()
-                    }".log()
-                }
+                val contactsUri: List<String> = contacts.mapNotNull { it.ringtoneUriStr }.distinct()
 
                 groups.add(
                     GroupItem(
@@ -149,9 +143,7 @@ class ContactsHelper(
                         groupName = title,
                         contacts = contacts,
                         ringtoneUriStr = contactsUri,
-                        ringtoneFileName = contactsUri?.let {
-                            preferenceHelper.getString(it).orEmpty()
-                        }
+                        ringtoneFileName = contactsUri.stringifyContacts(preferenceHelper)
                     )
                 )
             }
@@ -297,8 +289,9 @@ class ContactsHelper(
     }
 }
 
-fun List<Contact>.allContactsHaveSameRingtoneUri(): String? =
-    this.firstOrNull()?.ringtoneUriStr?.let { ringtoneUriStr ->
-        if (all { contact -> contact.ringtoneUriStr == ringtoneUriStr })
-            ringtoneUriStr else null
-    }
+private fun List<String>.stringifyContacts(preferenceHelper: EncryptedPreferencesHelper): String =
+    takeIf { it.isNotEmpty() }
+        ?.mapNotNull { preferenceHelper.getString(it) }
+        ?.filter { it.isNotBlank() }
+        ?.joinToString()
+        .orEmpty()

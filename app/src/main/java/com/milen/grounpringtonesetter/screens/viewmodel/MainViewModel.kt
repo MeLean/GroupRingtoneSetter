@@ -153,7 +153,7 @@ class MainViewModel(
                 _groups = _groups?.map { group ->
                     if (group.id == selectingGroup.id) {
                         group.copy(
-                            ringtoneUriStr = uriStr,
+                            ringtoneUriStr = listOf(uriStr),
                             ringtoneFileName = fileName,
                             contacts = group.contacts.map { contact ->
                                 contact.copy(ringtoneUriStr = uriStr)
@@ -178,11 +178,13 @@ class MainViewModel(
                 var noRingtoneSelected = true
                 groups.forEach {
                     "onSetRingtones: ${it.groupName} count:${it.contacts.count()} uri:${it.ringtoneUriStr}".log()
-                    it.ringtoneUriStr?.let { uriStr ->
+                    it.ringtoneUriStr
+                        .takeIf { list -> list.isNotEmpty() }
+                        ?.let { uriStr ->
                         noRingtoneSelected = false
                         contactsHelper.setRingtoneToGroupContacts(
                             groupContacts = it.contacts,
-                            newRingtoneUriStr = uriStr
+                            newRingtoneUriStr = uriStr.first()
                         )
                     }
                 }

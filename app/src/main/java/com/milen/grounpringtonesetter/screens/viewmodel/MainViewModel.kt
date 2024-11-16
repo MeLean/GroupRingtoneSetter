@@ -13,6 +13,7 @@ import com.milen.grounpringtonesetter.screens.picker.data.PickerResultData
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
+import com.milen.grounpringtonesetter.utils.log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -146,11 +147,14 @@ class MainViewModel(
         launchOnIoResultInMain(
             work = {
                 val uriStr = "$uri"
-                encryptedPrefs.putString(uri.toString(), fileName)
+                encryptedPrefs.putString(uri.toString(), fileName).also {
+                    "onRingtoneChosen saved uri: $uriStr fileName: $fileName".log()
+                }
                 _groups = _groups?.map { group ->
                     if (group.id == selectingGroup.id) {
                         group.copy(
                             ringtoneUriStr = uriStr,
+                            ringtoneFileName = fileName,
                             contacts = group.contacts.map { contact ->
                                 contact.copy(ringtoneUriStr = uriStr)
                             }
@@ -173,6 +177,7 @@ class MainViewModel(
             work = {
                 var noRingtoneSelected = true
                 groups.forEach {
+                    "onSetRingtones: ${it.groupName} count:${it.contacts.count()} uri:${it.ringtoneUriStr}".log()
                     it.ringtoneUriStr?.let { uriStr ->
                         noRingtoneSelected = false
                         contactsHelper.setRingtoneToGroupContacts(
@@ -253,6 +258,7 @@ class MainViewModel(
         launchOnIoResultInMain(
             work = { groups },
             onSuccess = { list ->
+                "updateGroupList ${list.joinToString()}".log()
                 _homeUiState.update {
                     _homeUiState.value.copy(
                         isLoading = false,

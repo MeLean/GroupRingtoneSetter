@@ -16,11 +16,16 @@ object MainViewModelFactory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
+                    val preferenceHelper =
+                        EncryptedPreferencesHelper(appContext = activity.application)
                     return MainViewModel(
                         adHelper = AdLoadingHelper(activity),
                         dialogShower = DialogShower(activity),
-                        contactsHelper = ContactsHelper(appContext = activity.application),
-                        encryptedPrefs = EncryptedPreferencesHelper(appContext = activity.application)
+                        contactsHelper = ContactsHelper(
+                            appContext = activity.application,
+                            preferenceHelper = preferenceHelper
+                        ),
+                        encryptedPrefs = preferenceHelper
                     ) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")

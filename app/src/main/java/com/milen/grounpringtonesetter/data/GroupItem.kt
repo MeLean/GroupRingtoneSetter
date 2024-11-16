@@ -4,5 +4,6 @@ data class GroupItem(
     val id: Long,
     val groupName: String,
     val contacts: List<Contact>,
-    val ringtoneUriStr: String? = null
+    val ringtoneUriStr: String? = null,
+    val ringtoneFileName: String? = null
 )

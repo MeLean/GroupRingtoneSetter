@@ -26,6 +26,9 @@ fun Uri.getFileNameOrEmpty(context: Context): String {
                     val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                     if (nameIndex >= 0) {
                         return it.getString(nameIndex)
+                            .also { name ->
+                                "Extracted file name: $name".log()
+                            }
                     }
                 }
             }

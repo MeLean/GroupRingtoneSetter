@@ -7,11 +7,9 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.databinding.ItemGroupEntityBinding
-import com.milen.grounpringtonesetter.utils.EncryptedPreferencesHelper
 
 internal class GroupsAdapter(
-    private val interactor: GroupItemsInteractor,
-    private val encryptedPrefs: EncryptedPreferencesHelper
+    private val interactor: GroupItemsInteractor
 ) :
     ListAdapter<GroupItem, GroupsAdapter.ViewHolder>(DiffCallback) {
 
@@ -19,15 +17,13 @@ internal class GroupsAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(
             group: GroupItem,
-            interactor: GroupItemsInteractor,
-            encryptedPrefs: EncryptedPreferencesHelper
+            interactor: GroupItemsInteractor
         ): Unit =
             group.run {
                 binding.apply {
                     ctvGroupName.text = groupName
                     cwtContacts.text = "${contacts.size}"
-
-                    ctwRingtone.text = group.ringtoneUriStr?.let { encryptedPrefs.getString(it) }
+                    ctwRingtone.text = group.ringtoneFileName
 
                     ctcibManageContacts.setOnClickListener {
                         interactor.onManageContacts(groupItem = this@run)
@@ -57,7 +53,7 @@ internal class GroupsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val group = getItem(position)
-        holder.bind(group, interactor, encryptedPrefs)
+        holder.bind(group, interactor)
     }
 
     companion object DiffCallback : DiffUtil.ItemCallback<GroupItem>() {

@@ -38,9 +38,7 @@ class MainActivity : AppCompatActivity() {
 
         setUpToolbar()
 
-        if (hasInternetConnection()) {
-            navController.navigateSingleTop(R.id.homeFragment)
-        } else {
+        if (hasInternetConnection().not()) {
             navController.navigateSingleTop(R.id.noInternetFragment)
         }
     }

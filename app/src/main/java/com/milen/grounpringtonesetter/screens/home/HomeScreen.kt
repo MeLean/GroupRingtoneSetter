@@ -17,13 +17,13 @@ import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
 import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModel
 import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModelFactory
-import com.milen.grounpringtonesetter.utils.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
 import com.milen.grounpringtonesetter.utils.changeMainTitle
 import com.milen.grounpringtonesetter.utils.collectScoped
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import com.milen.grounpringtonesetter.utils.handleLoading
+import com.milen.grounpringtonesetter.utils.log
 import com.milen.grounpringtonesetter.utils.navigateSingleTop
 
 class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
@@ -49,16 +49,14 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     private val pickAudioFileLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            "pickAudioFileLauncher uri: $uri".log()
             uri?.let { viewModel.onRingtoneChosen(it, it.getFileNameOrEmpty(requireContext())) }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        groupsAdapter = GroupsAdapter(
-            this,
-            EncryptedPreferencesHelper(appContext = requireActivity().application)
-        )
+        groupsAdapter = GroupsAdapter(this)
 
         collectScoped(viewModel.homeUiState) {
             handleLoading(it.isLoading)

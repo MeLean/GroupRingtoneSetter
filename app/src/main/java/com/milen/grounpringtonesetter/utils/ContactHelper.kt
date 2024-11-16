@@ -13,7 +13,10 @@ import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.data.exceptions.NoContactsFoundException
 
-class ContactsHelper(private val appContext: Application) {
+class ContactsHelper(
+    private val appContext: Application,
+    private val preferenceHelper: EncryptedPreferencesHelper
+) {
 
     fun getAllPhoneContacts(): List<Contact> {
         val contacts = mutableListOf<Contact>()
@@ -52,6 +55,9 @@ class ContactsHelper(private val appContext: Application) {
 
 
         return contacts
+            .also {
+                "getAllPhoneContacts: ${it.joinToString()}".log()
+            }
     }
 
     fun updateGroupName(groupId: Long, newGroupName: String) {
@@ -129,12 +135,23 @@ class ContactsHelper(private val appContext: Application) {
                 val title = cursor.getString(titleIndex)
                 val contacts = getContactsForGroup(id)
 
+                val contactsUri = contacts.allContactsHaveSameRingtoneUri()
+
+                if (contactsUri == null) {
+                    "Group name: $title, contactsUrls: ${
+                        contacts.mapNotNull { it.ringtoneUriStr }.distinct().joinToString()
+                    }".log()
+                }
+
                 groups.add(
                     GroupItem(
                         id = id,
                         groupName = title,
                         contacts = contacts,
-                        ringtoneUriStr = contacts.allContactsHaveSameRingtoneUri()
+                        ringtoneUriStr = contactsUri,
+                        ringtoneFileName = contactsUri?.let {
+                            preferenceHelper.getString(it).orEmpty()
+                        }
                     )
                 )
             }

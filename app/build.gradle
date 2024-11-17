@@ -108,6 +108,10 @@ dependencies {
     // Google Play Services
     implementation "com.google.android.gms:play-services-ads:$play_services_ads_version"
 
+    // Tokenizer
+    implementation "com.aallam.ktoken:ktoken:0.4.0"
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+
     //Firebase
     implementation platform("com.google.firebase:firebase-bom:$firebase_bom_version")
     implementation 'com.google.firebase:firebase-analytics'

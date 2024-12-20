@@ -7,6 +7,7 @@ import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.utils.Tracker
 
 object MainViewModelFactory {
     fun provideFactory(
@@ -18,14 +19,17 @@ object MainViewModelFactory {
                 if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
                     val preferenceHelper =
                         EncryptedPreferencesHelper(appContext = activity.application)
+                    val tracker = Tracker()
                     return MainViewModel(
                         adHelper = AdLoadingHelper(activity),
                         dialogShower = DialogShower(activity),
                         contactsHelper = ContactsHelper(
                             appContext = activity.application,
-                            preferenceHelper = preferenceHelper
+                            preferenceHelper = preferenceHelper,
+                            tracker = tracker
                         ),
-                        encryptedPrefs = preferenceHelper
+                        encryptedPrefs = preferenceHelper,
+                        tracker = tracker
                     ) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")

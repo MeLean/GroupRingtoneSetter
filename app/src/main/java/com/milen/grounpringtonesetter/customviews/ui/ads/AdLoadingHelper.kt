@@ -6,6 +6,7 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.milen.grounpringtonesetter.BuildConfig
 import com.milen.grounpringtonesetter.R
 
 class AdLoadingHelper(private val activity: Activity) {
@@ -21,7 +22,7 @@ class AdLoadingHelper(private val activity: Activity) {
         val adRequest = AdRequest.Builder().build()
         InterstitialAd.load(
             activity,
-            activity.getString(R.string.ad_id_interstitial),
+            activity.getInterstitialAdId(),
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
@@ -60,3 +61,7 @@ class AdLoadingHelper(private val activity: Activity) {
         interstitialAd?.show(activity)
     }
 }
+
+private fun Activity.getInterstitialAdId(): String =
+    if (BuildConfig.DEBUG) getString(R.string.ad_id_interstitial_debug)
+    else getString(R.string.ad_id_interstitial)

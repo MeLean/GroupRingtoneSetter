@@ -12,6 +12,7 @@ import com.milen.grounpringtonesetter.screens.picker.PickerScreenState
 import com.milen.grounpringtonesetter.screens.picker.data.PickerResultData
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
 import com.milen.grounpringtonesetter.utils.log
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ class MainViewModel(
     private val dialogShower: DialogShower,
     private val contactsHelper: ContactsHelper,
     private val encryptedPrefs: EncryptedPreferencesHelper,
+    private val tracker: Tracker,
 ) : ViewModel() {
     private var _groups: MutableList<GroupItem>? = null
     private val groups: List<GroupItem>
@@ -60,6 +62,7 @@ class MainViewModel(
     }
 
     fun onPermissionsGranted() {
+        tracker.trackEvent("onPermissionsGranted")
         _homeUiState.value = _homeUiState.value.copy(
             isLoading = true,
             arePermissionsGranted = true
@@ -68,6 +71,7 @@ class MainViewModel(
     }
 
     fun setUpGroupNameEditing(group: GroupItem) {
+        tracker.trackEvent("setUpGroupNameEditing")
         _pickerUiState.tryEmit(
             PickerScreenState(
                 isLoading = false,
@@ -81,8 +85,10 @@ class MainViewModel(
 
     fun onPermissionsRefused(): Unit =
         dialogShower.showErrorById(R.string.need_permission_to_run)
+            .also { tracker.trackEvent("onPermissionsRefused") }
 
     fun setUpContactsManaging(group: GroupItem) {
+        tracker.trackEvent("setUpContactsManaging")
         setPickerLoadingForResult().also {
             launchOnIoResultInMain(
                 work = { contactsHelper.getAllPhoneContacts() },
@@ -110,9 +116,10 @@ class MainViewModel(
                 onError = ::handleError,
                 onSuccess = { updateGroupList() }
             )
-        }
+        }.also { tracker.trackEvent("onGroupDeleted") }
 
     fun onPickerResult(result: PickerResultData) {
+        tracker.trackEvent("onPickerResult")
         showHomeLoading()
         setPickerLoadingForResult(result)
         when (result) {
@@ -121,21 +128,21 @@ class MainViewModel(
                     work = { manageContacts(result) },
                     onError = ::handleError,
                     onSuccess = { updateGroupList() }
-                )
+                ).also { tracker.trackEvent("ManageGroupContacts") }
 
             is PickerResultData.GroupNameChange ->
                 launchOnIoResultInMain(
                     work = { manageGroupChange(result) },
                     onError = ::handleError,
                     onSuccess = { updateGroupList() }
-                )
+                ).also { tracker.trackEvent("GroupNameChange") }
 
             is PickerResultData.GroupSetName ->
                 launchOnIoResultInMain(
                     work = { manageGroupSet(result) },
                     onError = ::handleError,
                     onSuccess = { updateGroupList(scrollTo = groups.size - 1) }
-                )
+                ).also { tracker.trackEvent("GroupSetName") }
 
             is PickerResultData.Canceled -> Unit
         }
@@ -143,6 +150,7 @@ class MainViewModel(
     }
 
     fun onRingtoneChosen(uri: Uri, fileName: String) {
+        tracker.trackEvent("onRingtoneChosen")
         showHomeLoading()
         launchOnIoResultInMain(
             work = {
@@ -172,6 +180,7 @@ class MainViewModel(
     }
 
     fun onSetRingtones() {
+        tracker.trackEvent("onSetRingtones")
         showHomeLoading()
         launchOnIoResultInMain(
             work = {
@@ -209,6 +218,7 @@ class MainViewModel(
     }
 
     fun setUpGroupCreateRequest() {
+        tracker.trackEvent("setUpGroupCreateRequest")
         _pickerUiState.tryEmit(
             PickerScreenState(
                 titleId = R.string.add_group,
@@ -219,6 +229,7 @@ class MainViewModel(
     }
 
     private fun handleError(error: Throwable) {
+        tracker.trackError(error)
         hideHomeLoading()
         hidePickerLoading()
         dialogShower.showError(error.localizedMessage)

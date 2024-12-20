@@ -15,10 +15,12 @@ import com.milen.grounpringtonesetter.data.exceptions.NoContactsFoundException
 
 class ContactsHelper(
     private val appContext: Application,
-    private val preferenceHelper: EncryptedPreferencesHelper
+    private val preferenceHelper: EncryptedPreferencesHelper,
+    private val tracker: Tracker,
 ) {
 
     fun getAllPhoneContacts(): List<Contact> {
+        tracker.trackEvent("getAllPhoneContacts called")
         val contacts = mutableListOf<Contact>()
         val uri = ContactsContract.Contacts.CONTENT_URI
         val projection = arrayOf(
@@ -56,11 +58,15 @@ class ContactsHelper(
 
         return contacts
             .also {
-                "getAllPhoneContacts: ${it.joinToString()}".log()
+                tracker.trackEvent(
+                    "getAllPhoneContacts loaded",
+                    mapOf("count" to it.size.toString())
+                )
             }
     }
 
     fun updateGroupName(groupId: Long, newGroupName: String) {
+        tracker.trackEvent("updateGroupName called")
         val groupNameValues = ContentValues().apply {
             put(ContactsContract.Groups.TITLE, newGroupName)
         }
@@ -77,6 +83,7 @@ class ContactsHelper(
     }
 
     fun deleteGroup(groupId: Long) {
+        tracker.trackEvent("deleteGroup called")
         val operations = ArrayList<ContentProviderOperation>()
         val groupUri = ContentUris.withAppendedId(ContactsContract.Groups.CONTENT_URI, groupId)
         operations.add(ContentProviderOperation.newDelete(groupUri).build())
@@ -87,9 +94,12 @@ class ContactsHelper(
     fun addAllContactsToGroup(groupId: Long, includedContacts: List<Contact>): Unit =
         includedContacts.forEach {
             addSingleContactToGroup(groupId = groupId, contactId = it.id)
+        }.also {
+            tracker.trackEvent("addAllContactsToGroup called")
         }
 
     fun removeAllContactsFromGroup(groupId: Long, excludedContacts: List<Contact>) {
+        tracker.trackEvent("removeAllContactsFromGroup called")
         val ops = ArrayList<ContentProviderOperation>()
 
         excludedContacts.forEach { contact ->
@@ -114,6 +124,7 @@ class ContactsHelper(
     }
 
     fun getAllGroups(): List<GroupItem> {
+        tracker.trackEvent("getAllGroups called")
         val groups = mutableListOf<GroupItem>()
         val uri = ContactsContract.Groups.CONTENT_URI
         val projection = arrayOf(
@@ -166,6 +177,7 @@ class ContactsHelper(
             ContactsContract.Groups.CONTENT_URI,
             ContentValues().apply { put(ContactsContract.Groups.TITLE, groupName) }
         )?.let {
+            tracker.trackEvent("createGroup called")
             GroupItem(
                 id = ContentUris.parseId(it),
                 groupName = groupName,
@@ -180,6 +192,7 @@ class ContactsHelper(
             arrayOf(uriFromStr?.path),
             null
         ) { _, uri ->
+            tracker.trackEvent("scanAndUpdate called")
             appContext.contentResolver.update(
                 ContentUris.withAppendedId(
                     ContactsContract.Contacts.CONTENT_URI,
@@ -199,6 +212,7 @@ class ContactsHelper(
 
     private fun addSingleContactToGroup(groupId: Long, contactId: Long) {
         val ops = ArrayList<ContentProviderOperation>().apply {
+            tracker.trackEvent("addSingleContactToGroup called")
             add(
                 ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                     .withValue(ContactsContract.Data.RAW_CONTACT_ID, contactId)

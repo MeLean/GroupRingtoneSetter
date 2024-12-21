@@ -40,7 +40,7 @@ class ContactsHelper(
 
                 while (it.moveToNext()) {
                     val id = it.getLong(idIndex)
-                    val name = it.getString(nameIndex)
+                    val name = it.getString(nameIndex).orEmpty()
                     val phone = getPrimaryPhoneNumberForContact(id)
                     val ringtoneStr = it.getString(customRingToneIndex)
 

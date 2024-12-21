@@ -264,7 +264,7 @@ class ContactsHelper(
 
             while (cursor.moveToNext()) {
                 val rawContactId = cursor.getLong(rawContactIdIndex)
-                val displayName = cursor.getString(displayNameIndex)
+                val displayName = cursor.getString(displayNameIndex).orEmpty()
                 val phone = getPrimaryPhoneNumberForContact(rawContactId)
                 val ringtoneUriStr = cursor.getString(customRingToneIndex)
 

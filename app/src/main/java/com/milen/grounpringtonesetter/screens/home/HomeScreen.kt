@@ -69,7 +69,13 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
             binding.apply {
                 it.scrollToPosition?.let { position ->
-                    rwGroupItems.smoothScrollToPosition(position)
+                    // Check if the position is valid before scrolling
+                    val itemCount = rwGroupItems.adapter?.itemCount ?: 0
+                    if (position in 0 until itemCount) {
+                        rwGroupItems.smoothScrollToPosition(position)
+                    } else {
+                        viewModel.trackNoneFatal(IllegalArgumentException("Invalid position: $position. Item count: $itemCount"))
+                    }
                 }
 
                 noItemDisclaimer.isVisible = it.groupItems.isEmpty() && it.isLoading.not()
@@ -117,7 +123,7 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     }
 
     override fun onManageContacts(groupItem: GroupItem): Unit =
-        requireContext().showAlertDialog(
+        requireActivity().showAlertDialog(
             titleResId = R.string.manage_contacts_group_name,
             message = getString(R.string.manage_contacts_group_name_desc),
             confirmButtonData = ButtonData {
@@ -128,7 +134,7 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
 
     override fun onEditName(groupItem: GroupItem): Unit =
-        requireContext().showAlertDialog(
+        requireActivity().showAlertDialog(
             titleResId = R.string.edit_group_name,
             message = getString(R.string.edit_group_name_desc),
             confirmButtonData = ButtonData {
@@ -138,7 +144,7 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         )
 
     override fun onGroupDelete(groupItem: GroupItem): Unit =
-        requireContext().showAlertDialog(
+        requireActivity().showAlertDialog(
             titleResId = R.string.delete_group,
             message = getString(R.string.delete_group_desc),
             confirmButtonData = ButtonData {

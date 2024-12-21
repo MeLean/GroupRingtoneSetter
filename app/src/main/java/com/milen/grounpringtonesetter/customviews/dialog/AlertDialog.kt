@@ -1,6 +1,6 @@
 package com.milen.grounpringtonesetter.customviews.dialog
 
-import android.content.Context
+import android.app.Activity
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import com.milen.grounpringtonesetter.R
@@ -10,11 +10,11 @@ data class ButtonData(
     val onClick: () -> Unit = {}
 )
 
-fun Context.showAlertDialog(
+fun Activity.showAlertDialog(
     @StringRes titleResId: Int,
     message: String,
     cancelButtonData: ButtonData? = ButtonData(R.string.cancel),
-    confirmButtonData: ButtonData
+    confirmButtonData: ButtonData,
 ) {
     AlertDialog.Builder(this, R.style.AlertDialogCustom).apply {
         setTitle(titleResId)
@@ -31,7 +31,10 @@ fun Context.showAlertDialog(
                 it.onClick()
             }
         }
+        create()
 
-        create().show()
+        if (!(isFinishing || isDestroyed)) {
+            show()
+        }
     }
 }

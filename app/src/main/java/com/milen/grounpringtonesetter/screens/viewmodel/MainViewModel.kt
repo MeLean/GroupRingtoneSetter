@@ -309,4 +309,8 @@ class MainViewModel(
             selectedContacts = group.contacts,
             allContacts = allContacts
         )
+
+    fun trackNoneFatal(error: IllegalArgumentException): Unit =
+        tracker.trackError(error)
+
 }

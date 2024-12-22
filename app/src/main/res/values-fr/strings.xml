@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">Définir la sonnerie</string>
+    <string name="items_not_found">Aucun élément trouvé</string>
+    <string name="everything_set">Tout est prêt !</string>
+    <string name="permission_required">Permission requise</string>
+    <string name="need_permission_to_run">Veuillez autoriser l\'utilisation de l\'application. Redémarrez l\'application ou accordez manuellement les autorisations via les paramètres de l\'appareil.</string>
+    <string name="ok">D\'accord</string>
+    <string name="choose_ringtone">Choisissez\nune sonnerie</string>
+    <string name="add_group">Ajouter un nouveau groupe</string>
+    <string name="do_the_magic">Faites la magie</string>
+    <string name="file_name_not_accessible">Le nom du fichier n\'est pas accessible</string>
+    <string name="contacts">Contacts</string>
+    <string name="close_app">Fermer l\'application</string>
+    <string name="open_network_settings">Ouvrir les paramètres Wi-Fi</string>
+    <string name="no_internet_description">Pas de connexion Internet. Une connexion Internet est nécessaire pour le bon fonctionnement de l\'application.</string>
+    <string name="close">Fermer</string>
+    <string name="done">Terminé</string>
+    <string name="cancel">Annuler</string>
+    <string name="confirm">Confirmer</string>
+    <string name="home">Accueil</string>
+    <string name="enter_group_name">Entrez le nom du groupe</string>
+    <string name="edit_group_name">Modifier le nom du groupe</string>
+    <string name="edit_group_name_desc">Voulez-vous modifier le nom du groupe ? Cette action attribuera les contacts au nouveau groupe nommé tout en conservant leurs sonneries assignées.</string>
+    <string name="delete_group">Supprimer le groupe</string>
+    <string name="delete_group_desc">Voulez-vous supprimer ce groupe ? Cela retirera les contacts du groupe, mais leurs sonneries assignées resteront inchangées.</string>
+    <string name="manage_contacts_group_name">Gérer les contacts du groupe</string>
+    <string name="manage_contacts_group_name_desc">Voulez-vous ajouter ou retirer des contacts de ce groupe ? Cette action assignera/retirera les contacts au/du groupe. Le changement de sonnerie prendra effet une fois le processus terminé !</string>
+    <string name="something_went_wrong">Quelque chose s\'est mal passé</string>
+    <string name="loading">Chargement. . .</string>
+    <string name="error">Erreur</string>
+    <string name="info">Information</string>
+    <string name="info_text">Pour des performances optimales, veuillez vous assurer que vos contacts sont enregistrés directement sur votre appareil.</string>
+    <string name="no_ringtone_selected">Aucune sonnerie sélectionnée</string>
+</resources>

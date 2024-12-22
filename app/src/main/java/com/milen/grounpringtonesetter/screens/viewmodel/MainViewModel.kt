@@ -243,7 +243,7 @@ class MainViewModel(
                     _groups = contactsHelper.getAllGroups().toMutableList()
                 }
             }
-            ?: throw IllegalArgumentException()
+            ?: throw IllegalArgumentException("Group name is empty")
     }
 
     private fun manageGroupChange(result: PickerResultData.GroupNameChange): Unit =
@@ -253,7 +253,7 @@ class MainViewModel(
                 val updatedGroups = contactsHelper.getAllGroups()
                 _groups = updatedGroups.toMutableList()
             }
-            ?: throw IllegalArgumentException()
+            ?: throw IllegalArgumentException("${result.newGroupName} could not be applied on ${result.groupItem}")
 
     private fun manageContacts(result: PickerResultData.ManageGroupContacts) {
         contactsHelper.addAllContactsToGroup(result.group.id, result.selectedContacts)

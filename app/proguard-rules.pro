@@ -30,3 +30,6 @@
 
 # Keep any fields and methods referenced by Google Ads
 -keepattributes *Annotation*
+
+-keep class androidx.appcompat.** { *; }
+-keep class android.content.res.** { *; }

@@ -29,7 +29,7 @@
     <string name="loading">Chargement. . .</string>
     <string name="error">Erreur</string>
     <string name="info">Information</string>
-    <string name="info_text">Pour de meilleures performances :\n- Assurez-vous que toutes les autorisations nécessaires sont accordées.\n- Connectez-vous avec votre compte Google.\n- Évitez d'ajouter un contact à plusieurs groupes.\n- Une fois les sonneries ajoutées, appuyez sur le bouton Appliquer les sonneries pour terminer le processus.</string>
+    <string name="info_text">Pour de meilleures performances :- Assurez-vous que toutes les autorisations nécessaires sont accordées.\n- Connectez-vous avec votre compte Google.\n- Évitez d\'ajouter un contact à plusieurs groupes.\n- Une fois les sonneries ajoutées, appuyez sur le bouton Appliquer les sonneries pour terminer le processus.</string>
     <string name="no_ringtone_selected">Aucune sonnerie sélectionnée</string>
     <string name="group_contacts_count">Nombre de contacts dans le groupe</string>
     <string name="end_button">Bouton de fin</string>

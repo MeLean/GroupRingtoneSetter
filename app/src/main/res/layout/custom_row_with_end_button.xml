@@ -20,6 +20,6 @@
         android:layout_height="24dp"
         android:layout_alignParentEnd="true"
         android:background="?android:attr/selectableItemBackground"
-        android:contentDescription="End button image"
+        android:contentDescription="@string/end_button"
         tools:ignore="HardcodedText" />
 </RelativeLayout>

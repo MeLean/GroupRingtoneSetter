@@ -7,7 +7,7 @@
     <string name="ok">ठीक है</string>
     <string name="choose_ringtone">रिंगटोन चुनें\n</string>
     <string name="add_group">नया समूह जोड़ें</string>
-    <string name="do_the_magic">जादू करें</string>
+    <string name="do_the_magic">रिंगटोन लागू करें</string>
     <string name="file_name_not_accessible">फ़ाइल का नाम अनुपलब्ध है</string>
     <string name="contacts">संपर्क</string>
     <string name="close_app">ऐप्लिकेशन बंद करें</string>
@@ -29,6 +29,11 @@
     <string name="loading">लोड हो रहा है. . .</string>
     <string name="error">त्रुटि</string>
     <string name="info">जानकारी</string>
-    <string name="info_text">उत्कृष्ट प्रदर्शन के लिए, कृपया सुनिश्चित करें कि आपके संपर्क आपके उपकरण पर सीधे सहेजे गए हैं।</string>
+    <string name="info_text">सर्वोत्तम प्रदर्शन के लिए:\n- सुनिश्चित करें कि सभी आवश्यक अनुमतियां दी गई हैं।\n- अपने Google खाते से लॉग इन करें।\n- किसी संपर्क को कई समूहों में जोड़ने से बचें।\n- रिंगटोन जोड़ने के बाद, प्रक्रिया को पूरा करने के लिए अप्लाई रिंगटोन बटन दबाएं।</string>
     <string name="no_ringtone_selected">कोई रिंगटोन चयनित नहीं है</string>
+    <string name="group_contacts_count">समूह में संपर्कों की संख्या</string>
+    <string name="end_button">समाप्ति बटन</string>
+    <string name="image_button">चित्र वाला बटन</string>
+    <string name="click_to_check">चेक करने के लिए क्लिक करें</string>
+    <string name="click_to_uncheck">अनचेक करने के लिए क्लिक करें</string>
 </resources>

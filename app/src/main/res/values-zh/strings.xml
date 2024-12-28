@@ -29,7 +29,12 @@
     <string name="loading">加载中…</string>
     <string name="error">错误</string>
     <string name="info">信息</string>
-    <string name="info_text">为了最佳性能，请确保您的联系人直接保存在您的设备上。</string>
+    <string name="info_text">为了获得最佳性能：\n- 确保授予所有必要的权限。\n- 使用您的 Google 帐户登录。\n- 避免将联系人添加到多个组中。\n- 添加铃声后，按“应用铃声”按钮完成过程。</string>
     <string name="no_ringtone_selected">未选择铃声</string>
+    <string name="group_contacts_count">群组中的联系人数量</string>
+    <string name="end_button">结束按钮</string>
+    <string name="image_button">带图像的按钮</string>
+    <string name="click_to_check">点击以选中</string>
+    <string name="click_to_uncheck">点击以取消选中</string>
 </resources>
 

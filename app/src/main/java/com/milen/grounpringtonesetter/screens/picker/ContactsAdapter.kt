@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.ItemContactBinding
 
@@ -20,6 +21,11 @@ internal class ContactsAdapter :
                 checkbox.apply {
                     setOnCheckedChangeListener(null)
                     isChecked = contact.isChecked
+                    contentDescription = if (contact.isChecked) {
+                        context.getString(R.string.click_to_uncheck)
+                    } else {
+                        context.getString(R.string.click_to_check)
+                    }
                     setOnCheckedChangeListener { _, checked ->
                         contact.isChecked = checked
                         onContactChecked()

@@ -6,8 +6,9 @@
     <string name="need_permission_to_run">请授予应用程序使用权限。 请从设备设置中重新启动应用程序或手动授予。</string>
     <string name="ok">确定</string>
     <string name="choose_ringtone">选择\n铃声</string>
+    <string name="apply_ringtone">应用\n铃声</string>
     <string name="add_group">添加新组</string>
-    <string name="do_the_magic">施展魔法</string>
+    <string name="do_the_magic">应用所有铃声</string>
     <string name="file_name_not_accessible">文件名不可访问</string>
     <string name="contacts">联系人</string>
     <string name="close_app">关闭应用程序</string>
@@ -31,6 +32,7 @@
     <string name="info">信息</string>
     <string name="info_text">为了获得最佳性能：\n- 确保授予所有必要的权限。\n- 使用您的 Google 帐户登录。\n- 避免将联系人添加到多个组中。\n- 添加铃声后，按“应用铃声”按钮完成过程。</string>
     <string name="no_ringtone_selected">未选择铃声</string>
+    <string name="no_contacts">组中没有联系人</string>
     <string name="group_contacts_count">群组中的联系人数量</string>
     <string name="end_button">结束按钮</string>
     <string name="image_button">带图像的按钮</string>

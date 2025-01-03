@@ -109,12 +109,16 @@ class MainViewModel(
     fun onGroupDeleted(groupItem: GroupItem): Unit =
         showHomeLoading().also {
             launchOnIoResultInMain(
-                work = {
-                    contactsHelper.deleteGroup(groupId = groupItem.id)
-                    _groups?.remove(groupItem)
-                },
+                work = { contactsHelper.deleteGroup(groupId = groupItem.id) },
                 onError = ::handleError,
-                onSuccess = { updateGroupList() }
+                onSuccess = {
+                    val newGroups = _groups?.filter { it.id != groupItem.id }.orEmpty()
+                    _groups = newGroups.toMutableList()
+                    _homeUiState.value = homeUiState.value.copy(
+                        isLoading = false,
+                        groupItems = newGroups,
+                    )
+                }
             )
         }.also { tracker.trackEvent("onGroupDeleted") }
 
@@ -137,16 +141,25 @@ class MainViewModel(
                     onSuccess = { updateGroupList() }
                 ).also { tracker.trackEvent("GroupNameChange") }
 
-            is PickerResultData.GroupSetName ->
+            is PickerResultData.AddGroupName ->
                 launchOnIoResultInMain(
-                    work = { manageGroupSet(result) },
+                    work = { createGroupByName(result.groupName) },
                     onError = ::handleError,
-                    onSuccess = { updateGroupList(scrollTo = groups.size - 1) }
-                ).also { tracker.trackEvent("GroupSetName") }
+                    onSuccess = { groupItem ->
+                        val newGroups = _groups?.toMutableList()?.also {
+                            it.add(groupItem)
+                        }.orEmpty()
 
-            is PickerResultData.Canceled -> Unit
+                        _homeUiState.value = homeUiState.value.copy(
+                            isLoading = false,
+                            groupItems = newGroups,
+                            scrollToBottom = true
+                        )
+                    }
+                ).also { tracker.trackEvent("AddGroupName") }
+
+            is PickerResultData.Canceled -> hideHomeLoading()
         }
-        hideHomeLoading()
     }
 
     fun onRingtoneChosen(uri: Uri, fileName: String) {
@@ -161,7 +174,7 @@ class MainViewModel(
                 _groups = _groups?.map { group ->
                     if (group.id == selectingGroup.id) {
                         group.copy(
-                            ringtoneUriStr = listOf(uriStr),
+                            ringtoneUriList = listOf(uriStr),
                             ringtoneFileName = fileName,
                             contacts = group.contacts.map { contact ->
                                 contact.copy(ringtoneUriStr = uriStr)
@@ -179,23 +192,20 @@ class MainViewModel(
         )
     }
 
-    fun onSetRingtones() {
-        tracker.trackEvent("onSetRingtones")
+    fun onSetAllGroupsRingtones() {
+        tracker.trackEvent("onSetAllGroupsRingtones")
         showHomeLoading()
         launchOnIoResultInMain(
             work = {
                 var noRingtoneSelected = true
                 groups.forEach {
-                    "onSetRingtones: ${it.groupName} count:${it.contacts.count()} uri:${it.ringtoneUriStr}".log()
-                    it.ringtoneUriStr
+                    "onSetRingtones: ${it.groupName} count:${it.contacts.count()} uri:${it.ringtoneUriList}".log()
+                    it.ringtoneUriList
                         .takeIf { list -> list.isNotEmpty() }
                         ?.let { uriStr ->
-                        noRingtoneSelected = false
-                        contactsHelper.setRingtoneToGroupContacts(
-                            groupContacts = it.contacts,
-                            newRingtoneUriStr = uriStr.first()
-                        )
-                    }
+                            noRingtoneSelected = false
+                            setRingtoneToGroupContacts(it, uriStr)
+                        }
                 }
 
                 noRingtoneSelected
@@ -206,14 +216,19 @@ class MainViewModel(
                     hideHomeLoading()
                     dialogShower.showErrorById(R.string.no_ringtone_selected)
                 } else {
-                    adHelper.run {
-                        loadInterstitialAd {
-                            hideHomeLoading()
-                            showInterstitialAd()
-                        }
-                    }
+                    showInterstitialAd()
                 }
             }
+        )
+    }
+
+    private fun setRingtoneToGroupContacts(
+        groupItem: GroupItem,
+        uriStr: List<String>,
+    ) {
+        contactsHelper.setRingtoneToGroupContacts(
+            groupContacts = groupItem.contacts,
+            newRingtoneUriStr = uriStr.first()
         )
     }
 
@@ -223,10 +238,40 @@ class MainViewModel(
             PickerScreenState(
                 titleId = R.string.add_group,
                 isLoading = false,
-                pikerResultData = PickerResultData.GroupSetName()
+                pikerResultData = PickerResultData.AddGroupName()
             )
         )
     }
+
+    fun onApplySingleRingtone(groupItem: GroupItem) {
+        with(groupItem) {
+
+            if (contacts.isEmpty()) {
+                tracker.trackEvent("onSingleRingtoneSetNoContacts")
+                dialogShower.showErrorById(R.string.no_contacts)
+                return
+            }
+
+            if (ringtoneUriList.isEmpty()) {
+                tracker.trackEvent("onSingleRingtoneSetNoRingtones")
+                dialogShower.showErrorById(R.string.no_ringtone_selected)
+                return
+            }
+
+            tracker.trackEvent("onSingleRingtoneSet")
+            showHomeLoading()
+            launchOnIoResultInMain(
+                work = { setRingtoneToGroupContacts(this, ringtoneUriList) },
+                onError = ::handleError,
+                onSuccess = {
+                    showInterstitialAd()
+                }
+            )
+        }
+    }
+
+    fun trackNoneFatal(error: Exception): Unit =
+        tracker.trackError(error)
 
     private fun handleError(error: Throwable) {
         tracker.trackError(error)
@@ -235,16 +280,19 @@ class MainViewModel(
         dialogShower.showError(error.localizedMessage)
     }
 
-    private fun manageGroupSet(result: PickerResultData.GroupSetName) {
-        result.groupName.takeIf { it.isNotEmpty() }
-            ?.let { str ->
-                contactsHelper.createGroup(str)?.let { newGroup ->
-                    _groups?.add(newGroup)
-                    _groups = contactsHelper.getAllGroups().toMutableList()
-                }
+    private fun showInterstitialAd() {
+        adHelper.run {
+            loadInterstitialAd {
+                hideHomeLoading()
+                showInterstitialAd()
             }
-            ?: throw IllegalArgumentException("Group name is empty")
+        }
     }
+
+    private fun createGroupByName(name: String): GroupItem =
+        name.takeIf { it.isNotEmpty() }
+            ?.let { noneEmptyName -> contactsHelper.createGroup(noneEmptyName) }
+            ?: throw IllegalArgumentException("Group name is empty")
 
     private fun manageGroupChange(result: PickerResultData.GroupNameChange): Unit =
         result.newGroupName.takeIf { it?.isNotEmpty() == true && it != result.groupItem.groupName }
@@ -267,7 +315,7 @@ class MainViewModel(
         _groups = updatedGroups.toMutableList()
     }
 
-    private fun updateGroupList(scrollTo: Int? = null) {
+    private fun updateGroupList() {
         launchOnIoResultInMain(
             work = { groups },
             onSuccess = { list ->
@@ -275,8 +323,7 @@ class MainViewModel(
                 _homeUiState.update {
                     _homeUiState.value.copy(
                         isLoading = false,
-                        groupItems = list,
-                        scrollToPosition = scrollTo
+                        groupItems = list
                     )
                 }
             },
@@ -309,8 +356,5 @@ class MainViewModel(
             selectedContacts = group.contacts,
             allContacts = allContacts
         )
-
-    fun trackNoneFatal(error: IllegalArgumentException): Unit =
-        tracker.trackError(error)
 
 }

@@ -6,5 +6,5 @@ data class HomeScreenState(
     val groupItems: List<GroupItem> = mutableListOf(),
     val isLoading: Boolean = true,
     val arePermissionsGranted: Boolean = true,
-    val scrollToPosition: Int? = null
+    val scrollToBottom: Boolean = false,
 )

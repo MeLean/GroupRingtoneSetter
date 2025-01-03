@@ -6,8 +6,9 @@
     <string name="need_permission_to_run">Please grant permission to use the application. Restart the app or give them manually from device settings.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Choose\nRingtone</string>
+    <string name="apply_ringtone">Apply\nRingtone</string>
     <string name="add_group">Add new group</string>
-    <string name="do_the_magic">Apply ringtones</string>
+    <string name="do_the_magic">Apply all ringtones</string>
     <string name="file_name_not_accessible">The file\'s name is not accessible</string>
     <string name="contacts">Contacts</string>
     <string name="close_app">Close the application</string>
@@ -31,6 +32,7 @@
     <string name="info">information</string>
     <string name="info_text">For the best performance:\n- Ensure all necessary permissions are granted.\n- Log in with your Google account.\n- Avoid adding a contact to multiple groups.\n- Once you add ringtones, press the Apply Ringtones button to complete the process.</string>
     <string name="no_ringtone_selected">There are no ringtones selected</string>
+    <string name="no_contacts">There are no contacts in the group</string>
     <string name="group_contacts_count">Group contact count</string>
     <string name="end_button">end button</string>
     <string name="image_button">Image button</string>

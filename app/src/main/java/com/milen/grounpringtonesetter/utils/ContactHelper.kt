@@ -123,29 +123,49 @@ class ContactsHelper(
         appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
     }
 
-    fun getAllGroups(): List<GroupItem> {
+    fun getAllGroups(includeDeviceContacts: Boolean = true): List<GroupItem> {
         tracker.trackEvent("getAllGroups called")
         val groups = mutableListOf<GroupItem>()
         val uri = ContactsContract.Groups.CONTENT_URI
         val projection = arrayOf(
             ContactsContract.Groups._ID,
             ContactsContract.Groups.TITLE,
+            ContactsContract.Groups.ACCOUNT_TYPE,
+            ContactsContract.Groups.ACCOUNT_NAME,
             ContactsContract.Groups.GROUP_IS_READ_ONLY,
             ContactsContract.Groups.DELETED
         )
 
-        val selection =
+        // Build selection query based on user preference
+        val selection = if (includeDeviceContacts) {
             "${ContactsContract.Groups.DELETED} = 0 AND ${ContactsContract.Groups.GROUP_IS_READ_ONLY} = 0"
+        } else {
+            "${ContactsContract.Groups.DELETED} = 0 AND ${ContactsContract.Groups.GROUP_IS_READ_ONLY} = 0 AND ${ContactsContract.Groups.ACCOUNT_TYPE} = ?"
+        }
 
-        appContext.contentResolver.query(uri, projection, selection, null, null)?.use { cursor ->
-            val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups._ID)
-            val titleIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups.TITLE)
+        val selectionArgs = if (includeDeviceContacts) null else arrayOf("com.google")
+
+        // Query the ContentResolver
+        appContext.contentResolver.query(uri, projection, selection, selectionArgs, null)
+            ?.use { cursor ->
+                // Use getColumnIndex with null checks to handle older APIs
+                val idIndex = cursor.getColumnIndex(ContactsContract.Groups._ID).takeIf { it != -1 }
+                val titleIndex =
+                    cursor.getColumnIndex(ContactsContract.Groups.TITLE).takeIf { it != -1 }
+
+                // Check column indices to avoid null pointer exceptions
+                if (idIndex == null || titleIndex == null) {
+                    tracker.trackEvent("Invalid cursor column indices for Groups")
+                    return@use
+                }
 
             while (cursor.moveToNext()) {
-                val id = cursor.getLong(idIndex)
-                val title = cursor.getString(titleIndex)
-                val contacts = getContactsForGroup(id)
+                val id = idIndex.let { cursor.getLong(it) }
+                val title = titleIndex.let { cursor.getString(it) }
+                if (title.isNullOrEmpty()) continue
 
+                // Fetch contacts for the group
+                val contacts = getContactsForGroup(id)
                 val contactsUri: List<String> = contacts.mapNotNull { it.ringtoneUriStr }.distinct()
 
                 groups.add(
@@ -153,12 +173,12 @@ class ContactsHelper(
                         id = id,
                         groupName = title,
                         contacts = contacts,
-                        ringtoneUriStr = contactsUri,
+                        ringtoneUriList = contactsUri,
                         ringtoneFileName = contactsUri.stringifyContacts(preferenceHelper)
                     )
                 )
             }
-        }
+            } ?: tracker.trackEvent("Query returned null cursor for Groups")
 
         return groups
     }

@@ -68,16 +68,19 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             }
 
             binding.apply {
-                it.scrollToPosition?.let { position ->
-                    // Check if the position is valid before scrolling
-                    val itemCount = rwGroupItems.adapter?.itemCount ?: 0
-                    if (position in 0 until itemCount) {
-                        rwGroupItems.smoothScrollToPosition(position)
-                    } else {
-                        viewModel.trackNoneFatal(IllegalArgumentException("Invalid position: $position. Item count: $itemCount"))
+                if (it.scrollToBottom) {
+                    try {
+                        val itemCount = groupsAdapter.itemCount
+                        if (itemCount > 0) {
+                            val lastPosition = itemCount - 1
+                            rwGroupItems.smoothScrollToPosition(lastPosition)
+                        }
+                    } catch (e: Exception) {
+                        viewModel.trackNoneFatal(e)
+                        (e.localizedMessage ?: e.toString()).log()
                     }
-                }
 
+                }
                 noItemDisclaimer.isVisible = it.groupItems.isEmpty() && it.isLoading.not()
             }
         }
@@ -98,7 +101,7 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
         binding.rwGroupItems.adapter = groupsAdapter
         binding.btnDoTheMagic.setOnClickListener {
-            viewModel.onSetRingtones()
+            viewModel.onSetAllGroupsRingtones()
         }
 
         binding.btnAddGroup.setOnClickListener {
@@ -161,5 +164,9 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
             else -> viewModel.onNoPermissions()
         }
+    }
+
+    override fun onApplyRingtone(groupItem: GroupItem) {
+        viewModel.onApplySingleRingtone(groupItem)
     }
 }

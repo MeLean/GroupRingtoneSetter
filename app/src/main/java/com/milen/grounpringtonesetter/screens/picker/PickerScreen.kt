@@ -53,7 +53,7 @@ class PickerScreenFragment : Fragment() {
                 it.pikerResultData?.run {
                     when (this) {
                         is PickerResultData.GroupNameChange -> handleChangeName(this)
-                        is PickerResultData.GroupSetName -> handleSetName(this)
+                        is PickerResultData.AddGroupName -> handleSetName(this)
                         is PickerResultData.Canceled -> Unit
                         is PickerResultData.ManageGroupContacts ->
                             handleManageContacts(this, it.isLoading)
@@ -100,7 +100,7 @@ class PickerScreenFragment : Fragment() {
         }
     }
 
-    private fun handleSetName(data: PickerResultData.GroupSetName) {
+    private fun handleSetName(data: PickerResultData.AddGroupName) {
         binding.run {
             scvContacts.isVisible = false
             civNameInput.apply {
@@ -121,7 +121,7 @@ class PickerScreenFragment : Fragment() {
                     data.copy(newGroupName = binding.civNameInput.getText())
                 )
 
-            is PickerResultData.GroupSetName ->
+            is PickerResultData.AddGroupName ->
                 viewModel.onPickerResult(
                     data.copy(groupName = binding.civNameInput.getText())
                 )

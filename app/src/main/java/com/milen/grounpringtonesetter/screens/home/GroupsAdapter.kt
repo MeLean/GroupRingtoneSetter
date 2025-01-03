@@ -5,6 +5,7 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.databinding.ItemGroupEntityBinding
 
@@ -22,7 +23,13 @@ internal class GroupsAdapter(
             group.run {
                 binding.apply {
                     ctvGroupName.text = groupName
-                    cwtContacts.text = "${contacts.size}"
+
+                    contacts.size.let { contactsCount ->
+                        cwtContacts.text = "$contactsCount"
+                        cwtContacts.contentDescription =
+                            "${binding.root.context.getString(R.string.group_contacts_count)}: $contactsCount"
+                    }
+
                     ctwRingtone.text = group.ringtoneFileName
 
                     ctcibManageContacts.setOnClickListener {
@@ -34,8 +41,11 @@ internal class GroupsAdapter(
                     ctcibEdit.setOnClickListener {
                         interactor.onEditName(groupItem = this@run)
                     }
-                    crbSerRingtone.setOnClickListener {
+                    crbChooseRingtone.setOnClickListener {
                         interactor.onChoseRingtoneIntent(groupItem = this@run)
+                    }
+                    crbApplyRingtone.setOnClickListener {
+                        interactor.onApplyRingtone(groupItem = this@run)
                     }
                 }
             }
@@ -74,5 +84,7 @@ internal class GroupsAdapter(
         fun onGroupDelete(groupItem: GroupItem)
 
         fun onChoseRingtoneIntent(groupItem: GroupItem)
+
+        fun onApplyRingtone(groupItem: GroupItem)
     }
 }

@@ -6,8 +6,9 @@
     <string name="need_permission_to_run">Veuillez autoriser l\'utilisation de l\'application. Redémarrez l\'application ou accordez manuellement les autorisations via les paramètres de l\'appareil.</string>
     <string name="ok">D\'accord</string>
     <string name="choose_ringtone">Choisissez\nune sonnerie</string>
+    <string name="apply_ringtone">Appliquer\nSonnerie</string>
     <string name="add_group">Ajouter un nouveau groupe</string>
-    <string name="do_the_magic">Appliquer les sonneries</string>
+    <string name="do_the_magic">Appliquer toutes les sonneries</string>
     <string name="file_name_not_accessible">Le nom du fichier n\'est pas accessible</string>
     <string name="contacts">Contacts</string>
     <string name="close_app">Fermer l\'application</string>
@@ -31,6 +32,7 @@
     <string name="info">Information</string>
     <string name="info_text">Pour de meilleures performances :- Assurez-vous que toutes les autorisations nécessaires sont accordées.\n- Connectez-vous avec votre compte Google.\n- Évitez d\'ajouter un contact à plusieurs groupes.\n- Une fois les sonneries ajoutées, appuyez sur le bouton Appliquer les sonneries pour terminer le processus.</string>
     <string name="no_ringtone_selected">Aucune sonnerie sélectionnée</string>
+    <string name="no_contacts">Il n\'y a pas de contacts dans le groupe</string>
     <string name="group_contacts_count">Nombre de contacts dans le groupe</string>
     <string name="end_button">Bouton de fin</string>
     <string name="image_button">Bouton avec image</string>

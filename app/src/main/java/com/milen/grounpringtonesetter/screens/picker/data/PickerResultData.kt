@@ -9,8 +9,8 @@ sealed interface PickerResultData {
         val newGroupName: String? = null
     ) : PickerResultData
 
-    data class GroupSetName(
-        val groupName: String = ""
+    data class AddGroupName(
+        val groupName: String = "",
     ) : PickerResultData
 
     data class ManageGroupContacts(

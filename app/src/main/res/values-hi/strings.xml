@@ -6,8 +6,9 @@
     <string name="need_permission_to_run">कृपया ऐप्लिकेशन का उपयोग करने के लिए अनुमति प्रदान करें। ऐप को फिर से आरंभ करें या उपकरण सेटिंग्स से मैन्युअल रूप से दें।</string>
     <string name="ok">ठीक है</string>
     <string name="choose_ringtone">रिंगटोन चुनें\n</string>
+    <string name="apply_ringtone">रिंगटोन\nलागू करें</string>
     <string name="add_group">नया समूह जोड़ें</string>
-    <string name="do_the_magic">रिंगटोन लागू करें</string>
+    <string name="do_the_magic">सभी रिंगटोन्स लागू करें</string>
     <string name="file_name_not_accessible">फ़ाइल का नाम अनुपलब्ध है</string>
     <string name="contacts">संपर्क</string>
     <string name="close_app">ऐप्लिकेशन बंद करें</string>
@@ -31,6 +32,7 @@
     <string name="info">जानकारी</string>
     <string name="info_text">सर्वोत्तम प्रदर्शन के लिए:\n- सुनिश्चित करें कि सभी आवश्यक अनुमतियां दी गई हैं।\n- अपने Google खाते से लॉग इन करें।\n- किसी संपर्क को कई समूहों में जोड़ने से बचें।\n- रिंगटोन जोड़ने के बाद, प्रक्रिया को पूरा करने के लिए अप्लाई रिंगटोन बटन दबाएं।</string>
     <string name="no_ringtone_selected">कोई रिंगटोन चयनित नहीं है</string>
+    <string name="no_contacts">समूह में कोई संपर्क नहीं है</string>
     <string name="group_contacts_count">समूह में संपर्कों की संख्या</string>
     <string name="end_button">समाप्ति बटन</string>
     <string name="image_button">चित्र वाला बटन</string>

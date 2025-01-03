@@ -6,8 +6,9 @@
     <string name="need_permission_to_run">Пожалуйста, предоставьте разрешение на использование приложения. Перезапустите приложение или предоставьте их вручную в настройках устройства.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Выберите\nМелодию звонка</string>
+    <string name="apply_ringtone">Применить\nМелодию</string>
     <string name="add_group">Добавить новую группу</string>
-    <string name="do_the_magic">Применить рингтоны</string>
+    <string name="do_the_magic">Применить все рингтоны</string>
     <string name="file_name_not_accessible">Имя файла недоступно</string>
     <string name="contacts">Контакты</string>
     <string name="close_app">Закрыть приложение</string>
@@ -31,6 +32,7 @@
     <string name="info">Информация</string>
     <string name="info_text">Для лучшей работы:\n- Убедитесь, что предоставлены все необходимые разрешения.\n- Войдите в свою учетную запись Google.\n- Избегайте добавления контакта в несколько групп.\n- После добавления рингтонов нажмите кнопку «Применить рингтоны», чтобы завершить процесс.</string>
     <string name="no_ringtone_selected">Мелодия звонка не выбрана</string>
+    <string name="no_contacts">В группе нет контактов</string>
     <string name="group_contacts_count">Количество контактов в группе</string>
     <string name="end_button">Кнопка завершения</string>
     <string name="image_button">Кнопка с изображением</string>

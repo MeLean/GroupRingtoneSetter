@@ -12,6 +12,7 @@ import androidx.core.database.getStringOrNull
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.GroupItem
 import com.milen.grounpringtonesetter.data.exceptions.NoContactsFoundException
+import java.util.concurrent.CountDownLatch
 
 class ContactsHelper(
     private val appContext: Application,
@@ -207,29 +208,61 @@ class ContactsHelper(
 
     private fun scanAndUpdate(context: Context, ringtoneStr: String, contactId: Long) {
         val uriFromStr = Uri.parse(ringtoneStr)
+
+        // Validate input path
+        val filePath = uriFromStr.path.orEmpty()
+        if (filePath.isEmpty()) {
+            tracker.trackError(IllegalArgumentException("Invalid file path for ringtoneStr: $ringtoneStr"))
+        }
+
+        // Use a CountDownLatch to wait for the media scan result
+        val latch = CountDownLatch(1)
+        var scannedUri: Uri? = null
+
         MediaScannerConnection.scanFile(
             context,
-            arrayOf(uriFromStr?.path),
-            null
+            arrayOf(filePath),
+            arrayOf("audio/*")
         ) { _, uri ->
             tracker.trackEvent("scanAndUpdate called: $ringtoneStr")
-            appContext.contentResolver.update(
-                ContentUris.withAppendedId(
-                    ContactsContract.Contacts.CONTENT_URI,
-                    contactId
-                ),
+            scannedUri = uri
+            latch.countDown()
+        }
+
+        // Wait for the scan result
+        latch.await()
+
+        val finalRingtoneUri = scannedUri?.toString() ?: uriFromStr.toString()
+            .also {
+                it.trackErrorIfEmpty(tracker, "uri: $scannedUri and ringtoneStr: $ringtoneStr")
+            }
+
+        // Attempt to update the contact
+        try {
+            val updateUri = ContentUris.withAppendedId(
+                ContactsContract.Contacts.CONTENT_URI,
+                contactId
+            )
+
+            val rowsUpdated = context.contentResolver.update(
+                updateUri,
                 ContentValues().apply {
-                    put(
-                        ContactsContract.Contacts.CUSTOM_RINGTONE,
-                        uri?.toString() ?: uriFromStr?.toString().orEmpty()
-                            .also {
-                                it.trackErrorIfEmpty(tracker, ringtoneStr)
-                            }
-                    )
+                    put(ContactsContract.Contacts.CUSTOM_RINGTONE, finalRingtoneUri)
                 },
                 null,
                 null
             )
+
+            if (rowsUpdated == 0) {
+                tracker.trackError(
+                    IllegalArgumentException(
+                        "scanAndUpdate error: No rows updated, device may forbid " +
+                                "edits to ContactsContract or contact is read-only."
+                    )
+                )
+            }
+        } catch (ex: Throwable) {
+            tracker.trackError(ex)
         }
     }
 

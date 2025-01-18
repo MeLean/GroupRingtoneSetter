@@ -212,7 +212,7 @@ class ContactsHelper(
             arrayOf(uriFromStr?.path),
             null
         ) { _, uri ->
-            tracker.trackEvent("scanAndUpdate called")
+            tracker.trackEvent("scanAndUpdate called: $ringtoneStr")
             appContext.contentResolver.update(
                 ContentUris.withAppendedId(
                     ContactsContract.Contacts.CONTENT_URI,
@@ -222,6 +222,9 @@ class ContactsHelper(
                     put(
                         ContactsContract.Contacts.CUSTOM_RINGTONE,
                         uri?.toString() ?: uriFromStr?.toString().orEmpty()
+                            .also {
+                                it.trackErrorIfEmpty(tracker, ringtoneStr)
+                            }
                     )
                 },
                 null,
@@ -322,6 +325,15 @@ class ContactsHelper(
         return null
     }
 }
+
+data class GroupContactsList(
+    val unGropedContact: List<Contact>,
+    val multipleGroupContacts: List<Contact>,
+)
+
+private fun String.trackErrorIfEmpty(tracker: Tracker, rawStr: String) =
+    this.takeIf { it.isEmpty() }
+        ?.let { tracker.trackError(IllegalArgumentException("scanAndUpdate empty uri for $rawStr")) }
 
 private fun List<String>.stringifyContacts(preferenceHelper: EncryptedPreferencesHelper): String =
     takeIf { it.isNotEmpty() }

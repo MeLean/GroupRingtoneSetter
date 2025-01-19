@@ -6,7 +6,7 @@ import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.Contact
-import com.milen.grounpringtonesetter.data.GroupItem
+import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.screens.home.HomeScreenState
 import com.milen.grounpringtonesetter.screens.picker.PickerScreenState
 import com.milen.grounpringtonesetter.screens.picker.data.PickerResultData
@@ -27,9 +27,9 @@ class MainViewModel(
     private val encryptedPrefs: EncryptedPreferencesHelper,
     private val tracker: Tracker,
 ) : ViewModel() {
-    private var _groups: MutableList<GroupItem>? = null
-    private val groups: List<GroupItem>
-        get() = _groups ?: contactsHelper.getAllGroups().also {
+    private var _groups: MutableList<LabelItem>? = null
+    private val groups: List<LabelItem>
+        get() = _groups ?: contactsHelper.getAllLabelItems().also {
             _groups = it.toMutableList()
         }
 
@@ -42,13 +42,17 @@ class MainViewModel(
     val pickerUiState: StateFlow<PickerScreenState>
         get() = _pickerUiState.asStateFlow()
 
-    private var _selectingGroup: GroupItem? = null
-    var selectingGroup: GroupItem
+    private var _selectingGroup: LabelItem? = null
+    var selectingGroup: LabelItem
         get() = _selectingGroup
             ?: throw UninitializedPropertyAccessException("_selectingGroup not initialized")
         set(value) {
             _selectingGroup = value
         }
+
+    init {
+        launchOnIoResultInMain(contactsHelper::migrateGroupsToLabels)
+    }
 
     fun showInfoDialog(): Unit = dialogShower.showInfo()
 
@@ -70,14 +74,14 @@ class MainViewModel(
         updateGroupList()
     }
 
-    fun setUpGroupNameEditing(group: GroupItem) {
+    fun setUpGroupNameEditing(group: LabelItem) {
         tracker.trackEvent("setUpGroupNameEditing")
         _pickerUiState.tryEmit(
             PickerScreenState(
                 isLoading = false,
                 titleId = R.string.edit_group_name,
                 pikerResultData = PickerResultData.GroupNameChange(
-                    groupItem = group
+                    labelItem = group
                 )
             )
         )
@@ -87,7 +91,7 @@ class MainViewModel(
         dialogShower.showErrorById(R.string.need_permission_to_run)
             .also { tracker.trackEvent("onPermissionsRefused") }
 
-    fun setUpContactsManaging(group: GroupItem) {
+    fun setUpContactsManaging(group: LabelItem) {
         tracker.trackEvent("setUpContactsManaging")
         setPickerLoadingForResult().also {
             launchOnIoResultInMain(
@@ -106,17 +110,17 @@ class MainViewModel(
         }
     }
 
-    fun onGroupDeleted(groupItem: GroupItem): Unit =
+    fun onGroupDeleted(labelItem: LabelItem): Unit =
         showHomeLoading().also {
             launchOnIoResultInMain(
-                work = { contactsHelper.deleteGroup(groupId = groupItem.id) },
+                work = { contactsHelper.deleteLabel(labelId = labelItem.id) },
                 onError = ::handleError,
                 onSuccess = {
-                    val newGroups = _groups?.filter { it.id != groupItem.id }.orEmpty()
+                    val newGroups = _groups?.filter { it.id != labelItem.id }.orEmpty()
                     _groups = newGroups.toMutableList()
                     _homeUiState.value = homeUiState.value.copy(
                         isLoading = false,
-                        groupItems = newGroups,
+                        labelItems = newGroups,
                     )
                 }
             )
@@ -141,7 +145,7 @@ class MainViewModel(
                     onSuccess = { updateGroupList() }
                 ).also { tracker.trackEvent("GroupNameChange") }
 
-            is PickerResultData.AddGroupName ->
+            is PickerResultData.ManageGroups ->
                 launchOnIoResultInMain(
                     work = { createGroupByName(result.groupName) },
                     onError = ::handleError,
@@ -152,11 +156,11 @@ class MainViewModel(
 
                         _homeUiState.value = homeUiState.value.copy(
                             isLoading = false,
-                            groupItems = newGroups,
+                            labelItems = newGroups,
                             scrollToBottom = true
                         )
                     }
-                ).also { tracker.trackEvent("AddGroupName") }
+                ).also { tracker.trackEvent("ManageGroups") }
 
             is PickerResultData.Canceled -> hideHomeLoading()
         }
@@ -168,7 +172,7 @@ class MainViewModel(
         launchOnIoResultInMain(
             work = {
                 val uriStr = "$uri"
-                encryptedPrefs.putString(uri.toString(), fileName).also {
+                encryptedPrefs.saveString(uri.toString(), fileName).also {
                     "onRingtoneChosen saved uri: $uriStr fileName: $fileName".log()
                 }
                 _groups = _groups?.map { group ->
@@ -223,11 +227,11 @@ class MainViewModel(
     }
 
     private fun setRingtoneToGroupContacts(
-        groupItem: GroupItem,
+        labelItem: LabelItem,
         uriStr: List<String>,
     ) {
-        contactsHelper.setRingtoneToGroupContacts(
-            groupContacts = groupItem.contacts,
+        contactsHelper.setRingtoneToLabelContacts(
+            labelContacts = labelItem.contacts,
             newRingtoneUriStr = uriStr.first()
         )
     }
@@ -238,13 +242,13 @@ class MainViewModel(
             PickerScreenState(
                 titleId = R.string.add_group,
                 isLoading = false,
-                pikerResultData = PickerResultData.AddGroupName()
+                pikerResultData = PickerResultData.ManageGroups()
             )
         )
     }
 
-    fun onApplySingleRingtone(groupItem: GroupItem) {
-        with(groupItem) {
+    fun onApplySingleRingtone(labelItem: LabelItem) {
+        with(labelItem) {
 
             if (contacts.isEmpty()) {
                 tracker.trackEvent("onSingleRingtoneSetNoContacts")
@@ -289,28 +293,28 @@ class MainViewModel(
         }
     }
 
-    private fun createGroupByName(name: String): GroupItem =
+    private fun createGroupByName(name: String): LabelItem =
         name.takeIf { it.isNotEmpty() }
-            ?.let { noneEmptyName -> contactsHelper.createGroup(noneEmptyName) }
+            ?.let { noneEmptyName -> contactsHelper.createLabel(noneEmptyName) }
             ?: throw IllegalArgumentException("Group name is empty")
 
     private fun manageGroupChange(result: PickerResultData.GroupNameChange): Unit =
-        result.newGroupName.takeIf { it?.isNotEmpty() == true && it != result.groupItem.groupName }
+        result.newGroupName.takeIf { it?.isNotEmpty() == true && it != result.labelItem.groupName }
             ?.let { name ->
-                contactsHelper.updateGroupName(result.groupItem.id, name)
-                val updatedGroups = contactsHelper.getAllGroups()
+                contactsHelper.updateLabelName(result.labelItem.id, name)
+                val updatedGroups = contactsHelper.getAllLabelItems()
                 _groups = updatedGroups.toMutableList()
             }
-            ?: throw IllegalArgumentException("${result.newGroupName} could not be applied on ${result.groupItem}")
+            ?: throw IllegalArgumentException("${result.newGroupName} could not be applied on ${result.labelItem}")
 
     private fun manageContacts(result: PickerResultData.ManageGroupContacts) {
-        contactsHelper.addAllContactsToGroup(result.group.id, result.selectedContacts)
+        contactsHelper.addAllContactsToLabel(result.group.id, result.selectedContacts)
         val excludedContacts = result.group.contacts.filterNot { oldContact ->
             result.selectedContacts.any { newContact -> newContact.id == oldContact.id }
         }
-        contactsHelper.removeAllContactsFromGroup(result.group.id, excludedContacts)
+        contactsHelper.removeAllContactsFromLabel(result.group.id, excludedContacts)
 
-        val updatedGroups = contactsHelper.getAllGroups()
+        val updatedGroups = contactsHelper.getAllLabelItems()
 
         _groups = updatedGroups.toMutableList()
     }
@@ -323,7 +327,7 @@ class MainViewModel(
                 _homeUiState.update {
                     _homeUiState.value.copy(
                         isLoading = false,
-                        groupItems = list
+                        labelItems = list
                     )
                 }
             },
@@ -350,11 +354,23 @@ class MainViewModel(
     private fun hidePickerLoading(): Unit =
         _pickerUiState.update { _pickerUiState.value.copy(isLoading = false) }
 
-    private fun getContactPickerData(group: GroupItem, allContacts: List<Contact> = emptyList()) =
+    private fun getContactPickerData(group: LabelItem, allContacts: List<Contact> = emptyList()) =
         PickerResultData.ManageGroupContacts(
             group = group,
             selectedContacts = group.contacts,
             allContacts = allContacts
         )
+
+    fun uniqueLabels() {
+        _pickerUiState.value = _pickerUiState.value.copy(isLoading = true)
+        launchOnIoResultInMain(
+            work = { contactsHelper.uniqueLabels() },
+            onError = ::handleError,
+            onSuccess = {
+                updateGroupList()
+                _pickerUiState.value = _pickerUiState.value.copy(isLoading = false)
+            }
+        )
+    }
 
 }

@@ -9,7 +9,7 @@ import kotlinx.coroutines.withContext
 fun <T> ViewModel.launchOnIoResultInMain(
     work: () -> T,
     onError: (Throwable) -> Unit = {},
-    onSuccess: (T) -> Unit
+    onSuccess: (T) -> Unit = {},
 ) {
     viewModelScope.launch {
         try {

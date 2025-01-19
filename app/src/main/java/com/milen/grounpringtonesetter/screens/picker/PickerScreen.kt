@@ -53,7 +53,7 @@ class PickerScreenFragment : Fragment() {
                 it.pikerResultData?.run {
                     when (this) {
                         is PickerResultData.GroupNameChange -> handleChangeName(this)
-                        is PickerResultData.AddGroupName -> handleSetName(this)
+                        is PickerResultData.ManageGroups -> handleSetName(this)
                         is PickerResultData.Canceled -> Unit
                         is PickerResultData.ManageGroupContacts ->
                             handleManageContacts(this, it.isLoading)
@@ -70,7 +70,7 @@ class PickerScreenFragment : Fragment() {
             scvContacts.isVisible = false
             civNameInput.apply {
                 this@apply.isVisible = true
-                setText(data.newGroupName ?: data.groupItem.groupName)
+                setText(data.newGroupName ?: data.labelItem.groupName)
                 setCustomHint(getString(R.string.edit_group_name))
                 setSoftDoneCLicked { onResult(data) }
             }
@@ -100,9 +100,14 @@ class PickerScreenFragment : Fragment() {
         }
     }
 
-    private fun handleSetName(data: PickerResultData.AddGroupName) {
+    private fun handleSetName(data: PickerResultData.ManageGroups) {
         binding.run {
             scvContacts.isVisible = false
+            crbRemoveRepeating.apply {
+                this@apply.isVisible = true
+                setOnClickListener { viewModel.uniqueLabels() }
+            }
+
             civNameInput.apply {
                 this@apply.isVisible = true
                 setText(data.groupName)
@@ -121,7 +126,7 @@ class PickerScreenFragment : Fragment() {
                     data.copy(newGroupName = binding.civNameInput.getText())
                 )
 
-            is PickerResultData.AddGroupName ->
+            is PickerResultData.ManageGroups ->
                 viewModel.onPickerResult(
                     data.copy(groupName = binding.civNameInput.getText())
                 )

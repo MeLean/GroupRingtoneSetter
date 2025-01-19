@@ -6,19 +6,19 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.milen.grounpringtonesetter.R
-import com.milen.grounpringtonesetter.data.GroupItem
+import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.databinding.ItemGroupEntityBinding
 
 internal class GroupsAdapter(
     private val interactor: GroupItemsInteractor
 ) :
-    ListAdapter<GroupItem, GroupsAdapter.ViewHolder>(DiffCallback) {
+    ListAdapter<LabelItem, GroupsAdapter.ViewHolder>(DiffCallback) {
 
     class ViewHolder(private val binding: ItemGroupEntityBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(
-            group: GroupItem,
-            interactor: GroupItemsInteractor
+            group: LabelItem,
+            interactor: GroupItemsInteractor,
         ): Unit =
             group.run {
                 binding.apply {
@@ -33,19 +33,19 @@ internal class GroupsAdapter(
                     ctwRingtone.text = group.ringtoneFileName
 
                     ctcibManageContacts.setOnClickListener {
-                        interactor.onManageContacts(groupItem = this@run)
+                        interactor.onManageContacts(labelItem = this@run)
                     }
                     ctcibDelete.setOnClickListener {
-                        interactor.onGroupDelete(groupItem = this@run)
+                        interactor.onGroupDelete(labelItem = this@run)
                     }
                     ctcibEdit.setOnClickListener {
-                        interactor.onEditName(groupItem = this@run)
+                        interactor.onEditName(labelItem = this@run)
                     }
                     crbChooseRingtone.setOnClickListener {
-                        interactor.onChoseRingtoneIntent(groupItem = this@run)
+                        interactor.onChoseRingtoneIntent(labelItem = this@run)
                     }
                     crbApplyRingtone.setOnClickListener {
-                        interactor.onApplyRingtone(groupItem = this@run)
+                        interactor.onApplyRingtone(labelItem = this@run)
                     }
                 }
             }
@@ -66,25 +66,25 @@ internal class GroupsAdapter(
         holder.bind(group, interactor)
     }
 
-    companion object DiffCallback : DiffUtil.ItemCallback<GroupItem>() {
-        override fun areItemsTheSame(oldItem: GroupItem, newItem: GroupItem): Boolean {
+    companion object DiffCallback : DiffUtil.ItemCallback<LabelItem>() {
+        override fun areItemsTheSame(oldItem: LabelItem, newItem: LabelItem): Boolean {
             return oldItem.id == newItem.id
         }
 
-        override fun areContentsTheSame(oldItem: GroupItem, newItem: GroupItem): Boolean {
+        override fun areContentsTheSame(oldItem: LabelItem, newItem: LabelItem): Boolean {
             return oldItem == newItem
         }
     }
 
     interface GroupItemsInteractor {
-        fun onManageContacts(groupItem: GroupItem)
+        fun onManageContacts(labelItem: LabelItem)
 
-        fun onEditName(groupItem: GroupItem)
+        fun onEditName(labelItem: LabelItem)
 
-        fun onGroupDelete(groupItem: GroupItem)
+        fun onGroupDelete(labelItem: LabelItem)
 
-        fun onChoseRingtoneIntent(groupItem: GroupItem)
+        fun onChoseRingtoneIntent(labelItem: LabelItem)
 
-        fun onApplyRingtone(groupItem: GroupItem)
+        fun onApplyRingtone(labelItem: LabelItem)
     }
 }

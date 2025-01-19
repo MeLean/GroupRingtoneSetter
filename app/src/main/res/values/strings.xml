@@ -7,6 +7,7 @@
     <string name="ok">OK</string>
     <string name="choose_ringtone">Choose\nRingtone</string>
     <string name="apply_ringtone">Apply\nRingtone</string>
+    <string name="manage_groups">Manage groups</string>
     <string name="add_group">Add new group</string>
     <string name="do_the_magic">Apply all ringtones</string>
     <string name="file_name_not_accessible">The file\'s name is not accessible</string>
@@ -38,4 +39,5 @@
     <string name="image_button">Image button</string>
     <string name="click_to_check">Click to check</string>
     <string name="click_to_uncheck">Click to uncheck</string>
+    <string name="remove_repeating_groups">Remove repeating groups</string>
 </resources>

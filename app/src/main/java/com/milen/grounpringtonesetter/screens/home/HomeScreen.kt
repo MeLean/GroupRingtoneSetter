@@ -13,7 +13,7 @@ import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
-import com.milen.grounpringtonesetter.data.GroupItem
+import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
 import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModel
 import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModelFactory
@@ -64,7 +64,7 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             when {
                 it.arePermissionsGranted.not() -> requestMultiplePermissions.launch(permissions.toTypedArray())
 
-                else -> groupsAdapter.submitList(it.groupItems)
+                else -> groupsAdapter.submitList(it.labelItems)
             }
 
             binding.apply {
@@ -81,7 +81,9 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     }
 
                 }
-                noItemDisclaimer.isVisible = it.groupItems.isEmpty() && it.isLoading.not()
+                noItemDisclaimer.isVisible = it.labelItems.isEmpty() && it.isLoading.not()
+                btnManageGroups.isVisible = it.isLoading.not()
+                btnDoTheMagic.isVisible = it.isLoading.not()
             }
         }
 
@@ -99,14 +101,16 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.rwGroupItems.adapter = groupsAdapter
-        binding.btnDoTheMagic.setOnClickListener {
-            viewModel.onSetAllGroupsRingtones()
-        }
+        binding.apply {
+            rwGroupItems.adapter = groupsAdapter
+            btnDoTheMagic.setOnClickListener {
+                viewModel.onSetAllGroupsRingtones()
+            }
 
-        binding.btnAddGroup.setOnClickListener {
-            viewModel.setUpGroupCreateRequest().also {
-                findNavController().navigateSingleTop(R.id.pickerFragment)
+            btnManageGroups.setOnClickListener {
+                viewModel.setUpGroupCreateRequest().also {
+                    findNavController().navigateSingleTop(R.id.pickerFragment)
+                }
             }
         }
     }
@@ -125,40 +129,40 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         }
     }
 
-    override fun onManageContacts(groupItem: GroupItem): Unit =
+    override fun onManageContacts(labelItem: LabelItem): Unit =
         requireActivity().showAlertDialog(
             titleResId = R.string.manage_contacts_group_name,
             message = getString(R.string.manage_contacts_group_name_desc),
             confirmButtonData = ButtonData {
-                viewModel.setUpContactsManaging(groupItem)
+                viewModel.setUpContactsManaging(labelItem)
                     .also { findNavController().navigateSingleTop(R.id.pickerFragment) }
             }
         )
 
 
-    override fun onEditName(groupItem: GroupItem): Unit =
+    override fun onEditName(labelItem: LabelItem): Unit =
         requireActivity().showAlertDialog(
             titleResId = R.string.edit_group_name,
             message = getString(R.string.edit_group_name_desc),
             confirmButtonData = ButtonData {
-                viewModel.setUpGroupNameEditing(groupItem)
+                viewModel.setUpGroupNameEditing(labelItem)
                     .also { findNavController().navigateSingleTop(R.id.pickerFragment) }
             }
         )
 
-    override fun onGroupDelete(groupItem: GroupItem): Unit =
+    override fun onGroupDelete(labelItem: LabelItem): Unit =
         requireActivity().showAlertDialog(
             titleResId = R.string.delete_group,
             message = getString(R.string.delete_group_desc),
             confirmButtonData = ButtonData {
-                viewModel.onGroupDeleted(groupItem)
+                viewModel.onGroupDeleted(labelItem)
             }
         )
 
-    override fun onChoseRingtoneIntent(groupItem: GroupItem) {
+    override fun onChoseRingtoneIntent(labelItem: LabelItem) {
         when {
             requireContext().areAllPermissionsGranted(permissions = permissions) -> {
-                viewModel.selectingGroup = groupItem
+                viewModel.selectingGroup = labelItem
                 pickAudioFileLauncher.launch("audio/*")
             }
 
@@ -166,7 +170,7 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         }
     }
 
-    override fun onApplyRingtone(groupItem: GroupItem) {
-        viewModel.onApplySingleRingtone(groupItem)
+    override fun onApplyRingtone(labelItem: LabelItem) {
+        viewModel.onApplySingleRingtone(labelItem)
     }
 }

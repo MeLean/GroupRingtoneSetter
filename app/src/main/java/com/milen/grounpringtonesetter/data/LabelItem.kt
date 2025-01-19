@@ -1,6 +1,6 @@
 package com.milen.grounpringtonesetter.data
 
-data class GroupItem(
+data class LabelItem(
     val id: Long,
     val groupName: String,
     val contacts: List<Contact>,

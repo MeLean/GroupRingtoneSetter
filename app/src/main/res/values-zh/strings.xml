@@ -7,6 +7,7 @@
     <string name="ok">确定</string>
     <string name="choose_ringtone">选择\n铃声</string>
     <string name="apply_ringtone">应用\n铃声</string>
+    <string name="manage_groups">管理群组</string>
     <string name="add_group">添加新组</string>
     <string name="do_the_magic">应用所有铃声</string>
     <string name="file_name_not_accessible">文件名不可访问</string>
@@ -38,5 +39,6 @@
     <string name="image_button">带图像的按钮</string>
     <string name="click_to_check">点击以选中</string>
     <string name="click_to_uncheck">点击以取消选中</string>
+    <string name="remove_repeating_groups">删除重复组</string>
 </resources>
 

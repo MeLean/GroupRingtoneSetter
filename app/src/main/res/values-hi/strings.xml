@@ -7,6 +7,7 @@
     <string name="ok">ठीक है</string>
     <string name="choose_ringtone">रिंगटोन चुनें\n</string>
     <string name="apply_ringtone">रिंगटोन\nलागू करें</string>
+    <string name="manage_groups">समूह प्रबंधित करें</string>
     <string name="add_group">नया समूह जोड़ें</string>
     <string name="do_the_magic">सभी रिंगटोन्स लागू करें</string>
     <string name="file_name_not_accessible">फ़ाइल का नाम अनुपलब्ध है</string>
@@ -38,4 +39,5 @@
     <string name="image_button">चित्र वाला बटन</string>
     <string name="click_to_check">चेक करने के लिए क्लिक करें</string>
     <string name="click_to_uncheck">अनचेक करने के लिए क्लिक करें</string>
+    <string name="remove_repeating_groups">दोहराए जाने वाले समूहों को हटाएं</string>
 </resources>

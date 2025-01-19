@@ -46,13 +46,26 @@
         app:layout_constraintTop_toBottomOf="@+id/civNameInput" />
 
     <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+        android:id="@+id/crb_remove_repeating"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        app:buttonLabel="@string/remove_repeating_groups"
+        app:layout_constraintBottom_toTopOf="@+id/abPicker"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible" />
+
+    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
         android:id="@+id/crbDone"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="16dp"
         app:buttonLabel="@string/done"
-        app:layout_constraintBottom_toTopOf="@+id/abPicker"
+        app:layout_constraintBottom_toTopOf="@+id/crb_remove_repeating"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 

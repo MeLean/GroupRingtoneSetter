@@ -7,6 +7,7 @@
     <string name="ok">OK</string>
     <string name="choose_ringtone">Выберите\nМелодию звонка</string>
     <string name="apply_ringtone">Применить\nМелодию</string>
+    <string name="manage_groups">Управление группами</string>
     <string name="add_group">Добавить новую группу</string>
     <string name="do_the_magic">Применить все рингтоны</string>
     <string name="file_name_not_accessible">Имя файла недоступно</string>
@@ -38,4 +39,5 @@
     <string name="image_button">Кнопка с изображением</string>
     <string name="click_to_check">Нажмите, чтобы отметить</string>
     <string name="click_to_uncheck">Нажмите, чтобы снять отметку</string>
+    <string name="remove_repeating_groups">Удалить повторяющиеся группы</string>
 </resources>

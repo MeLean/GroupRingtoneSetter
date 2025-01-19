@@ -19,7 +19,7 @@ class EncryptedPreferencesHelper(appContext: Application) {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
     )
 
-    fun putString(key: String, value: String) {
+    fun saveString(key: String, value: String) {
         sharedPreferences.edit().putString(key, value).apply()
     }
 

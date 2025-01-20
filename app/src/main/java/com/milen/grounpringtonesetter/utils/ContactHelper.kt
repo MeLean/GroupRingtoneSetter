@@ -46,8 +46,6 @@ class ContactsHelper(
         appContext.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups._ID)
             val titleIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups.TITLE)
-            val accountTypeIndex =
-                cursor.getColumnIndexOrThrow(ContactsContract.Groups.ACCOUNT_TYPE)
             val readOnlyIndex =
                 cursor.getColumnIndexOrThrow(ContactsContract.Groups.GROUP_IS_READ_ONLY)
             val deletedIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups.DELETED)
@@ -55,7 +53,6 @@ class ContactsHelper(
             while (cursor.moveToNext()) {
                 val groupId = cursor.getLong(idIndex)
                 val groupName = cursor.getString(titleIndex).orEmpty()
-                val accountType = cursor.getString(accountTypeIndex)
                 val isReadOnly = cursor.getInt(readOnlyIndex) != 0
                 val isDeleted = cursor.getInt(deletedIndex) != 0
 

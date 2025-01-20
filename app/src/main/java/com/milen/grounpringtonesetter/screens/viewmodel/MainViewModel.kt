@@ -50,10 +50,6 @@ class MainViewModel(
             _selectingGroup = value
         }
 
-    init {
-        launchOnIoResultInMain(contactsHelper::migrateGroupsToLabels)
-    }
-
     fun showInfoDialog(): Unit = dialogShower.showInfo()
 
     fun onNoPermissions() {
@@ -67,11 +63,16 @@ class MainViewModel(
 
     fun onPermissionsGranted() {
         tracker.trackEvent("onPermissionsGranted")
+
         _homeUiState.value = _homeUiState.value.copy(
             isLoading = true,
             arePermissionsGranted = true
         )
-        updateGroupList()
+        launchOnIoResultInMain(
+            work = contactsHelper::migrateGroupsToLabels,
+            onSuccess = { updateGroupList() },
+            onError = { updateGroupList() }
+        )
     }
 
     fun setUpGroupNameEditing(group: LabelItem) {

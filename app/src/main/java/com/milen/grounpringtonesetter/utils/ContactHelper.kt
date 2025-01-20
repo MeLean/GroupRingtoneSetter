@@ -60,7 +60,7 @@ class ContactsHelper(
                 val isDeleted = cursor.getInt(deletedIndex) != 0
 
                 // Skip system, read-only, or deleted groups
-                if (isReadOnly || isDeleted || isSystemGroup(groupName, accountType)) {
+                if (isReadOnly || isDeleted || isSystemGroup(groupName)) {
                     continue
                 }
 
@@ -90,25 +90,12 @@ class ContactsHelper(
         tracker.trackEvent("migrateGroupsToLabels completed")
     }
 
-    private fun isSystemGroup(groupName: String, accountType: String?): Boolean {
+    private fun isSystemGroup(groupName: String): Boolean {
         // Define common criteria for system groups
         val systemGroupNames = setOf("My Contacts", "Starred in Android", "Family", "Coworkers")
-        val systemAccountTypes = setOf(
-            "com.google", // Google accounts
-            "com.android.contacts" // Local device contacts
-        )
 
         // Check if the group name matches known system groups
-        if (groupName in systemGroupNames) {
-            return true
-        }
-
-        // Check if the group belongs to a system account type
-        if (accountType != null && accountType in systemAccountTypes) {
-            return true
-        }
-
-        return false
+        return groupName in systemGroupNames
     }
 
     private fun groupHasContacts(groupId: Long): Boolean {

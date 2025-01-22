@@ -1,5 +1,6 @@
 package com.milen.grounpringtonesetter.screens.picker.data
 
+import android.accounts.Account
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 
@@ -11,6 +12,8 @@ sealed interface PickerResultData {
 
     data class ManageGroups(
         val groupName: String = "",
+        val accountLists: List<Account>,
+        val pickedAccount: Account?,
     ) : PickerResultData
 
     data class ManageGroupContacts(

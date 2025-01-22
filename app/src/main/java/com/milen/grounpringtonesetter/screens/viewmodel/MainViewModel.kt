@@ -1,5 +1,6 @@
 package com.milen.grounpringtonesetter.screens.viewmodel
 
+import android.accounts.Account
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import com.milen.grounpringtonesetter.R
@@ -148,12 +149,12 @@ class MainViewModel(
 
             is PickerResultData.ManageGroups ->
                 launchOnIoResultInMain(
-                    work = { createGroupByName(result.groupName) },
+                    work = { createGroupByName(result.groupName, result.pickedAccount) },
                     onError = ::handleError,
                     onSuccess = { groupItem ->
-                        val newGroups = _groups?.toMutableList()?.also {
-                            it.add(groupItem)
-                        }.orEmpty()
+                        val newGroups = _groups?.toMutableList()
+                            ?.also { it.add(groupItem) }
+                            .orEmpty()
 
                         _homeUiState.value = homeUiState.value.copy(
                             isLoading = false,
@@ -239,11 +240,15 @@ class MainViewModel(
 
     fun setUpGroupCreateRequest() {
         tracker.trackEvent("setUpGroupCreateRequest")
+        val accounts = contactsHelper.getGoogleAccounts()
         _pickerUiState.tryEmit(
             PickerScreenState(
                 titleId = R.string.add_group,
                 isLoading = false,
-                pikerResultData = PickerResultData.ManageGroups()
+                pikerResultData = PickerResultData.ManageGroups(
+                    accountLists = accounts,
+                    pickedAccount = accounts.takeIf { it.size == 1 }?.let { accounts.first() }
+                )
             )
         )
     }
@@ -294,9 +299,9 @@ class MainViewModel(
         }
     }
 
-    private fun createGroupByName(name: String): LabelItem =
+    private fun createGroupByName(name: String, accountName: Account?): LabelItem =
         name.takeIf { it.isNotEmpty() }
-            ?.let { noneEmptyName -> contactsHelper.createLabel(noneEmptyName) }
+            ?.let { noneEmptyName -> contactsHelper.createLabel(noneEmptyName, accountName) }
             ?: throw IllegalArgumentException("Group name is empty")
 
     private fun manageGroupChange(result: PickerResultData.GroupNameChange): Unit =
@@ -361,17 +366,4 @@ class MainViewModel(
             selectedContacts = group.contacts,
             allContacts = allContacts
         )
-
-    fun uniqueLabels() {
-        _pickerUiState.value = _pickerUiState.value.copy(isLoading = true)
-        launchOnIoResultInMain(
-            work = { contactsHelper.uniqueLabels() },
-            onError = ::handleError,
-            onSuccess = {
-                updateGroupList()
-                _pickerUiState.value = _pickerUiState.value.copy(isLoading = false)
-            }
-        )
-    }
-
 }

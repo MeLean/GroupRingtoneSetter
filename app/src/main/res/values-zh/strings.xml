@@ -40,5 +40,6 @@
     <string name="click_to_check">点击以选中</string>
     <string name="click_to_uncheck">点击以取消选中</string>
     <string name="remove_repeating_groups">删除重复组</string>
+    <string name="pick_account">选择要创建群组的账户</string>
 </resources>
 

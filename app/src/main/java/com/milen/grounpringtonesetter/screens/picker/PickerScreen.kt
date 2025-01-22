@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -103,21 +104,29 @@ class PickerScreenFragment : Fragment() {
     private fun handleSetName(data: PickerResultData.ManageGroups) {
         binding.run {
             scvContacts.isVisible = false
-            crbRemoveRepeating.apply {
-                this@apply.isVisible = true
-                setOnClickListener { viewModel.uniqueLabels() }
+            llAccountPickerHolder.isVisible = data.accountLists.size > 1
+
+            accountPicker.apply {
+                val adapter = ArrayAdapter(
+                    context,
+                    R.layout.custom_dropdown_holder,
+                    data.accountLists.map { it.name }
+                )
+
+                adapter.setDropDownViewResource(R.layout.custom_dropdown_item)
+                accountPicker.adapter = adapter
             }
+
 
             civNameInput.apply {
                 this@apply.isVisible = true
                 setText(data.groupName)
                 setCustomHint(getString(R.string.enter_group_name))
-                setSoftDoneCLicked { onResult(data) }
+                setSoftDoneCLicked { onResult(data.copy(pickedAccount = data.accountLists[accountPicker.selectedItemPosition])) }
             }
             noItemDisclaimer.isVisible = false
         }
     }
-
 
     private fun onResult(data: PickerResultData) {
         when (data) {

@@ -40,5 +40,12 @@
         <item name="colorPrimary">@color/purple_200</item>
         <item name="colorOnPrimary">@color/textColor</item>
     </style>
+
+    <style name="CustomSpinnerStyle" parent="Widget.AppCompat.Spinner.DropDown">
+        <item name="android:dropDownVerticalOffset">56dp</item>
+        <item name="android:popupBackground">@android:color/transparent</item>
+    </style>
+
+
 </resources>
 

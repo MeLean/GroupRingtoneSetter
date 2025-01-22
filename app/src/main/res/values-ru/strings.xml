@@ -40,4 +40,5 @@
     <string name="click_to_check">Нажмите, чтобы отметить</string>
     <string name="click_to_uncheck">Нажмите, чтобы снять отметку</string>
     <string name="remove_repeating_groups">Удалить повторяющиеся группы</string>
+    <string name="pick_account">Выберите аккаунт, в котором будет создана группа</string>
 </resources>

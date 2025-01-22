@@ -40,4 +40,5 @@
     <string name="click_to_check">Щракнете, за да маркирате</string>
     <string name="click_to_uncheck">Щракнете, за да премахнете отметката</string>
     <string name="remove_repeating_groups">Премахване на повтарящи се групи</string>
+    <string name="pick_account">Изберете акаунта, в който ще бъде създадена групата</string>
 </resources>

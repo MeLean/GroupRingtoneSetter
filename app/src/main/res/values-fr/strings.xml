@@ -40,4 +40,5 @@
     <string name="click_to_check">Cliquez pour cocher</string>
     <string name="click_to_uncheck">Cliquez pour décocher</string>
     <string name="remove_repeating_groups">Supprimer les groupes répétitifs</string>
+    <string name="pick_account">Choisissez le compte où le groupe sera créé</string>
 </resources>

@@ -40,4 +40,5 @@
     <string name="click_to_check">Click to check</string>
     <string name="click_to_uncheck">Click to uncheck</string>
     <string name="remove_repeating_groups">Remove repeating groups</string>
+    <string name="pick_account">Pick up account where the group will be created</string>
 </resources>

@@ -40,4 +40,5 @@
     <string name="click_to_check">चेक करने के लिए क्लिक करें</string>
     <string name="click_to_uncheck">अनचेक करने के लिए क्लिक करें</string>
     <string name="remove_repeating_groups">दोहराए जाने वाले समूहों को हटाएं</string>
+    <string name="pick_account">उस खाते को चुनें जहाँ समूह बनाया जाएगा</string>
 </resources>

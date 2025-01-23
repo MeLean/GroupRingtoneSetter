@@ -26,8 +26,8 @@ android {
         applicationId "com.milen.grounpringtonesetter"
         minSdk 27
         targetSdk 34
-        versionCode 230
-        versionName "2.3.0"
+        versionCode 234
+        versionName "2.3.4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

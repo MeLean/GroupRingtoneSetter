@@ -22,63 +22,6 @@ class ContactsHelper(
     private val preferenceHelper: EncryptedPreferencesHelper,
     private val tracker: Tracker,
 ) {
-    fun migrateGroupsToLabels() {
-        val migrationKey = "groups_to_labels_migration_completed"
-
-        if (preferenceHelper.getString(migrationKey) != null) {
-            tracker.trackEvent(
-                "migrateGroupsToLabels skipped",
-                mapOf("reason" to "already migrated")
-            )
-            return
-        }
-
-        tracker.trackEvent("migrateGroupsToLabels started")
-
-        // Query existing groups
-        val uri = ContactsContract.Groups.CONTENT_URI
-        val projection = arrayOf(
-            ContactsContract.Groups._ID,
-            ContactsContract.Groups.TITLE,
-            ContactsContract.Groups.ACCOUNT_NAME,
-            ContactsContract.Groups.ACCOUNT_TYPE,
-            ContactsContract.Groups.GROUP_IS_READ_ONLY,
-            ContactsContract.Groups.DELETED
-        )
-
-        appContext.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-            val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups._ID)
-            val titleIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups.TITLE)
-            val accountNameIndex =
-                cursor.getColumnIndexOrThrow(ContactsContract.Groups.ACCOUNT_NAME)
-            val accountTypeIndex =
-                cursor.getColumnIndexOrThrow(ContactsContract.Groups.ACCOUNT_TYPE)
-            val readOnlyIndex =
-                cursor.getColumnIndexOrThrow(ContactsContract.Groups.GROUP_IS_READ_ONLY)
-            val deletedIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups.DELETED)
-
-            while (cursor.moveToNext()) {
-                val groupId = cursor.getLong(idIndex)
-                val groupName = cursor.getString(titleIndex).orEmpty()
-                val accountName = cursor.getString(accountNameIndex)
-                val accountType = cursor.getString(accountTypeIndex)
-                val isReadOnly = cursor.getInt(readOnlyIndex) != 0
-                val isDeleted = cursor.getInt(deletedIndex) != 0
-
-                // Skip system, read-only, or deleted groups
-                if (isReadOnly || isDeleted || isSystemGroup(groupName)) continue
-
-                // Migrate groups with contacts only
-                if (groupHasContacts(groupId)) {
-                    migrateGroup(groupId, groupName, accountName, accountType)
-                }
-            }
-        }
-
-        triggerSyncForAllAccounts()
-        preferenceHelper.saveString(migrationKey, "true")
-        tracker.trackEvent("migrateGroupsToLabels completed")
-    }
 
     fun getAllPhoneContacts(): List<Contact> {
         tracker.trackEvent("getAllPhoneContacts called")
@@ -169,6 +112,8 @@ class ContactsHelper(
             throw IllegalStateException(errorMessage)
         }
 
+        triggerSyncForAllAccounts()
+
         tracker.trackEvent("deleteLabel successful", mapOf("labelId" to labelId.toString()))
     }
 
@@ -192,7 +137,7 @@ class ContactsHelper(
 
         excludedContacts.forEach { contact ->
             val selection =
-                "${ContactsContract.CommonDataKinds.GroupMembership.RAW_CONTACT_ID} = ? AND " +
+                "${ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID} = ? AND " +
                         "${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} = ? AND " +
                         "${ContactsContract.CommonDataKinds.GroupMembership.MIMETYPE} = ?"
             val selectionArgs = arrayOf(
@@ -384,172 +329,6 @@ class ContactsHelper(
         )
     }
 
-    private fun isSystemGroup(groupName: String): Boolean {
-        // Define common criteria for system groups
-        val systemGroupNames = setOf("My Contacts", "Starred in Android", "Family", "Coworkers")
-
-        // Check if the group name matches known system groups
-        return groupName in systemGroupNames
-    }
-
-    private fun groupHasContacts(groupId: Long): Boolean {
-        val uri = ContactsContract.Data.CONTENT_URI
-        val projection = arrayOf(ContactsContract.Data._ID)
-        val selection =
-            "${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
-        val selectionArgs = arrayOf(
-            groupId.toString(),
-            ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE
-        )
-
-        appContext.contentResolver.query(uri, projection, selection, selectionArgs, null)
-            ?.use { cursor ->
-                return cursor.count > 0
-            }
-
-        return false
-    }
-
-    private fun migrateGroup(
-        groupId: Long,
-        groupName: String,
-        accountName: String?,
-        accountType: String?,
-    ) {
-        // Check if a label with the same name already exists
-        val existingLabelId = getLabelIdByName(groupName)
-        if (existingLabelId != null) {
-            tracker.trackEvent(
-                "Group matched with existing label",
-                mapOf("groupId" to groupId.toString(), "labelId" to existingLabelId.toString())
-            )
-            migrateContactsToExistingLabel(groupId, existingLabelId)
-        } else {
-            createAndMigrateNewLabel(groupId, groupName, accountName, accountType)
-        }
-    }
-
-    private fun getLabelIdByName(labelName: String): Long? {
-        val uri = ContactsContract.Groups.CONTENT_URI
-        val projection = arrayOf(ContactsContract.Groups._ID)
-        val selection = "${ContactsContract.Groups.TITLE} = ?"
-        val selectionArgs = arrayOf(labelName)
-
-        appContext.contentResolver.query(uri, projection, selection, selectionArgs, null)
-            ?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    return cursor.getLong(cursor.getColumnIndexOrThrow(ContactsContract.Groups._ID))
-                }
-            }
-
-        return null
-    }
-
-    private fun migrateContactsToExistingLabel(groupId: Long, labelId: Long) {
-        val contacts = getContactsForGroup(groupId)
-
-        // Get existing contacts in the label
-        val existingContacts = getContactsForLabel(labelId).map { it.id }.toSet()
-
-        contacts.forEach { contact ->
-            if (contact.id !in existingContacts) {
-                addSingleContactToLabel(labelId, contact.id)
-            }
-        }
-
-        tracker.trackEvent(
-            "Contacts migrated to existing label",
-            mapOf(
-                "groupId" to groupId.toString(),
-                "labelId" to labelId.toString(),
-                "contactCount" to contacts.size.toString()
-            )
-        )
-    }
-
-    private fun createAndMigrateNewLabel(
-        groupId: Long,
-        groupName: String,
-        accountName: String?,
-        accountType: String?,
-    ) {
-        tracker.trackEvent(
-            "createAndMigrateNewLabel called",
-            mapOf("groupId" to groupId.toString(), "groupName" to groupName)
-        )
-
-        // Prepare ContentValues for the label
-        val contentValues = ContentValues().apply {
-            put(ContactsContract.Groups.TITLE, groupName)
-            accountName?.let { put(ContactsContract.Groups.ACCOUNT_NAME, it) }
-            accountType?.let { put(ContactsContract.Groups.ACCOUNT_TYPE, it) }
-        }
-
-        // Create the new label
-        val labelUri =
-            appContext.contentResolver.insert(ContactsContract.Groups.CONTENT_URI, contentValues)
-        labelUri?.let {
-            val labelId = ContentUris.parseId(it)
-
-            // Migrate contacts to the new label
-            val contacts = getContactsForGroup(groupId)
-            contacts.forEach { contact ->
-                addSingleContactToLabel(labelId, contact.id)
-            }
-
-            tracker.trackEvent(
-                "createAndMigrateNewLabel successful",
-                mapOf(
-                    "labelId" to labelId.toString(),
-                    "groupName" to groupName,
-                    "contactCount" to contacts.size.toString()
-                )
-            )
-        }
-            ?: tracker.trackError(IllegalStateException("Failed to create label for groupId: $groupId"))
-    }
-
-    private fun getContactsForGroup(groupId: Long): List<Contact> {
-        val contacts = mutableListOf<Contact>()
-        val uri = ContactsContract.Data.CONTENT_URI
-        val projection = arrayOf(
-            ContactsContract.CommonDataKinds.GroupMembership.RAW_CONTACT_ID,
-            ContactsContract.Data.DISPLAY_NAME_PRIMARY
-        )
-        val selection =
-            "${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
-        val selectionArgs = arrayOf(
-            groupId.toString(),
-            ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE
-        )
-
-        appContext.contentResolver.query(uri, projection, selection, selectionArgs, null)
-            ?.use { cursor ->
-                val idIndex =
-                    cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.GroupMembership.RAW_CONTACT_ID)
-                val nameIndex =
-                    cursor.getColumnIndexOrThrow(ContactsContract.Data.DISPLAY_NAME_PRIMARY)
-
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idIndex)
-                    val name = cursor.getString(nameIndex).orEmpty()
-                    val phone = getPrimaryPhoneNumberForContact(id)
-                    val ringtoneUriStr = getCustomRingtoneForContact(id)
-
-                    contacts.add(
-                        Contact(
-                            id = id,
-                            name = name,
-                            phone = phone,
-                            ringtoneUriStr = ringtoneUriStr
-                        )
-                    )
-                }
-            }
-
-        return contacts
-    }
-
     private fun scanAndUpdate(context: Context, ringtoneStr: String, contactId: Long) {
         val uriFromStr = Uri.parse(ringtoneStr)
 
@@ -615,16 +394,23 @@ class ContactsHelper(
             mapOf("labelId" to labelId.toString(), "contactId" to contactId.toString())
         )
 
+        // Get the RAW_CONTACT_ID from CONTACT_ID
+        val rawContactId = getRawContactIdForContact(contactId)
+            ?: throw IllegalArgumentException("raw_contact_id is required and could not be found for contactId: $contactId")
+
         val ops = ArrayList<ContentProviderOperation>().apply {
             add(
                 ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                    .withValue(ContactsContract.Data.RAW_CONTACT_ID, contactId)
                     .withValue(
-                        ContactsContract.Data.MIMETYPE,
-                        ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE // Abstract MIME type
+                        ContactsContract.Data.RAW_CONTACT_ID, // Use RAW_CONTACT_ID instead
+                        rawContactId
                     )
                     .withValue(
-                        ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID, // Abstract to label
+                        ContactsContract.Data.MIMETYPE,
+                        ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE // Group membership MIME type
+                    )
+                    .withValue(
+                        ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID, // Link to the label
                         labelId
                     )
                     .build()
@@ -634,11 +420,26 @@ class ContactsHelper(
         appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
     }
 
+    private fun getRawContactIdForContact(contactId: Long): Long? {
+        val uri = ContactsContract.RawContacts.CONTENT_URI
+        val projection = arrayOf(ContactsContract.RawContacts._ID)
+        val selection = "${ContactsContract.RawContacts.CONTACT_ID} = ?"
+        val selectionArgs = arrayOf(contactId.toString())
+
+        appContext.contentResolver.query(uri, projection, selection, selectionArgs, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    return cursor.getLong(cursor.getColumnIndexOrThrow(ContactsContract.RawContacts._ID))
+                }
+            }
+        return null
+    }
+
     private fun getContactsForLabel(labelId: Long): List<Contact> {
         val contacts = mutableListOf<Contact>()
         val uri = ContactsContract.Data.CONTENT_URI
         val projection = arrayOf(
-            ContactsContract.CommonDataKinds.GroupMembership.RAW_CONTACT_ID,
+            ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID,
             ContactsContract.Data.DISPLAY_NAME_PRIMARY
         )
         val selection =
@@ -650,20 +451,21 @@ class ContactsHelper(
 
         appContext.contentResolver.query(uri, projection, selection, selectionArgs, null)
             ?.use { cursor ->
-                val idIndex =
-                    cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.GroupMembership.RAW_CONTACT_ID)
+                val contactIdIndex =
+                    cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID)
                 val nameIndex =
                     cursor.getColumnIndexOrThrow(ContactsContract.Data.DISPLAY_NAME_PRIMARY)
 
             while (cursor.moveToNext()) {
-                val id = cursor.getLong(idIndex)
+                val contactId = cursor.getLong(contactIdIndex) // Use this for accurate phone lookup
                 val name = cursor.getString(nameIndex).orEmpty()
-                val phone = getPrimaryPhoneNumberForContact(id)
-                val ringtoneUriStr = getCustomRingtoneForContact(id)
+                val phone =
+                    getPrimaryPhoneNumberForContact(contactId) // Use CONTACT_ID for phone query
+                val ringtoneUriStr = getCustomRingtoneForContact(contactId)
 
                 contacts.add(
                     Contact(
-                        id = id,
+                        id = contactId,
                         name = name,
                         phone = phone,
                         ringtoneUriStr = ringtoneUriStr

@@ -69,11 +69,8 @@ class MainViewModel(
             isLoading = true,
             arePermissionsGranted = true
         )
-        launchOnIoResultInMain(
-            work = contactsHelper::migrateGroupsToLabels,
-            onSuccess = { updateGroupList() },
-            onError = { updateGroupList() }
-        )
+
+        updateGroupList()
     }
 
     fun setUpGroupNameEditing(group: LabelItem) {
@@ -299,9 +296,9 @@ class MainViewModel(
         }
     }
 
-    private fun createGroupByName(name: String, accountName: Account?): LabelItem =
+    private fun createGroupByName(name: String, account: Account?): LabelItem =
         name.takeIf { it.isNotEmpty() }
-            ?.let { noneEmptyName -> contactsHelper.createLabel(noneEmptyName, accountName) }
+            ?.let { noneEmptyName -> contactsHelper.createLabel(noneEmptyName, account) }
             ?: throw IllegalArgumentException("Group name is empty")
 
     private fun manageGroupChange(result: PickerResultData.GroupNameChange): Unit =
@@ -329,7 +326,6 @@ class MainViewModel(
         launchOnIoResultInMain(
             work = { groups },
             onSuccess = { list ->
-                "updateGroupList ${list.joinToString()}".log()
                 _homeUiState.update {
                     _homeUiState.value.copy(
                         isLoading = false,

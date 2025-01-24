@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.FragmentPickerScreenBinding
 import com.milen.grounpringtonesetter.screens.picker.data.PickerResultData
@@ -89,10 +90,10 @@ class PickerScreenFragment : Fragment() {
             }
 
             scvContacts.submitContacts(
-                data.allContacts.map {
+                data.allContacts.map { contact ->
                     SelectableContact.from(
-                        contact = it,
-                        isSelected = data.selectedContacts.contains(it)
+                        contact = contact,
+                        isSelected = data.selectedContacts.hasContact(contact)
                     )
                 }.also {
                     noItemDisclaimer.isVisible = it.isEmpty() && loading.not()
@@ -154,4 +155,7 @@ class PickerScreenFragment : Fragment() {
     }
 
 }
+
+private fun List<Contact>.hasContact(contact: Contact): Boolean =
+    this.any { it.id == contact.id && it.phone == contact.phone && it.name == contact.name }
 

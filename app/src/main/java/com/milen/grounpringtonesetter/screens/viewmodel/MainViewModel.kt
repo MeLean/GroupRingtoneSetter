@@ -3,6 +3,7 @@ package com.milen.grounpringtonesetter.screens.viewmodel
 import android.accounts.Account
 import android.net.Uri
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
@@ -20,6 +21,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class MainViewModel(
     private val adHelper: AdLoadingHelper,
@@ -229,10 +231,12 @@ class MainViewModel(
         labelItem: LabelItem,
         uriStr: List<String>,
     ) {
-        contactsHelper.setRingtoneToLabelContacts(
-            labelContacts = labelItem.contacts,
-            newRingtoneUriStr = uriStr.first()
-        )
+        viewModelScope.launch {
+            contactsHelper.setRingtoneToLabelContacts(
+                labelContacts = labelItem.contacts,
+                newRingtoneUriStr = uriStr.first()
+            )
+        }
     }
 
     fun setUpGroupCreateRequest() {

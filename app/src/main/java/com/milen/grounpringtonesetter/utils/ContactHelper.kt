@@ -286,7 +286,7 @@ class ContactsHelper(
     }
 
     fun getGoogleAccounts(): List<Account> =
-        AccountManager.get(appContext).accounts.filter { it.type == "com.google" }
+        AccountManager.get(appContext).accounts.toList()
 
     private fun triggerSyncForAllAccounts() {
         val accounts = AccountManager.get(appContext).accounts
@@ -336,6 +336,78 @@ class ContactsHelper(
         )
     }
 
+    private fun updateRingtoneForContactAndRawContacts(
+        contactId: Long,
+        ringtoneUri: String,
+    ): Boolean {
+        val contactUpdated = updateContactRingtone(contactId, ringtoneUri)
+        val rawContactsUpdated = updateWritableRawContactsRingtone(contactId, ringtoneUri)
+
+        return contactUpdated || rawContactsUpdated // Return true if at least one was updated
+    }
+
+    private fun updateContactRingtone(contactId: Long, ringtoneUri: String): Boolean {
+        val updateUri = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId)
+
+        val rowsUpdated = appContext.contentResolver.update(
+            updateUri,
+            ContentValues().apply {
+                put(ContactsContract.Contacts.CUSTOM_RINGTONE, ringtoneUri)
+            },
+            null,
+            null
+        )
+
+        return rowsUpdated > 0
+    }
+
+    private fun updateWritableRawContactsRingtone(contactId: Long, ringtoneUri: String): Boolean {
+        val rawContactUri = ContactsContract.RawContacts.CONTENT_URI
+        val projection = arrayOf(
+            ContactsContract.RawContacts._ID,
+            ContactsContract.RawContacts.ACCOUNT_TYPE
+        )
+        val selection = "${ContactsContract.RawContacts.CONTACT_ID} = ?"
+        val selectionArgs = arrayOf(contactId.toString())
+
+        var anyUpdated = false
+
+        appContext.contentResolver.query(rawContactUri, projection, selection, selectionArgs, null)
+            ?.use { cursor ->
+                val rawContactIdIndex =
+                    cursor.getColumnIndexOrThrow(ContactsContract.RawContacts._ID)
+
+                while (cursor.moveToNext()) {
+                    val rawContactId = cursor.getLong(rawContactIdIndex)
+                    try {
+                        anyUpdated =
+                            anyUpdated || updateRawContactRingtone(rawContactId, ringtoneUri)
+                    } catch (e: SecurityException) {
+                        tracker.trackError(e)
+                    }
+                }
+            }
+
+        return anyUpdated
+    }
+
+
+    private fun updateRawContactRingtone(rawContactId: Long, ringtoneUri: String): Boolean {
+        val rawContactUri =
+            ContentUris.withAppendedId(ContactsContract.RawContacts.CONTENT_URI, rawContactId)
+
+        val rowsUpdated = appContext.contentResolver.update(
+            rawContactUri,
+            ContentValues().apply {
+                put(ContactsContract.Contacts.CUSTOM_RINGTONE, ringtoneUri)
+            },
+            null,
+            null
+        )
+
+        return rowsUpdated > 0
+    }
+
     private suspend fun scanAndUpdate(context: Context, ringtoneStr: String, contactId: Long) {
         val uriFromStr = Uri.parse(ringtoneStr)
 
@@ -364,34 +436,27 @@ class ContactsHelper(
         withContext(Dispatchers.IO) {
             latch.await()
 
-            val finalRingtoneUri = scannedUri?.toString() ?: uriFromStr.toString().also {
+            val finalRingtoneUri: String = scannedUri?.toString() ?: uriFromStr.toString().also {
                 it.trackErrorIfEmpty(tracker, "uri: $scannedUri and ringtoneStr: $ringtoneStr")
             }
 
-            // Attempt to update the contact with the new ringtone
             try {
-                val updateUri = ContentUris.withAppendedId(
-                    ContactsContract.Contacts.CONTENT_URI,
-                    contactId
-                )
+                val updateDone: Boolean =
+                    updateRingtoneForContactAndRawContacts(contactId, finalRingtoneUri)
 
-                val rowsUpdated = context.contentResolver.update(
-                    updateUri,
-                    ContentValues().apply {
-                        put(ContactsContract.Contacts.CUSTOM_RINGTONE, finalRingtoneUri)
-                    },
-                    null,
-                    null
-                )
-
-                if (rowsUpdated == 0) {
+                if (updateDone.not()) {
                     tracker.trackError(
                         IllegalArgumentException(
                             "scanAndUpdate error: No rows updated, device may forbid edits to ContactsContract or contact is read-only."
                         )
                     )
 
-                    fallbackUpdateCustomRingtone(context, finalRingtoneUri, tracker)
+                    fallbackUpdateCustomRingtone(
+                        context = context,
+                        contactId = contactId,
+                        finalRingtoneUri = finalRingtoneUri,
+                        tracker = tracker
+                    )
                 }
             } catch (ex: Throwable) {
                 tracker.trackError(ex)
@@ -401,10 +466,15 @@ class ContactsHelper(
 
     private suspend fun fallbackUpdateCustomRingtone(
         context: Context,
+        contactId: Long,
         finalRingtoneUri: String,
         tracker: Tracker,
     ): Boolean {
-        // Insert a new raw contact under your custom account
+        // 1. Get the original contact's display name and phone number
+        val displayName = getDisplayNameForContact(contactId)
+        val phoneNumber = getPrimaryPhoneNumberForContact(contactId)
+
+        // 2. Insert a new raw contact under your custom account
         val rawContactValues = ContentValues().apply {
             put(ContactsContract.RawContacts.ACCOUNT_NAME, ACCOUNT_STR)
             put(ContactsContract.RawContacts.ACCOUNT_TYPE, ACCOUNT_STR)
@@ -419,25 +489,46 @@ class ContactsHelper(
         }
         val rawContactId = ContentUris.parseId(rawContactUri)
 
-        // Optional: Insert a display name for the new contact (help aggregation)
-        val nameValues = ContentValues().apply {
-            put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
-            put(
-                ContactsContract.Data.MIMETYPE,
-                ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
-            )
-            put(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, "New Contact")
-        }
-        context.contentResolver.insert(ContactsContract.Data.CONTENT_URI, nameValues)
+        // 3. Insert original contact details for better aggregation
+        val dataValues = mutableListOf<ContentValues>().apply {
+            // Add Display Name
+            add(ContentValues().apply {
+                put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                put(
+                    ContactsContract.Data.MIMETYPE,
+                    ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE
+                )
+                put(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, displayName)
+            })
 
-        // Wait for aggregation using the ContentObserver approach
+            // Add Phone Number if available
+            phoneNumber?.let {
+                add(ContentValues().apply {
+                    put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                    put(
+                        ContactsContract.Data.MIMETYPE,
+                        ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE
+                    )
+                    put(ContactsContract.CommonDataKinds.Phone.NUMBER, it)
+                })
+            }
+        }
+
+        // Insert the contact details into ContactsContract.Data
+        dataValues.forEach { contentValues ->
+            context.contentResolver.insert(ContactsContract.Data.CONTENT_URI, contentValues)
+        }
+
+        // 4. Wait for aggregation using the ContentObserver approach
         val aggregatedContactId = waitForAggregatedContactId(context, rawContactId)
         if (aggregatedContactId == null || aggregatedContactId == -1L) {
+            // Cleanup if aggregation fails
+            context.contentResolver.delete(rawContactUri, null, null)
             tracker.trackError(IllegalStateException("Failed to retrieve aggregated contact ID for raw contact"))
             return false
         }
 
-        // Update the aggregated contact with the custom ringtone
+        // 5. Update the aggregated contact with the custom ringtone
         val newUpdateUri = ContentUris.withAppendedId(
             ContactsContract.Contacts.CONTENT_URI,
             aggregatedContactId
@@ -450,13 +541,26 @@ class ContactsHelper(
             null,
             null
         )
+
         return if (newRowsUpdated == 0) {
-            tracker.trackError(IllegalArgumentException("Fallback update error: No rows updated for new contact"))
+            tracker.trackError(IllegalArgumentException("Fallback update error: No rows updated for new contact. AggregatedContactId: $aggregatedContactId"))
             false
         } else {
-            tracker.trackEvent("Fallback update successful for new raw contact")
+            tracker.trackEvent("Fallback update successful for new raw contact linked to contactId: $contactId")
             true
         }
+    }
+
+    private fun getDisplayNameForContact(contactId: Long): String {
+        val uri = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId)
+        val projection = arrayOf(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+
+        appContext.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                return cursor.getString(cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY))
+            }
+        }
+        return "Unnamed Contact"
     }
 
     private suspend fun waitForAggregatedContactId(

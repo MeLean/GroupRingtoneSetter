@@ -123,11 +123,18 @@ class PickerScreenFragment : Fragment() {
                 this@apply.isVisible = true
                 setText(data.groupName)
                 setCustomHint(getString(R.string.enter_group_name))
-                setSoftDoneCLicked { onResult(data.copy(pickedAccount = data.accountLists[accountPicker.selectedItemPosition])) }
+                setSoftDoneCLicked { onResult(data.copy(pickedAccount = getDataOrNull(data))) }
             }
             noItemDisclaimer.isVisible = false
         }
     }
+
+    private fun FragmentPickerScreenBinding.getDataOrNull(data: PickerResultData.ManageGroups) =
+        if (accountPicker.selectedItemPosition != -1 && data.accountLists.isNotEmpty()) {
+            data.accountLists[accountPicker.selectedItemPosition]
+        } else {
+            null
+        }
 
     private fun onResult(data: PickerResultData) {
         when (data) {

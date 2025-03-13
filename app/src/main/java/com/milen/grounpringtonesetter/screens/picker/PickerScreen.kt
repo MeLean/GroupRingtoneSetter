@@ -10,6 +10,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
+import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.FragmentPickerScreenBinding
@@ -41,6 +43,11 @@ class PickerScreenFragment : Fragment() {
 
         collectScoped(viewModel.pickerUiState) {
 
+            if (it.shouldPop) {
+                findNavController().popBackStack()
+                return@collectScoped
+            }
+
             binding.apply {
                 changeMainTitle(getString(it.titleId))
 
@@ -53,9 +60,13 @@ class PickerScreenFragment : Fragment() {
                 }
 
                 it.pikerResultData?.run {
+                    crbResetRingtones.isVisible = false
                     when (this) {
+                        is PickerResultData.ManageGroups ->
+                            handleSetName(this).also {
+                                manageResetButton()
+                            }
                         is PickerResultData.GroupNameChange -> handleChangeName(this)
-                        is PickerResultData.ManageGroups -> handleSetName(this)
                         is PickerResultData.Canceled -> Unit
                         is PickerResultData.ManageGroupContacts ->
                             handleManageContacts(this, it.isLoading)
@@ -64,6 +75,21 @@ class PickerScreenFragment : Fragment() {
             }
 
             handleLoading(it.isLoading)
+        }
+    }
+
+    private fun FragmentPickerScreenBinding.manageResetButton() {
+        crbResetRingtones.apply {
+            isVisible = true
+            setOnClickListener {
+                requireActivity().showAlertDialog(
+                    titleResId = R.string.reset_all_ringtones,
+                    message = getString(R.string.reset_all_ringtones_description),
+                    confirmButtonData = ButtonData {
+                        viewModel.resetGroupRingtones()
+                    }
+                )
+            }
         }
     }
 

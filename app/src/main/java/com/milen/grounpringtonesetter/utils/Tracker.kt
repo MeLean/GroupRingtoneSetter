@@ -9,10 +9,12 @@ import com.google.firebase.ktx.Firebase
 class Tracker {
 
     fun trackEvent(eventName: String, params: Map<String, Any>? = null) {
+        // Log.d("TEST_IT", "Event logged: $eventName, Params: ${params.orEmpty()}")
         Firebase.analytics.logEvent(eventName, params.toBundle())
     }
 
     fun trackError(error: Throwable) {
+        // Log.e("TEST_IT", "Error logged: ${error.message}", error)
         Firebase.crashlytics.recordException(error)
     }
 }

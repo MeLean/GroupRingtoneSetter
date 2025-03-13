@@ -284,6 +284,35 @@ class MainViewModel(
     fun trackNoneFatal(error: Exception): Unit =
         tracker.trackError(error)
 
+
+    fun resetGroupRingtones() {
+        showPickerLoading()
+        launchOnIoResultInMain(
+            work = { contactsHelper.clearAllRingtoneUris() },
+            onError = ::handleError,
+            onSuccess = {
+                _homeUiState.update {
+                    _homeUiState.value.copy(
+                        isLoading = false,
+                        labelItems = _groups?.map {
+                            it.copy(
+                                ringtoneUriList = emptyList(),
+                                ringtoneFileName = ""
+                            )
+                        }.orEmpty()
+                    )
+                }
+
+                _pickerUiState.update {
+                    _pickerUiState.value.copy(
+                        isLoading = false,
+                        shouldPop = true
+                    )
+                }
+            }
+        )
+    }
+
     private fun handleError(error: Throwable) {
         tracker.trackError(error)
         hideHomeLoading()
@@ -353,9 +382,11 @@ class MainViewModel(
     private fun showHomeLoading(): Unit =
         _homeUiState.update { _homeUiState.value.copy(isLoading = true) }
 
-
     private fun hideHomeLoading(): Unit =
         _homeUiState.update { _homeUiState.value.copy(isLoading = false) }
+
+    private fun showPickerLoading(): Unit =
+        _pickerUiState.update { _pickerUiState.value.copy(isLoading = true) }
 
     private fun hidePickerLoading(): Unit =
         _pickerUiState.update { _pickerUiState.value.copy(isLoading = false) }

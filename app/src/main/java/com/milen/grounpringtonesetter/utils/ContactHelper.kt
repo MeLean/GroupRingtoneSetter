@@ -248,6 +248,110 @@ class ContactsHelper(
         )
     }
 
+    fun clearAllRingtoneUris() {
+        tracker.trackEvent("clearAllRingtoneUris called")
+
+        // 1. Clear ringtones for ALL contacts (without filtering by account type)
+        val contactIds = getAllContactIds()
+        tracker.trackEvent("Found ${contactIds.size} contacts to update")
+
+        if (contactIds.isNotEmpty()) {
+            val contactSelection =
+                "${ContactsContract.Contacts._ID} IN (${contactIds.joinToString()})"
+            val contactValues =
+                ContentValues().apply { putNull(ContactsContract.Contacts.CUSTOM_RINGTONE) }
+
+            try {
+                val contactRowsUpdated = appContext.contentResolver.update(
+                    ContactsContract.Contacts.CONTENT_URI,
+                    contactValues,
+                    contactSelection,
+                    null
+                )
+                tracker.trackEvent(
+                    "clearAllRingtoneUris - Contacts updated",
+                    mapOf("clearedCount" to contactRowsUpdated.toString())
+                )
+            } catch (e: SecurityException) {
+                tracker.trackError(e)
+                tracker.trackEvent("clearAllRingtoneUris - Failed due to SecurityException")
+            } catch (e: Exception) {
+                tracker.trackError(e)
+                tracker.trackEvent("clearAllRingtoneUris - Unexpected error: ${e.message}")
+            }
+        } else {
+            tracker.trackEvent("No contacts found for ringtone removal")
+        }
+
+        // 2. Clear ringtones for ALL raw contacts (no account type filtering)
+        val rawContactIds = getAllRawContactIds()
+        tracker.trackEvent("Found ${rawContactIds.size} raw contacts to update")
+
+        if (rawContactIds.isNotEmpty()) {
+            val rawContactSelection =
+                "${ContactsContract.RawContacts._ID} IN (${rawContactIds.joinToString()})"
+            val rawContactValues =
+                ContentValues().apply { putNull(ContactsContract.Contacts.CUSTOM_RINGTONE) }
+
+            try {
+                val rawContactRowsUpdated = appContext.contentResolver.update(
+                    ContactsContract.RawContacts.CONTENT_URI,
+                    rawContactValues,
+                    rawContactSelection,
+                    null
+                )
+                tracker.trackEvent(
+                    "clearAllRingtoneUris - RawContacts updated",
+                    mapOf("clearedCount" to rawContactRowsUpdated.toString())
+                )
+            } catch (e: SecurityException) {
+                tracker.trackError(e)
+                tracker.trackEvent("clearAllRingtoneUris - Failed due to SecurityException")
+            } catch (e: Exception) {
+                tracker.trackError(e)
+                tracker.trackEvent("clearAllRingtoneUris - Unexpected error: ${e.message}")
+            }
+        } else {
+            tracker.trackEvent("No raw contacts found for ringtone removal")
+        }
+    }
+
+    /**
+     * Get ALL contact IDs (NO filtering by account type)
+     */
+    private fun getAllContactIds(): List<Long> {
+        val contactIds = mutableListOf<Long>()
+        val uri = ContactsContract.Contacts.CONTENT_URI
+        val projection = arrayOf(ContactsContract.Contacts._ID)
+
+        appContext.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            val contactIdIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+            while (cursor.moveToNext()) {
+                contactIds.add(cursor.getLong(contactIdIndex))
+            }
+        }
+
+        return contactIds
+    }
+
+    /**
+     * Get ALL raw contact IDs (NO filtering by account type)
+     */
+    private fun getAllRawContactIds(): List<Long> {
+        val rawContactIds = mutableListOf<Long>()
+        val uri = ContactsContract.RawContacts.CONTENT_URI
+        val projection = arrayOf(ContactsContract.RawContacts._ID)
+
+        appContext.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            val rawContactIdIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts._ID)
+            while (cursor.moveToNext()) {
+                rawContactIds.add(cursor.getLong(rawContactIdIndex))
+            }
+        }
+
+        return rawContactIds
+    }
+
     fun createLabel(labelName: String, account: Account?): LabelItem? {
         tracker.trackEvent("createLabel called", mapOf("labelName" to labelName))
 

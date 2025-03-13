@@ -8,4 +8,5 @@ data class PickerScreenState(
     @StringRes val titleId: Int,
     val isLoading: Boolean = true,
     val pikerResultData: PickerResultData? = null,
+    val shouldPop: Boolean = false,
 )

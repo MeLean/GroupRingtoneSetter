@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+
     <com.milen.grounpringtonesetter.customviews.ui.texts.CustomInputView
         android:id="@+id/civNameInput"
         android:layout_width="0dp"
@@ -17,6 +18,15 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:visibility="visible" />
 
+    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+        android:id="@+id/crbResetRingtones"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:buttonLabel="@string/reset_all_ringtones"
+        app:layout_constraintEnd_toEndOf="@+id/civNameInput"
+        app:layout_constraintTop_toBottomOf="@+id/civNameInput" />
+
     <LinearLayout
         android:id="@+id/llAccountPickerHolder"
         android:layout_width="0dp"
@@ -27,7 +37,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/civNameInput"
+        app:layout_constraintTop_toBottomOf="@+id/crbResetRingtones"
         tools:visibility="visible">
 
         <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView

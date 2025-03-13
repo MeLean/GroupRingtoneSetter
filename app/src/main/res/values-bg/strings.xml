@@ -41,4 +41,6 @@
     <string name="click_to_uncheck">Щракнете, за да премахнете отметката</string>
     <string name="remove_repeating_groups">Премахване на повтарящи се групи</string>
     <string name="pick_account">Изберете акаунта, в който ще бъде създадена групата</string>
+    <string name="reset_all_ringtones">Нулиране на всички мелодии</string>
+    <string name="reset_all_ringtones_description">Ако продължите, всички персонализирани мелодии, зададени за вашите контакти, ще бъдат премахнати. Това означава, че контактите ви ще се върнат към стандартната мелодия и няма да останат индивидуални настройки за мелодии.</string>
 </resources>

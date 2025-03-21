@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
+import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.Tracker
@@ -26,6 +27,10 @@ object MainViewModelFactory {
                         contactsHelper = ContactsHelper(
                             appContext = activity.application,
                             preferenceHelper = preferenceHelper,
+                            contactRingtoneUpdateHelper = ContactRingtoneUpdateHelper(
+                                tracker = tracker,
+                                preferenceHelper = preferenceHelper
+                            ),
                             tracker = tracker
                         ),
                         encryptedPrefs = preferenceHelper,

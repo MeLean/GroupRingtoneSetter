@@ -38,8 +38,9 @@ class ContactRingtoneUpdateHelper(
         withContext(Dispatchers.IO) {
             return@withContext try {
                 val rawName = uri.lastPathSegment?.substringAfterLast('/')
-                    ?: "ringtone_${System.currentTimeMillis()}.mp3"
-                val fileName = rawName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                    ?: "ringtone_.mp3"
+
+                val fileName = rawName.makeMeUnique()
 
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -70,6 +71,14 @@ class ContactRingtoneUpdateHelper(
                 null
             }
         }
+
+    private fun String.makeMeUnique(): String {
+        val nameWithoutExtension = substringBeforeLast('.')
+        val extension = substringAfterLast('.', "mp3")
+        val uniqueSuffix = System.currentTimeMillis()
+        return "${nameWithoutExtension}_$uniqueSuffix.$extension"
+            .replace(Regex("[^a-zA-Z0-9._-]"), "_")
+    }
 
     private fun verifyCustomRingtoneSet(context: Context, contactId: Long, expectedUri: String) {
         val uri = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId)

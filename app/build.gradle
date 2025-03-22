@@ -20,12 +20,12 @@ android {
         }
     }
     namespace 'com.milen.grounpringtonesetter'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.milen.grounpringtonesetter"
         minSdk 27
-        targetSdk 34
+        targetSdk 35
         versionCode 270
         versionName "2.7.0"
 

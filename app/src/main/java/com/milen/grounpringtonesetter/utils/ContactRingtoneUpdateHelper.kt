@@ -126,21 +126,32 @@ class ContactRingtoneUpdateHelper(
      * and falls back to URI path if necessary.
      */
     private fun getNormalizedFileName(context: Context, uri: Uri): String {
-        // Try to read display name from content resolver
-        if (uri.scheme == "content") {
-            val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val name = cursor.getString(0)
-                    return name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        return try {
+            if (uri.scheme == "content") {
+                val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val name = cursor.getString(0)
+                        return name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                    }
                 }
             }
+
+            val rawName =
+                uri.lastPathSegment?.substringAfterLast('/') ?: generateFallbackFileName(uri)
+            rawName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        } catch (e: SecurityException) {
+            tracker.trackError(e)
+            generateFallbackFileName(uri)
         }
-        // Fallback to URI path
-        val rawName = uri.lastPathSegment?.substringAfterLast('/') ?: "ringtone.mp3"
-        return rawName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
     }
 
+    private fun generateFallbackFileName(uri: Uri): String {
+        val uuid =
+            uri.lastPathSegment?.hashCode()?.toUInt()?.toString(16) ?: System.currentTimeMillis()
+                .toString()
+        return "ringtone_$uuid.mp3"
+    }
     /**
      * Tries to find an existing ringtone in MediaStore by file name.
      */

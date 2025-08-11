@@ -10,15 +10,41 @@ class Tracker {
 
     fun trackEvent(eventName: String, params: Map<String, Any>? = null) {
         "$eventName: ${params?.toString().orEmpty()}".log()
-        Firebase.analytics.logEvent(eventName, params.toBundle())
+
+        try {
+            // Analytics event
+            Firebase.analytics.logEvent(eventName, params.toBundle())
+        } catch (_: Throwable) { /* ignore */
+        }
+
+        try {
+            // Breadcrumb in Crashlytics
+            Firebase.crashlytics.log("event:$eventName ${params?.entries?.joinToString()}")
+            // Store keys for context
+            params?.forEach { (k, v) ->
+                Firebase.crashlytics.setCustomKey(k, v.toString())
+            }
+        } catch (_: Throwable) { /* ignore */
+        }
     }
 
     fun trackError(error: Throwable) {
         "Error: ${error.message}".log()
-        Firebase.crashlytics.recordException(error)
+
+        try {
+            // Record non-fatal in Crashlytics
+            Firebase.crashlytics.recordException(error)
+        } catch (_: Throwable) { /* ignore */
+        }
     }
 }
 
 private fun Map<String, Any>?.toBundle(): Bundle? = this?.let {
-    bundleOf(*it.toList().toTypedArray())
+    val safePairs = it.map { (k, v) ->
+        when (v) {
+            is String, is Number, is Boolean -> k to v
+            else -> k to v.toString()
+        }
+    }.toTypedArray()
+    bundleOf(*safePairs)
 }

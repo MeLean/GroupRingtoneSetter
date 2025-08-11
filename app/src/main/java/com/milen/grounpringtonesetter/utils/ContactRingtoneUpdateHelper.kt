@@ -5,10 +5,13 @@ import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.ContactsContract
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -88,28 +91,60 @@ class ContactRingtoneUpdateHelper(
             try {
                 val fileName = getNormalizedFileName(context, uri)
 
-                // 🔍 Check if file with the same name already exists in MediaStore
+                // If already in MediaStore, reuse
                 findExistingRingtoneUri(context, fileName)?.let { return@withContext it }
 
-                // ❌ If not found, proceed to copy to MediaStore
-                val values = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "audio/mp3")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_RINGTONES)
-                    put(MediaStore.Audio.Media.IS_RINGTONE, 1)
+                val src = try {
+                    context.contentResolver.openInputStream(uri)
+                } catch (e: Exception) {
+                    null
+                }
+                if (src == null) {
+                    tracker.trackError(RuntimeException("Source not readable for copy: $uri"))
+                    return@withContext null
                 }
 
-                val newUri = context.contentResolver.insert(
-                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values
-                ) ?: return@withContext null
+                val mime = context.contentResolver.getType(uri) ?: "audio/mpeg"
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, mime)
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_RINGTONES)
+                    }
+                    put(MediaStore.Audio.Media.IS_RINGTONE, 1)
+                    put(MediaStore.Audio.Media.IS_MUSIC, 0)
+                }
+                val collection = if (Build.VERSION.SDK_INT >= 29) {
+                    MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+                } else {
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                }
 
-                context.contentResolver.openOutputStream(newUri)?.use { output ->
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        input.copyTo(output)
-                    } ?: return@withContext null
-                } ?: return@withContext null
+                val dest = context.contentResolver.insert(collection, values) ?: run {
+                    tracker.trackError(RuntimeException("Insert failed for $fileName"))
+                    src.close()
+                    return@withContext null
+                }
 
-                return@withContext newUri
+                try {
+                    context.contentResolver.openOutputStream(dest, "w")?.use { out ->
+                        src.use { input -> input.copyTo(out) }
+                    } ?: run {
+                        // No output → cleanup
+                        context.contentResolver.delete(dest, null, null)
+                        tracker.trackError(RuntimeException("OpenOutputStream failed for $dest"))
+                        return@withContext null
+                    }
+                    return@withContext dest
+                } catch (t: Throwable) {
+                    // Copy failed → cleanup
+                    try {
+                        context.contentResolver.delete(dest, null, null)
+                    } catch (_: Throwable) {
+                    }
+                    tracker.trackError(RuntimeException("Copy failed to $dest: ${t.message}", t))
+                    return@withContext null
+                }
             } catch (e: Exception) {
                 tracker.trackError(
                     RuntimeException(
@@ -126,56 +161,136 @@ class ContactRingtoneUpdateHelper(
      * and falls back to URI path if necessary.
      */
     private fun getNormalizedFileName(context: Context, uri: Uri): String {
+        val allowedExtensions = setOf("mp3", "wav", "ogg", "m4a", "aac")
+
         return try {
-            if (uri.scheme == "content") {
-                val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
-                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        val name = cursor.getString(0)
-                        return name.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-                    }
-                }
+            var name: String? = null
+
+            if ("content".equals(uri.scheme, ignoreCase = true)) {
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.DISPLAY_NAME),
+                    null,
+                    null,
+                    null
+                )
+                    ?.use { c -> if (c.moveToFirst()) name = c.getString(0) }
             }
 
-            val rawName =
-                uri.lastPathSegment?.substringAfterLast('/') ?: generateFallbackFileName(uri)
-            rawName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+            val base = (name?.takeIf { it.isNotBlank() }
+                ?: uri.lastPathSegment?.substringAfterLast('/')
+                ?: generateFallbackFileName(context, uri))
+                .replace(Regex("[^a-zA-Z0-9._-]"), "_")
+
+            appendOrGuessAudioExtension(context, base, uri, allowedExtensions)
         } catch (e: SecurityException) {
             tracker.trackError(e)
-            generateFallbackFileName(uri)
+            val fallback = generateFallbackFileName(context, uri)
+                .replace(Regex("[^a-zA-Z0-9._-]"), "_")
+            appendOrGuessAudioExtension(
+                context,
+                fallback,
+                uri,
+                setOf("mp3", "wav", "ogg", "m4a", "aac")
+            )
         }
     }
 
-    private fun generateFallbackFileName(uri: Uri): String {
-        val uuid =
-            uri.lastPathSegment?.hashCode()?.toUInt()?.toString(16) ?: System.currentTimeMillis()
-                .toString()
-        return "ringtone_$uuid.mp3"
+    private fun appendOrGuessAudioExtension(
+        context: Context,
+        fileName: String,
+        uri: Uri,
+        allowedExtensions: Set<String>,
+    ): String {
+        val dot = fileName.lastIndexOf('.')
+        val hasValidExt = dot > 0 && fileName.substring(dot + 1).lowercase() in allowedExtensions
+        if (hasValidExt) return fileName
+
+        val guessedExt = try {
+            context.contentResolver.getType(uri)?.let { mime ->
+                val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+                if (ext == null) {
+                    tracker.trackEvent(
+                        "audio_extension_guess_failed",
+                        mapOf("mime" to mime, "uri" to uri.toString())
+                    )
+                } else {
+                    tracker.trackEvent(
+                        "audio_extension_guessed",
+                        mapOf("mime" to mime, "ext" to ext, "uri" to uri.toString())
+                    )
+                }
+                ext
+            } ?: run {
+                tracker.trackEvent("audio_mime_missing", mapOf("uri" to uri.toString()))
+                null
+            }
+        } catch (e: Throwable) {
+            tracker.trackError(RuntimeException("Error guessing extension for URI: $uri", e))
+            null
+        }
+
+        val ext = guessedExt?.lowercase().takeUnless { it.isNullOrBlank() } ?: "mp3"
+        return "$fileName.$ext"
     }
+
+    private fun generateFallbackFileName(context: Context, uri: Uri): String {
+        val guessedExt = context.contentResolver.getType(uri)?.let { mime ->
+            MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
+        }
+
+        val uuid = uri.lastPathSegment
+            ?.hashCode()
+            ?.toUInt()
+            ?.toString(16)
+            ?: System.currentTimeMillis().toString()
+
+        val extension = guessedExt ?: "mp3"
+        return "ringtone_$uuid.$extension"
+    }
+
     /**
      * Tries to find an existing ringtone in MediaStore by file name.
      */
     private fun findExistingRingtoneUri(context: Context, fileName: String): Uri? {
+        val resolver = context.contentResolver
+        val baseUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.DISPLAY_NAME
         )
-        val selection =
-            "${MediaStore.Audio.Media.DISPLAY_NAME} = ? AND ${MediaStore.Audio.Media.RELATIVE_PATH} = ?"
-        val selectionArgs = arrayOf(fileName, "${Environment.DIRECTORY_RINGTONES}/")
 
-        val resolver = context.contentResolver
-        val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        return try {
+            val (selection, args) =
+                if (Build.VERSION.SDK_INT >= 29) {
+                    "${MediaStore.Audio.Media.DISPLAY_NAME} = ? AND ${MediaStore.Audio.Media.RELATIVE_PATH} = ?" to
+                            arrayOf(fileName, "${Environment.DIRECTORY_RINGTONES}/")
+                } else {
+                    "${MediaStore.Audio.Media.DISPLAY_NAME} = ?" to arrayOf(fileName)
+                }
 
-        resolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
-            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            if (cursor.moveToFirst()) {
-                val id = cursor.getLong(idColumn)
-                return ContentUris.withAppendedId(uri, id)
+            resolver.query(baseUri, projection, selection, args, null)?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                if (cursor.moveToFirst()) {
+                    val id = cursor.getLong(idCol)
+                    return ContentUris.withAppendedId(baseUri, id)
+                }
             }
-        }
 
-        return null
+            tracker.trackEvent(
+                "ringtone_not_found_in_mediastore",
+                mapOf("fileName" to fileName, "sdk" to Build.VERSION.SDK_INT)
+            )
+            null
+        } catch (e: Exception) {
+            tracker.trackError(
+                RuntimeException(
+                    "Error querying MediaStore for existing ringtone: $fileName (${e.message})",
+                    e
+                )
+            )
+            null
+        }
     }
 
     /**
@@ -225,12 +340,16 @@ class ContactRingtoneUpdateHelper(
      */
     private fun tryPersistUriPermission(context: Context, uri: Uri) {
         try {
+            if (!DocumentsContract.isDocumentUri(context, uri)) {
+                tracker.trackError(IllegalStateException("Non-persistable URI skipped: $uri"))
+                return
+            }
             context.contentResolver.takePersistableUriPermission(
                 uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
         } catch (e: SecurityException) {
-            tracker.trackError(RuntimeException("Cannot persist URI permission: $uri", e))
+            tracker.trackError(e)
         }
     }
 }

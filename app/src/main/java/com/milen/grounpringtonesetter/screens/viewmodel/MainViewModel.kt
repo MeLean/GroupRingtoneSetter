@@ -6,9 +6,9 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
-import com.milen.billing.BillingEntitlementManager
-import com.milen.billing.EntitlementState
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
+import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.Contact

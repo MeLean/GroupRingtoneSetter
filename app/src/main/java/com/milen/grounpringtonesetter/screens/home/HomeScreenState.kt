@@ -1,6 +1,6 @@
 package com.milen.grounpringtonesetter.screens.home
 
-import com.milen.billing.EntitlementState
+import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.data.LabelItem
 
 internal data class HomeScreenState(

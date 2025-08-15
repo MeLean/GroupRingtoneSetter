@@ -1,7 +1,7 @@
 package com.milen.grounpringtonesetter
 
 import android.app.Application
-import com.milen.billing.BillingEntitlementManager
+import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

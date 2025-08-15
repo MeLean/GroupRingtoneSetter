@@ -1,0 +1,76 @@
+[versions]
+agp = "8.12.0"
+kotlin = "2.2.10"
+
+firebase-bom = "34.1.0"
+
+core-ktx = "1.17.0"
+constraintlayout = "2.2.1"
+appcompat = "1.7.1"
+material = "1.12.0"
+
+coroutines = "1.10.2"
+lifecycle = "2.9.2"
+splashscreen = "1.1.0-rc01"
+
+accompanist-systemui = "0.36.0"
+accompanist-permissions = "0.37.3"
+
+security-crypto = "1.1.0"
+navigation = "2.9.3"
+
+play-services-ads = "24.5.0"
+billing = "8.0.0"
+
+junit4 = "4.13.2"
+androidx-junit = "1.3.0"
+espresso = "3.7.0"
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version = "4.4.3" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version = "3.0.6" }
+
+[libraries]
+# --- Core & UI (camelCase to match your build.gradle.kts) ---
+androidxCoreKtx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+androidxConstraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
+androidxAppcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+
+# --- Coroutines & Lifecycle ---
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+androidx-lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+androidx-lifecycle-livedata-ktx = { module = "androidx.lifecycle:lifecycle-livedata-ktx", version.ref = "lifecycle" }
+
+# --- Splash & Accompanist ---
+androidxCoreSplashscreen = { module = "androidx.core:core-splashscreen", version.ref = "splashscreen" }
+accompanist-systemuicontroller = { module = "com.google.accompanist:accompanist-systemuicontroller", version.ref = "accompanist-systemui" }
+accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanist-permissions" }
+
+# --- Security ---
+androidxSecurityCrypto = { module = "androidx.security:security-crypto", version.ref = "security-crypto" }
+
+# --- Navigation ---
+androidxNavigationFragmentKtx = { module = "androidx.navigation:navigation-fragment-ktx", version.ref = "navigation" }
+androidxNavigationUiKtx = { module = "androidx.navigation:navigation-ui-ktx", version.ref = "navigation" }
+
+# --- Google Play Services / Billing ---
+playServicesAds = { module = "com.google.android.gms:play-services-ads", version.ref = "play-services-ads" }
+billingKtx = { module = "com.android.billingclient:billing-ktx", version.ref = "billing" }
+
+# --- Firebase BoM + libs (BoM separate on purpose) ---
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
+firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+
+# --- Tests (keep dashed so accessors become libs.androidx.test.ext.junit, etc.) ---
+junit4 = { module = "junit:junit", version.ref = "junit4" }
+androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-junit" }
+androidx-test-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
+
+[bundles]
+lifecycle = ["androidx-lifecycle-runtime-ktx", "androidx-lifecycle-livedata-ktx"]
+accompanist = ["accompanist-systemuicontroller", "accompanist-permissions"]

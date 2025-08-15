@@ -1,4 +1,4 @@
-package com.milen.billing
+package com.milen.grounpringtonesetter.billing
 
 import android.app.Activity
 import android.app.Application

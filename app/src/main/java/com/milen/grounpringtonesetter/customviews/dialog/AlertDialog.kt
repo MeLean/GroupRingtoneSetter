@@ -6,7 +6,7 @@ import androidx.appcompat.app.AlertDialog
 import com.milen.grounpringtonesetter.R
 
 internal data class ButtonData(
-    @StringRes val textId: Int = R.string.confirm,
+    @param:StringRes val textId: Int = R.string.confirm,
     val onClick: () -> Unit = {},
 )
 
@@ -29,10 +29,10 @@ internal fun Activity.showAlertDialog(
         }
         .create()
 
-    dialog.setOnShowListener {
-        val minWidthPx = resources.getDimensionPixelSize(R.dimen.dialog_min_width) // e.g., 320dp
-        dialog.window?.decorView?.minimumWidth = minWidthPx
+    dialog.show()
+    val lp = dialog.window?.attributes
+    lp?.let {
+        dialog.window?.attributes = it
     }
-
-    if (!(isFinishing || isDestroyed)) dialog.show()
+    if (isFinishing || isDestroyed) return
 }

@@ -43,5 +43,6 @@
     <string name="pick_account">选择要创建群组的账户</string>
     <string name="reset_all_ringtones">重置所有铃声</string>
     <string name="reset_all_ringtones_description">如果继续，所有为联系人设置的自定义铃声都将被移除。这意味着您的联系人将恢复为默认铃声，且不会保留任何个别铃声设置。</string>
+    <string name="ad_free_forever">永久无广告</string>
 </resources>
 

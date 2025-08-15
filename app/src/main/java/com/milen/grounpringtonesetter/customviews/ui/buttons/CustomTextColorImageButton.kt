@@ -8,10 +8,10 @@ import android.widget.FrameLayout
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.CustomTextColorButtonBinding
 
-class CustomTextColorImageButton @JvmOverloads constructor(
+internal class CustomTextColorImageButton @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+    defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
     private var binding = CustomTextColorButtonBinding.inflate(LayoutInflater.from(context), this)

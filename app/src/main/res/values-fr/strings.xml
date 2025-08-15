@@ -43,4 +43,5 @@
     <string name="pick_account">Choisissez le compte où le groupe sera créé</string>
     <string name="reset_all_ringtones">Réinitialiser toutes les sonneries</string>
     <string name="reset_all_ringtones_description">Si vous continuez, toutes les sonneries personnalisées définies pour vos contacts seront supprimées. Cela signifie que vos contacts reviendront à la sonnerie par défaut et qu\'aucun réglage individuel ne sera conservé.</string>
+    <string name="ad_free_forever">Sans publicités à vie</string>
 </resources>

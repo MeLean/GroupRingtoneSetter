@@ -10,6 +10,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
+import com.milen.billing.EntitlementState
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
@@ -24,9 +25,12 @@ import com.milen.grounpringtonesetter.utils.collectScoped
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.log
+import com.milen.grounpringtonesetter.utils.manageVisibility
+import com.milen.grounpringtonesetter.utils.navigateAsRoot
 import com.milen.grounpringtonesetter.utils.navigateSingleTop
+import com.milen.grounpringtonesetter.utils.subscribeForConnectivityChanges
 
-class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
+internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private lateinit var binding: FragmentHomeScreenBinding
     private lateinit var groupsAdapter: GroupsAdapter
     private val viewModel: MainViewModel by activityViewModels {
@@ -58,17 +62,17 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
         groupsAdapter = GroupsAdapter(this)
 
-        collectScoped(viewModel.homeUiState) {
-            handleLoading(it.isLoading)
+        collectScoped(viewModel.state) { state ->
+            handleLoading(state.isLoading)
 
-            when {
-                it.arePermissionsGranted.not() -> requestMultiplePermissions.launch(permissions.toTypedArray())
-
-                else -> groupsAdapter.submitList(it.labelItems)
+            if (!state.arePermissionsGranted) {
+                requestMultiplePermissions.launch(permissions.toTypedArray())
+            } else {
+                groupsAdapter.submitList(state.labelItems)
             }
 
             binding.apply {
-                if (it.scrollToBottom) {
+                if (state.scrollToBottom) {
                     try {
                         val itemCount = groupsAdapter.itemCount
                         if (itemCount > 0) {
@@ -79,15 +83,47 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                         viewModel.trackNoneFatal(e)
                         (e.localizedMessage ?: e.toString()).log()
                     }
-
                 }
-                noItemDisclaimer.isVisible = it.labelItems.isEmpty() && it.isLoading.not()
-                btnManageGroups.isVisible = it.isLoading.not()
-                btnDoTheMagic.isVisible = it.isLoading.not()
+
+                noItemDisclaimer.isVisible = state.labelItems.isEmpty() && !state.isLoading
+                btnManageGroups.isVisible = !state.isLoading
+                btnDoTheMagic.isVisible = !state.isLoading
+
+                abHome.manageVisibility(state.entitlement)
+
+                when (state.entitlement) {
+                    EntitlementState.OWNED -> {
+                        btnDoTheMagic.apply {
+                            setLabel(getString(R.string.do_the_magic))
+                            setOnClickListener {
+                                viewModel.onSetAllGroupsRingtones()
+                            }
+                        }
+                    }
+
+                    EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN -> {
+                        btnDoTheMagic.apply {
+                            setLabel(getString(R.string.ad_free_forever))
+                            setOnClickListener {
+                                viewModel.startPurchase(requireActivity())
+                            }
+                        }
+                    }
+                }
             }
         }
 
         checkPermissions()
+
+        collectScoped(viewModel.events) { event ->
+            when (event) {
+                HomeEvent.ConnectionLost -> findNavController().navigateSingleTop(R.id.noInternetFragment)
+            }
+        }
+
+        requireActivity().subscribeForConnectivityChanges { isOnline ->
+            viewModel.onConnectionChanged(isOnline)
+        }
     }
 
     override fun onCreateView(
@@ -103,14 +139,10 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
         binding.apply {
             rwGroupItems.adapter = groupsAdapter
-            btnDoTheMagic.setOnClickListener {
-                viewModel.onSetAllGroupsRingtones()
-            }
 
             btnManageGroups.setOnClickListener {
-                viewModel.setUpGroupCreateRequest().also {
-                    findNavController().navigateSingleTop(R.id.pickerFragment)
-                }
+                viewModel.setUpGroupCreateRequest()
+                findNavController().navigateAsRoot(R.id.pickerFragment)
             }
         }
     }
@@ -124,7 +156,6 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         when {
             requireContext().areAllPermissionsGranted(permissions = permissions) ->
                 viewModel.onPermissionsGranted()
-
             else -> viewModel.onNoPermissions()
         }
     }
@@ -135,10 +166,9 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             message = getString(R.string.manage_contacts_group_name_desc),
             confirmButtonData = ButtonData {
                 viewModel.setUpContactsManaging(labelItem)
-                    .also { findNavController().navigateSingleTop(R.id.pickerFragment) }
+                findNavController().navigateSingleTop(R.id.pickerFragment)
             }
         )
-
 
     override fun onEditName(labelItem: LabelItem): Unit =
         requireActivity().showAlertDialog(
@@ -146,7 +176,7 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             message = getString(R.string.edit_group_name_desc),
             confirmButtonData = ButtonData {
                 viewModel.setUpGroupNameEditing(labelItem)
-                    .also { findNavController().navigateSingleTop(R.id.pickerFragment) }
+                findNavController().navigateSingleTop(R.id.pickerFragment)
             }
         )
 
@@ -160,13 +190,11 @@ class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         )
 
     override fun onChoseRingtoneIntent(labelItem: LabelItem) {
-        when {
-            requireContext().areAllPermissionsGranted(permissions = permissions) -> {
-                viewModel.selectingGroup = labelItem
-                pickAudioFileLauncher.launch("audio/*")
-            }
-
-            else -> viewModel.onNoPermissions()
+        if (requireContext().areAllPermissionsGranted(permissions = permissions)) {
+            viewModel.selectingGroup = labelItem
+            pickAudioFileLauncher.launch("audio/*")
+        } else {
+            viewModel.onNoPermissions()
         }
     }
 

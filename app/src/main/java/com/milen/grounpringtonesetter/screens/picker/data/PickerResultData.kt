@@ -4,7 +4,7 @@ import android.accounts.Account
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 
-sealed interface PickerResultData {
+internal sealed interface PickerResultData {
     data class GroupNameChange(
         val labelItem: LabelItem,
         val newGroupName: String? = null,

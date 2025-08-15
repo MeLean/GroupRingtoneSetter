@@ -15,7 +15,7 @@ import android.webkit.MimeTypeMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class ContactRingtoneUpdateHelper(
+internal class ContactRingtoneUpdateHelper(
     private val tracker: Tracker,
     private val preferenceHelper: EncryptedPreferencesHelper,
 ) {

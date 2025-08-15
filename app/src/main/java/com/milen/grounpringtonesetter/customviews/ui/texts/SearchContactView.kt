@@ -11,8 +11,8 @@ import com.milen.grounpringtonesetter.data.SelectableContact.Companion.toContact
 import com.milen.grounpringtonesetter.databinding.CustomSelectableContactsViewBinding
 import com.milen.grounpringtonesetter.screens.picker.ContactsAdapter
 
-class SearchContactView @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
+internal class SearchContactView @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
 ) : LinearLayout(context, attrs, defStyleAttr) {
     private var contactsList: List<SelectableContact> = emptyList()
     private var filteredContactsList: List<SelectableContact> = emptyList()

@@ -9,7 +9,7 @@ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.milen.grounpringtonesetter.BuildConfig
 import com.milen.grounpringtonesetter.R
 
-class AdLoadingHelper(private val activity: Activity) {
+internal class AdLoadingHelper(private val activity: Activity) {
     private var interstitialAd: InterstitialAd? = null
     private var isLoadingInterstitialAd = false
 

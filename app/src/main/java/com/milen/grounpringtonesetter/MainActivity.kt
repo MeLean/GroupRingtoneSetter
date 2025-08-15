@@ -11,8 +11,6 @@ import com.google.android.gms.ads.MobileAds
 import com.milen.grounpringtonesetter.databinding.ActivityMainBinding
 import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModel
 import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModelFactory
-import com.milen.grounpringtonesetter.utils.hasInternetConnection
-import com.milen.grounpringtonesetter.utils.navigateSingleTop
 
 
 class MainActivity : AppCompatActivity() {
@@ -37,10 +35,6 @@ class MainActivity : AppCompatActivity() {
         navController.setGraph(R.navigation.nav_graph)
 
         setUpToolbar()
-
-        if (hasInternetConnection().not()) {
-            navController.navigateSingleTop(R.id.noInternetFragment)
-        }
     }
 
     private fun setUpToolbar() {
@@ -50,10 +44,7 @@ class MainActivity : AppCompatActivity() {
                     finish()
                 }
             }
-
-            setInfoData {
-                viewModel.showInfoDialog()
-            }
+            setInfoData { viewModel.showInfoDialog() }
         }
     }
 

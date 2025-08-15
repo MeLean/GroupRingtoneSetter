@@ -43,4 +43,5 @@
     <string name="pick_account">Pick up account where the group will be created</string>
     <string name="reset_all_ringtones">Reset all ringtones</string>
     <string name="reset_all_ringtones_description">If you proceed, all custom ringtones set for your contacts will be removed. This means your contacts will revert to the default ringtone, and no individual ringtone settings will remain</string>
+    <string name="ad_free_forever">Ad-Free Forever</string>
 </resources>

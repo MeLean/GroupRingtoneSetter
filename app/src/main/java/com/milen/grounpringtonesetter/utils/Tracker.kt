@@ -2,11 +2,12 @@ package com.milen.grounpringtonesetter.utils
 
 import android.os.Bundle
 import androidx.core.os.bundleOf
-import com.google.firebase.analytics.ktx.analytics
-import com.google.firebase.crashlytics.ktx.crashlytics
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.Firebase
+import com.google.firebase.analytics.analytics
+import com.google.firebase.crashlytics.crashlytics
 
-class Tracker {
+
+internal class Tracker {
 
     fun trackEvent(eventName: String, params: Map<String, Any>? = null) {
         "$eventName: ${params?.toString().orEmpty()}".log()

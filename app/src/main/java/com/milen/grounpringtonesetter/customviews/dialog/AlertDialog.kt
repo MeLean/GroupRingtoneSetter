@@ -5,36 +5,34 @@ import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
 import com.milen.grounpringtonesetter.R
 
-data class ButtonData(
+internal data class ButtonData(
     @StringRes val textId: Int = R.string.confirm,
-    val onClick: () -> Unit = {}
+    val onClick: () -> Unit = {},
 )
 
-fun Activity.showAlertDialog(
+internal fun Activity.showAlertDialog(
     @StringRes titleResId: Int,
     message: String,
     cancelButtonData: ButtonData? = ButtonData(R.string.cancel),
     confirmButtonData: ButtonData,
 ) {
-    AlertDialog.Builder(this, R.style.AlertDialogCustom).apply {
-        setTitle(titleResId)
-        setMessage(message)
-
-        setPositiveButton(confirmButtonData.textId) { dialog, _ ->
-            dialog.dismiss()
-            confirmButtonData.onClick()
+    val dialog = AlertDialog.Builder(this, R.style.AlertDialogCustom)
+        .setTitle(titleResId)
+        .setMessage(message)
+        .setPositiveButton(confirmButtonData.textId) { d, _ ->
+            d.dismiss(); confirmButtonData.onClick()
         }
-
-        cancelButtonData?.let {
-            setNegativeButton(it.textId) { dialog, _ ->
-                dialog.dismiss()
-                it.onClick()
+        .apply {
+            cancelButtonData?.let {
+                setNegativeButton(it.textId) { d, _ -> d.dismiss(); it.onClick() }
             }
         }
-        create()
+        .create()
 
-        if (!(isFinishing || isDestroyed)) {
-            show()
-        }
+    dialog.setOnShowListener {
+        val minWidthPx = resources.getDimensionPixelSize(R.dimen.dialog_min_width) // e.g., 320dp
+        dialog.window?.decorView?.minimumWidth = minWidthPx
     }
+
+    if (!(isFinishing || isDestroyed)) dialog.show()
 }

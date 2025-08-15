@@ -43,4 +43,5 @@
     <string name="pick_account">उस खाते को चुनें जहाँ समूह बनाया जाएगा</string>
     <string name="reset_all_ringtones">सभी रिंगटोन रीसेट करें</string>
     <string name="reset_all_ringtones_description">यदि आप आगे बढ़ते हैं, तो आपके संपर्कों के लिए सेट की गई सभी कस्टम रिंगटोन हटा दी जाएंगी। इसका अर्थ है कि आपके संपर्क डिफ़ॉल्ट रिंगटोन पर वापस आ जाएंगे, और कोई व्यक्तिगत रिंगटोन सेटिंग्स नहीं बचेंगी।</string>
+    <string name="ad_free_forever">हमेशा के लिए विज्ञापन-मुक्त</string>
 </resources>

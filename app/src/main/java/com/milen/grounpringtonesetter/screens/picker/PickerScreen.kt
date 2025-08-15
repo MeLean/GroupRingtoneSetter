@@ -8,7 +8,11 @@ import android.widget.ArrayAdapter
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
@@ -22,11 +26,17 @@ import com.milen.grounpringtonesetter.utils.changeMainTitle
 import com.milen.grounpringtonesetter.utils.collectScoped
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.hideSoftInput
+import com.milen.grounpringtonesetter.utils.manageVisibility
+import kotlinx.coroutines.launch
 
-class PickerScreenFragment : Fragment() {
+internal class PickerScreenFragment : Fragment() {
     private lateinit var binding: FragmentPickerScreenBinding
     private val viewModel: MainViewModel by activityViewModels {
         MainViewModelFactory.provideFactory(requireActivity())
+    }
+
+    private val billing by lazy(LazyThreadSafetyMode.NONE) {
+        (requireActivity().application as App).billingManager
     }
 
     override fun onCreateView(
@@ -41,40 +51,46 @@ class PickerScreenFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        collectScoped(viewModel.pickerUiState) {
-
-            if (it.shouldPop) {
+        collectScoped(viewModel.pickerUiState) { ui ->
+            if (ui.shouldPop) {
                 findNavController().popBackStack()
                 return@collectScoped
             }
-
             binding.apply {
-                changeMainTitle(getString(it.titleId))
-
+                changeMainTitle(getString(ui.titleId))
                 crbDone.run {
                     setOnClickListener {
                         hideSoftInput()
-                        it.pikerResultData?.let { pikerData -> onResult(data = pikerData) }
+                        ui.pikerResultData?.let { pikerData -> onResult(data = pikerData) }
                     }
-                    this@run.isVisible = !it.isLoading
+                    this@run.isVisible = !ui.isLoading
                 }
 
-                it.pikerResultData?.run {
+                ui.pikerResultData?.run {
                     crbResetRingtones.isVisible = false
                     when (this) {
-                        is PickerResultData.ManageGroups ->
-                            handleSetName(this).also {
-                                manageResetButton()
-                            }
+                        is PickerResultData.ManageGroups -> handleSetName(this).also { manageResetButton() }
                         is PickerResultData.GroupNameChange -> handleChangeName(this)
                         is PickerResultData.Canceled -> Unit
-                        is PickerResultData.ManageGroupContacts ->
-                            handleManageContacts(this, it.isLoading)
+                        is PickerResultData.ManageGroupContacts -> handleManageContacts(
+                            this,
+                            ui.isLoading
+                        )
                     }
                 }
             }
+            handleLoading(ui.isLoading)
+        }
 
-            handleLoading(it.isLoading)
+        binding.abPicker.isVisible = false
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                billing.state.collect { st ->
+                    binding.abPicker.manageVisibility(st)
+
+                }
+            }
         }
     }
 
@@ -85,9 +101,7 @@ class PickerScreenFragment : Fragment() {
                 requireActivity().showAlertDialog(
                     titleResId = R.string.reset_all_ringtones,
                     message = getString(R.string.reset_all_ringtones_description),
-                    confirmButtonData = ButtonData {
-                        viewModel.resetGroupRingtones()
-                    }
+                    confirmButtonData = ButtonData { viewModel.resetGroupRingtones() }
                 )
             }
         }
@@ -102,27 +116,22 @@ class PickerScreenFragment : Fragment() {
                 setCustomHint(getString(R.string.edit_group_name))
                 setSoftDoneCLicked { onResult(data) }
             }
-
             noItemDisclaimer.isVisible = false
         }
     }
 
     private fun handleManageContacts(data: PickerResultData.ManageGroupContacts, loading: Boolean) {
-
         binding.run {
             civNameInput.isVisible = false
-            scvContacts.apply {
-                this@apply.isVisible = true
-            }
-
+            scvContacts.isVisible = true
             scvContacts.submitContacts(
                 data.allContacts.map { contact ->
                     SelectableContact.from(
                         contact = contact,
                         isSelected = data.selectedContacts.hasContact(contact)
-                    )
-                }.also {
-                    noItemDisclaimer.isVisible = it.isEmpty() && loading.not()
+                    ).also {
+                        noItemDisclaimer.isVisible = data.allContacts.isEmpty() && loading.not()
+                    }
                 }
             )
         }
@@ -138,12 +147,9 @@ class PickerScreenFragment : Fragment() {
                     context,
                     R.layout.custom_dropdown_holder,
                     data.accountLists.map { it.name }
-                )
-
-                adapter.setDropDownViewResource(R.layout.custom_dropdown_item)
-                accountPicker.adapter = adapter
+                ).also { it.setDropDownViewResource(R.layout.custom_dropdown_item) }
+                this.adapter = adapter
             }
-
 
             civNameInput.apply {
                 this@apply.isVisible = true
@@ -158,35 +164,20 @@ class PickerScreenFragment : Fragment() {
     private fun FragmentPickerScreenBinding.getDataOrNull(data: PickerResultData.ManageGroups) =
         if (accountPicker.selectedItemPosition != -1 && data.accountLists.isNotEmpty()) {
             data.accountLists[accountPicker.selectedItemPosition]
-        } else {
-            null
-        }
+        } else null
 
     private fun onResult(data: PickerResultData) {
         when (data) {
             is PickerResultData.GroupNameChange ->
-                viewModel.onPickerResult(
-                    data.copy(newGroupName = binding.civNameInput.getText())
-                )
-
+                viewModel.onPickerResult(data.copy(newGroupName = binding.civNameInput.getText()))
             is PickerResultData.ManageGroups ->
-                viewModel.onPickerResult(
-                    data.copy(groupName = binding.civNameInput.getText())
-                )
-
+                viewModel.onPickerResult(data.copy(groupName = binding.civNameInput.getText()))
             is PickerResultData.ManageGroupContacts ->
-                viewModel.onPickerResult(
-                    data.copy(
-                        selectedContacts = binding.scvContacts.selectedContacts
-                    )
-                )
-
+                viewModel.onPickerResult(data.copy(selectedContacts = binding.scvContacts.selectedContacts))
             is PickerResultData.Canceled -> viewModel.onPickerResult(data)
         }
-
         findNavController().popBackStack()
     }
-
 }
 
 private fun List<Contact>.hasContact(contact: Contact): Boolean =

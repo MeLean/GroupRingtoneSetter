@@ -1,49 +1,80 @@
 package com.milen.grounpringtonesetter.screens.viewmodel
 
 import android.accounts.Account
+import android.app.Activity
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.billingclient.api.BillingClient
+import com.milen.billing.BillingEntitlementManager
+import com.milen.billing.EntitlementState
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
+import com.milen.grounpringtonesetter.screens.home.HomeEvent
 import com.milen.grounpringtonesetter.screens.home.HomeScreenState
 import com.milen.grounpringtonesetter.screens.picker.PickerScreenState
 import com.milen.grounpringtonesetter.screens.picker.data.PickerResultData
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.launch
 import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
 import com.milen.grounpringtonesetter.utils.log
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
-class MainViewModel(
+internal class MainViewModel(
     private val adHelper: AdLoadingHelper,
     private val dialogShower: DialogShower,
     private val contactsHelper: ContactsHelper,
     private val encryptedPrefs: EncryptedPreferencesHelper,
     private val tracker: Tracker,
+    private val billing: BillingEntitlementManager,
 ) : ViewModel() {
+
     private var _groups: MutableList<LabelItem>? = null
     private val groups: List<LabelItem>
         get() = _groups ?: contactsHelper.getAllLabelItems().also {
             _groups = it.toMutableList()
         }
 
-    private val _homeUiState = MutableStateFlow(HomeScreenState())
-    val homeUiState: StateFlow<HomeScreenState>
-        get() = _homeUiState.asStateFlow()
 
-    private val _pickerUiState =
-        MutableStateFlow(PickerScreenState(titleId = R.string.loading))
-    val pickerUiState: StateFlow<PickerScreenState>
-        get() = _pickerUiState.asStateFlow()
+    private val _events = Channel<HomeEvent>(Channel.BUFFERED)
+    val events: Flow<HomeEvent> = _events.receiveAsFlow()
+
+    private val _state = MutableStateFlow(HomeScreenState())
+
+    val state: StateFlow<HomeScreenState> =
+        combine(
+            _state,
+            billing.state,
+        ) { base, entitlement ->
+            val combinedLoading =
+                base.isLoading || entitlement == EntitlementState.UNKNOWN
+
+            base.copy(
+                entitlement = entitlement,
+                isLoading = combinedLoading
+            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = _state.value
+        )
+
+    private val _pickerUiState = MutableStateFlow(PickerScreenState(titleId = R.string.loading))
+    val pickerUiState: StateFlow<PickerScreenState> = _pickerUiState.asStateFlow()
 
     private var _selectingGroup: LabelItem? = null
     var selectingGroup: LabelItem
@@ -56,22 +87,29 @@ class MainViewModel(
     fun showInfoDialog(): Unit = dialogShower.showInfo()
 
     fun onNoPermissions() {
-        _homeUiState.tryEmit(
-            _homeUiState.value.copy(
+        _state.tryEmit(
+            _state.value.copy(
                 isLoading = false,
                 arePermissionsGranted = false
             )
         )
     }
 
+    fun onConnectionChanged(isOnline: Boolean) {
+        if (!isOnline && state.value.entitlement != EntitlementState.OWNED) {
+            tracker.trackEvent("onConnectionChanged")
+            launch {
+                _events.send(HomeEvent.ConnectionLost)
+            }
+        }
+    }
+
     fun onPermissionsGranted() {
         tracker.trackEvent("onPermissionsGranted")
-
-        _homeUiState.value = _homeUiState.value.copy(
+        _state.value = _state.value.copy(
             isLoading = true,
             arePermissionsGranted = true
         )
-
         updateGroupList()
     }
 
@@ -81,9 +119,7 @@ class MainViewModel(
             PickerScreenState(
                 isLoading = false,
                 titleId = R.string.edit_group_name,
-                pikerResultData = PickerResultData.GroupNameChange(
-                    labelItem = group
-                )
+                pikerResultData = PickerResultData.GroupNameChange(labelItem = group)
             )
         )
     }
@@ -119,7 +155,7 @@ class MainViewModel(
                 onSuccess = {
                     val newGroups = _groups?.filter { it.id != labelItem.id }.orEmpty()
                     _groups = newGroups.toMutableList()
-                    _homeUiState.value = homeUiState.value.copy(
+                    _state.value = _state.value.copy(
                         isLoading = false,
                         labelItems = newGroups,
                     )
@@ -155,7 +191,7 @@ class MainViewModel(
                             ?.also { it.add(groupItem) }
                             .orEmpty()
 
-                        _homeUiState.value = homeUiState.value.copy(
+                        _state.value = _state.value.copy(
                             isLoading = false,
                             labelItems = newGroups,
                             scrollToBottom = true
@@ -221,17 +257,35 @@ class MainViewModel(
                     hideHomeLoading()
                     dialogShower.showErrorById(R.string.no_ringtone_selected)
                 } else {
-                    showInterstitialAd()
+                    showInterstitialAdIfNeeded()
                 }
             }
         )
+    }
+
+    fun startPurchase(activity: Activity) {
+        launch {
+            runCatching {
+                handleBillingResult(billing.launchPurchase(activity))
+            }.onFailure {
+                tracker.trackError(it)
+                dialogShower.showError(it.localizedMessage)
+            }
+        }
+    }
+
+    private fun handleBillingResult(billingResultCode: Int) {
+        if (billingResultCode != BillingClient.BillingResponseCode.OK) {
+            tracker.trackError(RuntimeException("Billing not available code: $billingResultCode"))
+            dialogShower.showErrorById(R.string.items_not_found)
+        }
     }
 
     private fun setRingtoneToGroupContacts(
         labelItem: LabelItem,
         uriStr: List<String>,
     ) {
-        viewModelScope.launch {
+        launch {
             contactsHelper.setRingtoneToLabelContacts(
                 labelContacts = labelItem.contacts,
                 newRingtoneUriStr = uriStr.first()
@@ -275,7 +329,7 @@ class MainViewModel(
                 work = { setRingtoneToGroupContacts(this, ringtoneUriList) },
                 onError = ::handleError,
                 onSuccess = {
-                    showInterstitialAd()
+                    showInterstitialAdIfNeeded()
                 }
             )
         }
@@ -284,15 +338,14 @@ class MainViewModel(
     fun trackNoneFatal(error: Exception): Unit =
         tracker.trackError(error)
 
-
     fun resetGroupRingtones() {
         showPickerLoading()
         launchOnIoResultInMain(
             work = { contactsHelper.clearAllRingtoneUris() },
             onError = ::handleError,
             onSuccess = {
-                _homeUiState.update {
-                    _homeUiState.value.copy(
+                _state.update {
+                    _state.value.copy(
                         isLoading = false,
                         labelItems = _groups?.map {
                             it.copy(
@@ -320,11 +373,24 @@ class MainViewModel(
         dialogShower.showError(error.localizedMessage)
     }
 
-    private fun showInterstitialAd() {
-        adHelper.run {
-            loadInterstitialAd {
+    // Interstitial policy: OWNED → never; NOT_OWNED/UNKNOWN → show
+    private fun showInterstitialAdIfNeeded() {
+        when (state.value.entitlement) {
+            EntitlementState.OWNED -> {
                 hideHomeLoading()
-                showInterstitialAd()
+                dialogShower.showInfo(R.string.everything_set)
+                return
+            }
+
+            EntitlementState.NOT_OWNED,
+            EntitlementState.UNKNOWN,
+                -> {
+                adHelper.run {
+                    loadInterstitialAd {
+                        hideHomeLoading()
+                        showInterstitialAd()
+                    }
+                }
             }
         }
     }
@@ -351,7 +417,6 @@ class MainViewModel(
         contactsHelper.removeAllContactsFromLabel(result.group.id, excludedContacts)
 
         val updatedGroups = contactsHelper.getAllLabelItems()
-
         _groups = updatedGroups.toMutableList()
     }
 
@@ -359,8 +424,8 @@ class MainViewModel(
         launchOnIoResultInMain(
             work = { groups },
             onSuccess = { list ->
-                _homeUiState.update {
-                    _homeUiState.value.copy(
+                _state.update {
+                    _state.value.copy(
                         isLoading = false,
                         labelItems = list
                     )
@@ -380,10 +445,10 @@ class MainViewModel(
     }
 
     private fun showHomeLoading(): Unit =
-        _homeUiState.update { _homeUiState.value.copy(isLoading = true) }
+        _state.update { _state.value.copy(isLoading = true) }
 
     private fun hideHomeLoading(): Unit =
-        _homeUiState.update { _homeUiState.value.copy(isLoading = false) }
+        _state.update { _state.value.copy(isLoading = false) }
 
     private fun showPickerLoading(): Unit =
         _pickerUiState.update { _pickerUiState.value.copy(isLoading = true) }

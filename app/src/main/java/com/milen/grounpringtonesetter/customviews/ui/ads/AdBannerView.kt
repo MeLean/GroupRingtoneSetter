@@ -9,8 +9,8 @@ import com.google.android.gms.ads.AdView
 import com.milen.grounpringtonesetter.BuildConfig
 import com.milen.grounpringtonesetter.R
 
-class AdBannerView @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
+internal class AdBannerView @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
     private var bannerAdView: AdView = AdView(context)
@@ -27,6 +27,10 @@ class AdBannerView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        bannerAdView.destroy()
+    }
+
+    fun destroyBanner() {
         bannerAdView.destroy()
     }
 }

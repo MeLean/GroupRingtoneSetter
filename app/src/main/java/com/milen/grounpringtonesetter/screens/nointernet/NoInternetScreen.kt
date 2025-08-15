@@ -7,9 +7,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.FragmentNoInternetScreenBinding
+import com.milen.grounpringtonesetter.utils.navigateAsRoot
+import com.milen.grounpringtonesetter.utils.subscribeForConnectivityChanges
 
-class NoInternetScreen : Fragment() {
+internal class NoInternetScreen : Fragment() {
     private lateinit var binding: FragmentNoInternetScreenBinding
 
     override fun onCreateView(
@@ -28,7 +32,11 @@ class NoInternetScreen : Fragment() {
         binding.openNetworkSettingsButton.setOnClickListener {
             startActivity(Intent(Settings.ACTION_WIFI_SETTINGS).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
         }
-    }
 
-    // Implement your connectivity checker and handle navigation if needed
+        requireActivity().subscribeForConnectivityChanges { isOnline ->
+            if (isOnline) {
+                findNavController().navigateAsRoot(R.id.homeFragment)
+            }
+        }
+    }
 }

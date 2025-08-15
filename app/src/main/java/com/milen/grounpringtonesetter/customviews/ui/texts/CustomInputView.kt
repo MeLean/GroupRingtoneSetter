@@ -11,10 +11,10 @@ import com.milen.grounpringtonesetter.databinding.CustomInputViewBinding
 import com.milen.grounpringtonesetter.utils.hideSoftInput
 
 
-class CustomInputView @JvmOverloads constructor(
+internal class CustomInputView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = com.google.android.material.R.attr.textInputStyle
+    defStyleAttr: Int = com.google.android.material.R.attr.textInputStyle,
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
     private val binding: CustomInputViewBinding =

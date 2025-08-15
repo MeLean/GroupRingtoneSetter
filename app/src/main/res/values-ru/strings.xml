@@ -43,4 +43,5 @@
     <string name="pick_account">Выберите аккаунт, в котором будет создана группа</string>
     <string name="reset_all_ringtones">Сбросить все рингтоны</string>
     <string name="reset_all_ringtones_description">Если вы продолжите, все пользовательские рингтоны, установленные для ваших контактов, будут удалены. Это означает, что ваши контакты вернутся к стандартному рингтону, и индивидуальные настройки рингтонов не сохранятся.</string>
+    <string name="ad_free_forever">Без рекламы навсегда</string>
 </resources>

@@ -1,10 +1,16 @@
 package com.milen.grounpringtonesetter.screens.home
 
+import com.milen.billing.EntitlementState
 import com.milen.grounpringtonesetter.data.LabelItem
 
-data class HomeScreenState(
-    val labelItems: List<LabelItem> = mutableListOf(),
-    val isLoading: Boolean = true,
+internal data class HomeScreenState(
+    val isLoading: Boolean = false,
+    val labelItems: List<LabelItem> = emptyList(),
     val arePermissionsGranted: Boolean = true,
     val scrollToBottom: Boolean = false,
+    val entitlement: EntitlementState = EntitlementState.UNKNOWN,
 )
+
+internal sealed interface HomeEvent {
+    data object ConnectionLost : HomeEvent
+}

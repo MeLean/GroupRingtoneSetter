@@ -14,7 +14,7 @@ import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.exceptions.NoContactsFoundException
 
-class ContactsHelper(
+internal class ContactsHelper(
     private val appContext: Application,
     private val preferenceHelper: EncryptedPreferencesHelper,
     private val contactRingtoneUpdateHelper: ContactRingtoneUpdateHelper,

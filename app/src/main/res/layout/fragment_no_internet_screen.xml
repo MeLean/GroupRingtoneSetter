@@ -8,20 +8,21 @@
 
     <ImageView
         android:id="@+id/backgroundImage"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:importantForAccessibility="no"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
         android:scaleType="centerCrop"
-        android:src="@drawable/ringtone_background_3" />
+        android:layout_marginBottom="32dp"
+        android:contentDescription="@string/no_internet_description"
+        android:src="@drawable/ic_no_internet" />
+
 
     <TextView
         android:id="@+id/noInternetDescription"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:maxLines="4"
         android:paddingHorizontal="16dp"
         android:paddingVertical="8dp"
+        android:textColor="@color/textColor"
         android:text="@string/no_internet_description"
         android:textAlignment="center" />
 
@@ -38,6 +39,7 @@
         android:id="@+id/topBarEndButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:textAllCaps="false"
         android:text="@string/home"
         android:visibility="gone" />
 

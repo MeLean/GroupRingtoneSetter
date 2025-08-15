@@ -64,6 +64,7 @@ android {
     // ViewBinding (Kotlin DSL)
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 
     packaging {

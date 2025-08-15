@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
+import com.milen.grounpringtonesetter.BuildConfig
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.EntitlementState
@@ -84,7 +85,7 @@ internal class MainViewModel(
             _selectingGroup = value
         }
 
-    fun showInfoDialog(): Unit = dialogShower.showInfo()
+    fun showInfoDialog(): Unit = dialogShower.showInfo(additionalText = BuildConfig.VERSION_NAME)
 
     fun onNoPermissions() {
         _state.tryEmit(

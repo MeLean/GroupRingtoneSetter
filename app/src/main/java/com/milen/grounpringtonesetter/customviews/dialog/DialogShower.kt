@@ -17,10 +17,10 @@ internal class DialogShower(private val activity: Activity) {
     fun showErrorById(@StringRes messageId: Int): Unit =
         showError(activity.getString(messageId))
 
-    fun showInfo(@StringRes resId: Int = R.string.info_text) {
+    fun showInfo(@StringRes resId: Int = R.string.info_text, additionalText: String? = null) {
         activity.showAlertDialog(
             titleResId = R.string.info,
-            message = activity.getString(resId),
+            message = "${activity.getString(resId)}${additionalText?.let { "\n\n$it" }.orEmpty()}",
             cancelButtonData = null,
             confirmButtonData = ButtonData(R.string.ok)
         )

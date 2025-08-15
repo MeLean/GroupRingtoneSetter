@@ -88,8 +88,10 @@ dependencies {
     implementation(libs.androidxCoreSplashscreen)
     implementation(libs.bundles.accompanist)
 
-    // Security (Encrypted SharedPreferences)
+    // Security (Encrypted SharedPreferences remove in favor of DataStore)
     implementation(libs.androidxSecurityCrypto)
+    // use only this prefs for crypro prefs
+    implementation(libs.androidx.datastore.preferences)
 
     // Navigation
     implementation(libs.androidxNavigationFragmentKtx)

@@ -13,6 +13,7 @@ import android.provider.ContactsContract
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.exceptions.NoContactsFoundException
+import com.milen.grounpringtonesetter.data.exceptions.prefs.EncryptedPreferencesHelper
 
 internal class ContactsHelper(
     private val appContext: Application,

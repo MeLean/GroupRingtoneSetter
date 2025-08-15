@@ -6,9 +6,9 @@ import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
+import com.milen.grounpringtonesetter.data.exceptions.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
-import com.milen.grounpringtonesetter.utils.EncryptedPreferencesHelper
 
 object MainViewModelFactory {
     fun provideFactory(
@@ -19,7 +19,7 @@ object MainViewModelFactory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
                     val preferenceHelper = EncryptedPreferencesHelper(
-                        appContext = activity.application
+                        app = activity.application,
                     )
                     val tracker = (activity.application as App).tracker
                     val billing = (activity.application as App).billingManager

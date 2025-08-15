@@ -4,7 +4,17 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+    plugins {
+        id("com.android.application") version '8.12.0'
+        id("com.android.library") version '8.12.0'
+        id("org.jetbrains.kotlin.android") version "2.2.10"
+
+        // keep your existing versions if you already manage them elsewhere
+        id("com.google.gms.google-services") version "4.4.3"
+        id("com.google.firebase.crashlytics") version "3.0.6"
+    }
 }
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -12,5 +22,6 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
 rootProject.name = "Label Ringtone Setter"
-include ':app'
+include(":app")

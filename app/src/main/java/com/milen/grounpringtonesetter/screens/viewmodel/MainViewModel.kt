@@ -266,7 +266,9 @@ internal class MainViewModel(
     fun startPurchase(activity: Activity) {
         launch {
             runCatching {
+                _state.update { it.copy(isLoading = true) }
                 handleBillingResult(billing.launchPurchase(activity))
+                _state.update { it.copy(isLoading = false) }
             }.onFailure {
                 tracker.trackError(it)
                 dialogShower.showError(it.localizedMessage)

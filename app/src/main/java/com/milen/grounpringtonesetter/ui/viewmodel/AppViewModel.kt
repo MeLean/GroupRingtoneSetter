@@ -62,7 +62,12 @@ internal object AppViewModelFactory {
             ),
             tracker = tracker
         )
-        val repo = RepoGraph.contacts(activity.application, contactsHelper, tracker)
+        val repo = RepoGraph.contacts(
+            activity.application,
+            contactsHelper,
+            tracker,
+            prefs
+        )
 
         return object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

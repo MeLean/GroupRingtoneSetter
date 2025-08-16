@@ -3,7 +3,7 @@ package com.milen.grounpringtonesetter.data.prefs
 
 internal object SelectedAccountsStore {
     private const val KEY_SELECTED_ACCOUNTS = "selected_accounts_v1"
-    
+
     fun read(prefs: EncryptedPreferencesHelper): Set<String> {
         val raw = prefs.getString(KEY_SELECTED_ACCOUNTS) ?: return emptySet()
         return raw.split("|").filter { it.isNotBlank() }.toSet()
@@ -29,4 +29,10 @@ internal object SelectedAccountsStore {
         val set = read(prefs)
         return if (set.isEmpty()) "ALL" else set.sorted().joinToString("|")
     }
+
+    fun toTypeNamePairs(accounts: Set<String>): List<Pair<String, String>> =
+        accounts.mapNotNull { raw ->
+            val i = raw.indexOf(':')
+            if (i > 0 && i < raw.length - 1) raw.substring(0, i) to raw.substring(i + 1) else null
+        }
 }

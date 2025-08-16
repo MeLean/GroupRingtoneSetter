@@ -4,12 +4,10 @@ import android.app.Application
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.Tracker
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 internal interface ContactsRepository {
     val labelsFlow: StateFlow<List<LabelItem>>
@@ -31,6 +29,7 @@ internal class ContactsRepositoryImpl(
     private val app: Application,
     private val helper: ContactsHelper,
     private val tracker: Tracker,
+    private val accountsProvider: () -> Set<String>,
 ) : ContactsRepository {
 
     private val lock = Mutex()
@@ -44,7 +43,12 @@ internal class ContactsRepositoryImpl(
         return lock.withLock {
             val shouldQuery = forceRefresh || dirty || _labels.value.isEmpty()
             if (shouldQuery) {
-                val fresh = withContext(Dispatchers.IO) { helper.getAllLabelItems() }
+                val selected = accountsProvider()
+                val fresh = if (selected.isEmpty()) {
+                    helper.getAllLabelItems()
+                } else {
+                    helper.getAllLabelItemsForAccounts(selected) // NEW helper method below
+                }
                 _labels.value = fresh
                 dirty = false
             }

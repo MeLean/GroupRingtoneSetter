@@ -20,27 +20,27 @@ object MainViewModelFactory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
                     val app = activity.application as App
-                    val preferenceHelper = EncryptedPreferencesHelper(app = app)
+                    val prefs = EncryptedPreferencesHelper(app = app)
                     val tracker = app.tracker
                     val billing = app.billingManager
                     val contactsHelper = ContactsHelper(
                         appContext = activity.application,
-                        preferenceHelper = preferenceHelper,
+                        preferenceHelper = prefs,
                         contactRingtoneUpdateHelper = ContactRingtoneUpdateHelper(
                             tracker = tracker,
-                            preferenceHelper = preferenceHelper
+                            preferenceHelper = prefs
                         ),
                         tracker = tracker
                     )
                     val contactsRepo =
-                        RepoGraph.contacts(activity.application, contactsHelper, tracker)
+                        RepoGraph.contacts(activity.application, contactsHelper, tracker, prefs)
 
                     return MainViewModel(
                         appContext = app,
                         adHelper = AdLoadingHelper(activity),
                         dialogShower = DialogShower(activity),
                         contactsHelper = contactsHelper,
-                        encryptedPrefs = preferenceHelper,
+                        encryptedPrefs = prefs,
                         tracker = tracker,
                         billing = billing,
                         contactsRepo = contactsRepo

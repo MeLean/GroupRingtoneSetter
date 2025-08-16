@@ -14,6 +14,7 @@ import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.exceptions.NoContactsFoundException
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.prefs.SelectedAccountsStore
 
 internal class ContactsHelper(
     private val appContext: Application,
@@ -537,6 +538,48 @@ internal class ContactsHelper(
         }
         return null
     }
+
+    fun getAllLabelItemsForAccounts(selectedAccounts: Set<String>): List<LabelItem> {
+        if (selectedAccounts.isEmpty()) return getAllLabelItems()
+
+        val pairs =
+            SelectedAccountsStore.toTypeNamePairs(selectedAccounts)
+        if (pairs.isEmpty()) return getAllLabelItems()
+
+        val where = buildString {
+            append("${ContactsContract.Groups.DELETED}=0 AND (")
+            pairs.forEachIndexed { idx, _ ->
+                if (idx > 0) append(" OR ")
+                append("(${ContactsContract.Groups.ACCOUNT_TYPE}=? AND ${ContactsContract.Groups.ACCOUNT_NAME}=?)")
+            }
+            append(")")
+        }
+        val args = pairs.flatMap { listOf(it.first, it.second) }.toTypedArray()
+
+        val allowedGroupIds = linkedSetOf<Long>()
+        val projection = arrayOf(ContactsContract.Groups._ID)
+
+        val cr = appContext.contentResolver
+        cr.query(
+            ContactsContract.Groups.CONTENT_URI,
+            projection,
+            where,
+            args,
+            null
+        )?.use { c ->
+            val idxId = c.getColumnIndexOrThrow(ContactsContract.Groups._ID)
+            while (c.moveToNext()) {
+                allowedGroupIds.add(c.getLong(idxId))
+            }
+        }
+
+        if (allowedGroupIds.isEmpty()) return emptyList()
+
+        val all = getAllLabelItems()
+
+        return all.filter { it.id in allowedGroupIds }
+    }
+
 }
 
 fun Context.getPrimaryPhoneNumberForContact(contactId: Long): String? {

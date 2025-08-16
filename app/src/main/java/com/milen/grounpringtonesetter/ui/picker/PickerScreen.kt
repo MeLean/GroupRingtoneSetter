@@ -20,8 +20,8 @@ import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.FragmentPickerScreenBinding
 import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
-import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModel
-import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModelFactory
+import com.milen.grounpringtonesetter.ui.viewmodel.PickerViewModel
+import com.milen.grounpringtonesetter.ui.viewmodel.PickerViewModelFactory
 import com.milen.grounpringtonesetter.utils.changeMainTitle
 import com.milen.grounpringtonesetter.utils.collectScoped
 import com.milen.grounpringtonesetter.utils.handleLoading
@@ -31,9 +31,12 @@ import kotlinx.coroutines.launch
 
 internal class PickerScreenFragment : Fragment() {
     private lateinit var binding: FragmentPickerScreenBinding
-    private val viewModel: MainViewModel by activityViewModels {
-        MainViewModelFactory.provideFactory(requireActivity())
+
+    private val pickerVm: PickerViewModel by activityViewModels {
+        PickerViewModelFactory.provideFactory(requireActivity())
     }
+
+    private val viewModel get() = pickerVm.main
 
     private val billing by lazy(LazyThreadSafetyMode.NONE) {
         (requireActivity().application as App).billingManager

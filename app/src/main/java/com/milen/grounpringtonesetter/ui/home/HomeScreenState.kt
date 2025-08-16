@@ -13,4 +13,5 @@ internal data class HomeScreenState(
 
 internal sealed interface HomeEvent {
     data object ConnectionLost : HomeEvent
+    data class AskAccountSelection(val accounts: List<String>) : HomeEvent
 }

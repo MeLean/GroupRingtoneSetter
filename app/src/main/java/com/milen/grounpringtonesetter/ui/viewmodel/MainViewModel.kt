@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
+import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.BuildConfig
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
@@ -14,8 +15,10 @@ import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
+import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
 import com.milen.grounpringtonesetter.data.cache.ContactsSnapshotStore
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.prefs.SelectedAccountsStore
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
@@ -37,8 +40,10 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class MainViewModel(
+    private val appContext: App,
     private val adHelper: AdLoadingHelper,
     private val dialogShower: DialogShower,
     private val contactsHelper: ContactsHelper,
@@ -47,7 +52,12 @@ internal class MainViewModel(
     private val billing: BillingEntitlementManager,
     private val contactsRepo: ContactsRepository,
 ) : ViewModel() {
-    private fun accountsKey(): String = "ALL"
+    private fun accountsKey(): String = SelectedAccountsStore.accountsKeyOrAll(encryptedPrefs)
+
+
+    private val isRefreshing = AtomicBoolean(false)
+    private var lastRefreshAt = 0L
+    private val refreshCooldownMs = 800L
     private var _groups: MutableList<LabelItem>? = null
     private val groups: List<LabelItem>
         get() = _groups ?: contactsHelper.getAllLabelItems().also {
@@ -115,6 +125,22 @@ internal class MainViewModel(
             isLoading = true,
             arePermissionsGranted = true
         )
+
+        ensureAccountSelectionOrAskOnce()
+
+        if (SelectedAccountsStore.hasSelection(encryptedPrefs)) {
+            updateGroupList()
+        }
+    }
+
+    fun onAccountsSelected(selected: Set<String>?) {
+        if (selected.isNullOrEmpty()) {
+            ensureAccountSelectionOrAskOnce()
+            return
+        }
+
+        SelectedAccountsStore.write(encryptedPrefs, selected)
+        contactsRepo.invalidate()
         updateGroupList()
     }
 
@@ -427,37 +453,58 @@ internal class MainViewModel(
         _groups = updatedGroups.toMutableList()
     }
 
+    private fun ensureAccountSelectionOrAskOnce() {
+        if (SelectedAccountsStore.hasSelection(encryptedPrefs)) return
+
+        val available = AccountsResolver.getContactsAccounts(appContext)
+        when (available.size) {
+            0 -> {
+                /* do nothing */
+            }
+
+            1 -> SelectedAccountsStore.write(encryptedPrefs, available)
+
+            else -> _events.trySend(HomeEvent.AskAccountSelection(available.toList()))
+        }
+    }
     fun updateGroupList() {
+        // A) show snapshot immediately (unchanged)
         viewModelScope.launch {
             ContactsSnapshotStore.read(encryptedPrefs, accountsKey())?.let { (items, _) ->
                 _state.update {
-                    _state.value.copy(
-                        isLoading = false,
-                        labelItems = items
-                    )
+                    _state.value.copy(isLoading = false, labelItems = items)
                 }
             }
         }
-        
+
+        // B) guard
+        val now = System.currentTimeMillis()
+        if (isRefreshing.get() || (now - lastRefreshAt) < refreshCooldownMs) return
+        isRefreshing.set(true)
+
+        // C) do work; finalize in both branches
+        val finalize = { ->
+            lastRefreshAt = System.currentTimeMillis()
+            isRefreshing.set(false)
+        }
+
         launchOnIoResultInMain(
             work = { contactsRepo.load(forceRefresh = false) },
             onSuccess = {
                 val fresh = contactsRepo.labelsFlow.value
-                // persist snapshot for next cold start
                 ContactsSnapshotStore.write(
                     encryptedPrefs,
                     accountsKey(),
                     fresh,
                     System.currentTimeMillis()
                 )
-                _state.update {
-                    _state.value.copy(
-                        isLoading = false,
-                        labelItems = fresh
-                    )
-                }
+                _state.update { it.copy(isLoading = false, labelItems = fresh) }
+                finalize()
             },
-            onError = ::handleError
+            onError = { err ->
+                handleError(err)
+                finalize()
+            }
         )
     }
 

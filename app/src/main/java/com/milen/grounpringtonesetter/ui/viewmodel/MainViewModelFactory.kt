@@ -36,6 +36,7 @@ object MainViewModelFactory {
                         RepoGraph.contacts(activity.application, contactsHelper, tracker)
 
                     return MainViewModel(
+                        appContext = app,
                         adHelper = AdLoadingHelper(activity),
                         dialogShower = DialogShower(activity),
                         contactsHelper = contactsHelper,

@@ -16,8 +16,11 @@ import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
-import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModel
-import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModelFactory
+import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
+import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.EXTRA_SELECTED
+import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.RESULT_KEY
+import com.milen.grounpringtonesetter.ui.viewmodel.HomeViewModel
+import com.milen.grounpringtonesetter.ui.viewmodel.HomeViewModelFactory
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
 import com.milen.grounpringtonesetter.utils.changeMainTitle
@@ -33,8 +36,8 @@ import com.milen.grounpringtonesetter.utils.subscribeForConnectivityChanges
 internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private lateinit var binding: FragmentHomeScreenBinding
     private lateinit var groupsAdapter: GroupsAdapter
-    private val viewModel: MainViewModel by activityViewModels {
-        MainViewModelFactory.provideFactory(requireActivity())
+    private val viewModel: HomeViewModel by activityViewModels {
+        HomeViewModelFactory.provideFactory(requireActivity())
     }
 
     private val permissions = mutableListOf(
@@ -113,10 +116,18 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             }
         }
 
+        parentFragmentManager.setFragmentResultListener(RESULT_KEY, this) { _, bundle ->
+            val list = bundle.getStringArrayList(EXTRA_SELECTED)
+            viewModel.onAccountsSelected(list?.toSet())
+        }
+
         checkPermissions()
 
         collectScoped(viewModel.events) { event ->
             when (event) {
+                is HomeEvent.AskAccountSelection -> {
+                    AccountSelectionDialogFragment.show(this, event.accounts)
+                }
                 HomeEvent.ConnectionLost -> findNavController().navigateSingleTop(R.id.noInternetFragment)
             }
         }

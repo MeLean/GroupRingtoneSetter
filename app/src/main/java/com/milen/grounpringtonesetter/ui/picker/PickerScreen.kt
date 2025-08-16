@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.screens.picker
+package com.milen.grounpringtonesetter.ui.picker
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -19,9 +19,9 @@ import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.FragmentPickerScreenBinding
-import com.milen.grounpringtonesetter.screens.picker.data.PickerResultData
-import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModel
-import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModelFactory
+import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
+import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModel
+import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModelFactory
 import com.milen.grounpringtonesetter.utils.changeMainTitle
 import com.milen.grounpringtonesetter.utils.collectScoped
 import com.milen.grounpringtonesetter.utils.handleLoading

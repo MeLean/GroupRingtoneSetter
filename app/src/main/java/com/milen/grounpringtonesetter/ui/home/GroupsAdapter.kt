@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.screens.home
+package com.milen.grounpringtonesetter.ui.home
 
 import android.view.LayoutInflater
 import android.view.ViewGroup

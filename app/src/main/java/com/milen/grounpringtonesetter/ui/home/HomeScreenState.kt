@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.screens.home
+package com.milen.grounpringtonesetter.ui.home
 
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.data.LabelItem

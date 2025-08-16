@@ -9,7 +9,7 @@ import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.data.SelectableContact.Companion.toContact
 import com.milen.grounpringtonesetter.databinding.CustomSelectableContactsViewBinding
-import com.milen.grounpringtonesetter.screens.picker.ContactsAdapter
+import com.milen.grounpringtonesetter.ui.picker.ContactsAdapter
 
 internal class SearchContactView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,

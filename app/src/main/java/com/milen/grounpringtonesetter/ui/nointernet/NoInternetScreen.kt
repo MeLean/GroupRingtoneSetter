@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.screens.nointernet
+package com.milen.grounpringtonesetter.ui.nointernet
 
 import android.content.Intent
 import android.os.Bundle

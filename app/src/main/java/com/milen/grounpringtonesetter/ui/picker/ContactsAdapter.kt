@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.screens.picker
+package com.milen.grounpringtonesetter.ui.picker
 
 import android.view.LayoutInflater
 import android.view.ViewGroup

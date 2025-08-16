@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.screens.viewmodel
+package com.milen.grounpringtonesetter.ui.viewmodel
 
 import android.accounts.Account
 import android.app.Activity
@@ -14,11 +14,13 @@ import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
+import com.milen.grounpringtonesetter.data.cache.ContactsSnapshotStore
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
-import com.milen.grounpringtonesetter.screens.home.HomeEvent
-import com.milen.grounpringtonesetter.screens.home.HomeScreenState
-import com.milen.grounpringtonesetter.screens.picker.PickerScreenState
-import com.milen.grounpringtonesetter.screens.picker.data.PickerResultData
+import com.milen.grounpringtonesetter.data.repos.ContactsRepository
+import com.milen.grounpringtonesetter.ui.home.HomeEvent
+import com.milen.grounpringtonesetter.ui.home.HomeScreenState
+import com.milen.grounpringtonesetter.ui.picker.PickerScreenState
+import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launch
@@ -34,6 +36,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 internal class MainViewModel(
     private val adHelper: AdLoadingHelper,
@@ -42,8 +45,9 @@ internal class MainViewModel(
     private val encryptedPrefs: EncryptedPreferencesHelper,
     private val tracker: Tracker,
     private val billing: BillingEntitlementManager,
+    private val contactsRepo: ContactsRepository,
 ) : ViewModel() {
-
+    private fun accountsKey(): String = "ALL"
     private var _groups: MutableList<LabelItem>? = null
     private val groups: List<LabelItem>
         get() = _groups ?: contactsHelper.getAllLabelItems().also {
@@ -329,7 +333,7 @@ internal class MainViewModel(
             tracker.trackEvent("onSingleRingtoneSet")
             showHomeLoading()
             launchOnIoResultInMain(
-                work = { setRingtoneToGroupContacts(this, ringtoneUriList) },
+                work = { setRingtoneToGroupContacts(this@with, ringtoneUriList) },
                 onError = ::handleError,
                 onSuccess = {
                     showInterstitialAdIfNeeded()
@@ -423,14 +427,33 @@ internal class MainViewModel(
         _groups = updatedGroups.toMutableList()
     }
 
-    private fun updateGroupList() {
-        launchOnIoResultInMain(
-            work = { groups },
-            onSuccess = { list ->
+    fun updateGroupList() {
+        viewModelScope.launch {
+            ContactsSnapshotStore.read(encryptedPrefs, accountsKey())?.let { (items, _) ->
                 _state.update {
                     _state.value.copy(
                         isLoading = false,
-                        labelItems = list
+                        labelItems = items
+                    )
+                }
+            }
+        }
+        
+        launchOnIoResultInMain(
+            work = { contactsRepo.load(forceRefresh = false) },
+            onSuccess = {
+                val fresh = contactsRepo.labelsFlow.value
+                // persist snapshot for next cold start
+                ContactsSnapshotStore.write(
+                    encryptedPrefs,
+                    accountsKey(),
+                    fresh,
+                    System.currentTimeMillis()
+                )
+                _state.update {
+                    _state.value.copy(
+                        isLoading = false,
+                        labelItems = fresh
                     )
                 }
             },

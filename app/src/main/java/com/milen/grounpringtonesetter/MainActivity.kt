@@ -11,8 +11,8 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.google.android.gms.ads.MobileAds
 import com.milen.grounpringtonesetter.databinding.ActivityMainBinding
-import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModel
-import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModelFactory
+import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModel
+import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModelFactory
 import com.milen.grounpringtonesetter.utils.applyNavAndImePadding
 import com.milen.grounpringtonesetter.utils.applyStatusBarPadding
 

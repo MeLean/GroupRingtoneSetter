@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.screens.picker.data
+package com.milen.grounpringtonesetter.ui.picker.data
 
 import android.accounts.Account
 import com.milen.grounpringtonesetter.data.Contact

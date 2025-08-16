@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.screens.home
+package com.milen.grounpringtonesetter.ui.home
 
 import android.net.Uri
 import android.os.Bundle
@@ -16,8 +16,8 @@ import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
-import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModel
-import com.milen.grounpringtonesetter.screens.viewmodel.MainViewModelFactory
+import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModel
+import com.milen.grounpringtonesetter.ui.viewmodel.MainViewModelFactory
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
 import com.milen.grounpringtonesetter.utils.changeMainTitle

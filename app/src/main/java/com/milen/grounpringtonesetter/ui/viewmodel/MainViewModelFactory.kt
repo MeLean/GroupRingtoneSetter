@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.screens.viewmodel
+package com.milen.grounpringtonesetter.ui.viewmodel
 
 import android.app.Activity
 import androidx.lifecycle.ViewModel
@@ -7,6 +7,7 @@ import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.repos.RepoGraph
 import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 
@@ -18,27 +19,30 @@ object MainViewModelFactory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
-                    val preferenceHelper = EncryptedPreferencesHelper(
-                        app = activity.application,
+                    val app = activity.application as App
+                    val preferenceHelper = EncryptedPreferencesHelper(app = app)
+                    val tracker = app.tracker
+                    val billing = app.billingManager
+                    val contactsHelper = ContactsHelper(
+                        appContext = activity.application,
+                        preferenceHelper = preferenceHelper,
+                        contactRingtoneUpdateHelper = ContactRingtoneUpdateHelper(
+                            tracker = tracker,
+                            preferenceHelper = preferenceHelper
+                        ),
+                        tracker = tracker
                     )
-                    val tracker = (activity.application as App).tracker
-                    val billing = (activity.application as App).billingManager
+                    val contactsRepo =
+                        RepoGraph.contacts(activity.application, contactsHelper, tracker)
 
                     return MainViewModel(
                         adHelper = AdLoadingHelper(activity),
                         dialogShower = DialogShower(activity),
-                        contactsHelper = ContactsHelper(
-                            appContext = activity.application,
-                            preferenceHelper = preferenceHelper,
-                            contactRingtoneUpdateHelper = ContactRingtoneUpdateHelper(
-                                tracker = tracker,
-                                preferenceHelper = preferenceHelper
-                            ),
-                            tracker = tracker
-                        ),
+                        contactsHelper = contactsHelper,
                         encryptedPrefs = preferenceHelper,
                         tracker = tracker,
                         billing = billing,
+                        contactsRepo = contactsRepo
                     ) as T
                 }
                 throw IllegalArgumentException("Unknown ViewModel class")

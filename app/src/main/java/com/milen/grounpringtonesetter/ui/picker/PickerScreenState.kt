@@ -1,11 +1,11 @@
-package com.milen.grounpringtonesetter.screens.picker
+package com.milen.grounpringtonesetter.ui.picker
 
 import androidx.annotation.StringRes
-import com.milen.grounpringtonesetter.screens.picker.data.PickerResultData
+import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
 
 
 internal data class PickerScreenState(
-    @StringRes val titleId: Int,
+    @param:StringRes val titleId: Int,
     val isLoading: Boolean = true,
     val pikerResultData: PickerResultData? = null,
     val shouldPop: Boolean = false,

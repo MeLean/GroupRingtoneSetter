@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
-import com.milen.grounpringtonesetter.data.exceptions.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 

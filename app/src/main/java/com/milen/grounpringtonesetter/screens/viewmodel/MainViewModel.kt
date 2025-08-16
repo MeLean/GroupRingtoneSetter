@@ -14,7 +14,7 @@ import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
-import com.milen.grounpringtonesetter.data.exceptions.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.screens.home.HomeEvent
 import com.milen.grounpringtonesetter.screens.home.HomeScreenState
 import com.milen.grounpringtonesetter.screens.picker.PickerScreenState

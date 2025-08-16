@@ -12,7 +12,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
-import com.milen.grounpringtonesetter.data.exceptions.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -97,7 +97,7 @@ internal class ContactRingtoneUpdateHelper(
 
                 val src = try {
                     context.contentResolver.openInputStream(uri)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     null
                 }
                 if (src == null) {

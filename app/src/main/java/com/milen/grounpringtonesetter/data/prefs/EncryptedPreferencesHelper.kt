@@ -1,4 +1,4 @@
-package com.milen.grounpringtonesetter.data.exceptions.prefs
+package com.milen.grounpringtonesetter.data.prefs
 
 import android.app.Application
 

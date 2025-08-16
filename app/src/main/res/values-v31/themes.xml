@@ -5,5 +5,7 @@
         <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
         <item name="android:windowSplashScreenIconBackgroundColor">@color/purple_700</item>
         <item name="android:windowSplashScreenAnimationDuration">500</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">true</item>
     </style>
 </resources>

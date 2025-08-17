@@ -10,7 +10,6 @@ import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.actions.GroupActions
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.EntitlementState
-import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
@@ -39,7 +38,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class HomeViewModel(
     private val appContext: App,
     private val adHelper: AdLoadingHelper,
-    private val dialogShower: DialogShower,
     private val contactsHelper: ContactsHelper,
     private val encryptedPrefs: EncryptedPreferencesHelper,
     private val tracker: Tracker,
@@ -82,9 +80,13 @@ internal class HomeViewModel(
         _state.tryEmit(_state.value.copy(isLoading = false, arePermissionsGranted = false))
     }
 
-    fun onPermissionsRefused(): Unit =
-        dialogShower.showErrorById(R.string.need_permission_to_run)
-            .also { tracker.trackEvent("onPermissionsRefused") }
+    fun onPermissionsRefused() {
+        launch {
+            _events.trySend(HomeEvent.ShowErrorById(R.string.need_permission_to_run))
+                .also { tracker.trackEvent("onPermissionsRefused") }
+        }
+    }
+
 
     fun onConnectionChanged(isOnline: Boolean) {
         if (!isOnline && state.value.entitlement != EntitlementState.OWNED) {
@@ -123,7 +125,7 @@ internal class HomeViewModel(
         val group = _selectingGroup ?: return
 
         if (group.contacts.isEmpty()) {
-            dialogShower.showErrorById(R.string.no_contacts)
+            launch { _events.send(HomeEvent.ShowErrorById(R.string.no_contacts)) }
             _selectingGroup = null
             return
         }
@@ -170,7 +172,6 @@ internal class HomeViewModel(
             _events.send(
                 HomeEvent.NavigateToCreateGroup(
                     accounts = accounts,
-                    preselected = accounts.takeIf { it.size == 1 }?.first()
                 )
             )
         }
@@ -184,7 +185,7 @@ internal class HomeViewModel(
                 _state.update { it.copy(isLoading = false) }
             }.onFailure {
                 tracker.trackError(it)
-                dialogShower.showError(it.localizedMessage)
+                _events.trySend(HomeEvent.ShowErrorText(it.localizedMessage))
             }
         }
     }
@@ -221,18 +222,21 @@ internal class HomeViewModel(
     private fun handleBillingResult(code: Int) {
         if (code != BillingClient.BillingResponseCode.OK) {
             tracker.trackError(RuntimeException("Billing not available code: $code"))
-            dialogShower.showErrorById(R.string.items_not_found)
+            _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
         }
     }
 
-    // ---------- SWR / snapshot ----------
-
-    fun updateGroupList() {
+    fun updateCachedContactsData() {
         viewModelScope.launch {
             contactsStore.read(encryptedPrefs, accountsKey())?.let { (items, _) ->
                 _state.update { it.copy(isLoading = false, labelItems = items) }
             }
         }
+    }
+
+    fun updateGroupList() {
+        updateCachedContactsData()
+
         // Guard
         val now = System.currentTimeMillis()
         if (isRefreshing.get() || (now - lastRefreshAt) < refreshCooldownMs) return
@@ -245,14 +249,15 @@ internal class HomeViewModel(
 
         launchOnIoResultInMain(
             work = { contactsRepo.load(forceRefresh = false) },
-            onSuccess = {
-                val fresh = contactsRepo.labelsFlow.value
+            onSuccess = { fresh ->
                 contactsStore.write(
                     encryptedPrefs,
                     accountsKey(),
                     fresh,
                 )
-                _state.update { it.copy(isLoading = false, labelItems = fresh) }
+                if (_state.value.labelItems != fresh) {
+                    _state.update { it.copy(isLoading = false, labelItems = fresh) }
+                }
                 finalize()
             },
             onError = { err -> handleError(err); finalize() }
@@ -280,21 +285,23 @@ internal class HomeViewModel(
     private fun handleError(error: Throwable) {
         tracker.trackError(error)
         hideLoading()
-        dialogShower.showError(error.localizedMessage)
+        launch {
+            _events.trySend(HomeEvent.ShowErrorText(error.localizedMessage))
+        }
     }
 
     private fun showInterstitialAdIfNeededAndManageLoading() {
         when (state.value.entitlement) {
             EntitlementState.OWNED -> {
                 hideLoading()
-                dialogShower.showInfo(R.string.everything_set)
+                _events.trySend(HomeEvent.ShowInfoText(R.string.everything_set))
             }
 
             EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN ->
                 adHelper.run {
                     loadInterstitialAd {
                         hideLoading()
-                        dialogShower.showInfo(R.string.everything_set)
+                        _events.trySend(HomeEvent.ShowInfoText(R.string.everything_set))
                         showInterstitialAd()
                     }
                 }

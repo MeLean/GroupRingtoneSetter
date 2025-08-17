@@ -7,7 +7,6 @@
     <string name="ok">D\'accord</string>
     <string name="choose_ringtone">Choisissez\nune sonnerie</string>
     <string name="apply_ringtone">Appliquer\nSonnerie</string>
-    <string name="manage_groups">Gérer les groupes</string>
     <string name="add_group">Ajouter un nouveau groupe</string>
     <string name="do_the_magic">Appliquer toutes les sonneries</string>
     <string name="file_name_not_accessible">Le nom du fichier n\'est pas accessible</string>
@@ -31,7 +30,7 @@
     <string name="loading">Chargement. . .</string>
     <string name="error">Erreur</string>
     <string name="info">Information</string>
-    <string name="info_text">Pour de meilleures performances :- Assurez-vous que toutes les autorisations nécessaires sont accordées.\n- Connectez-vous avec votre compte Google.\n- Évitez d\'ajouter un contact à plusieurs groupes.\n- Une fois les sonneries ajoutées, appuyez sur le bouton Appliquer les sonneries pour terminer le processus.</string>
+    <string name="info_text">Pour de meilleures performances :- Assurez-vous que toutes les autorisations nécessaires sont accordées.\n- Connectez-vous avec votre compte Google.\n- Évitez d\'ajouter un contact à plusieurs groupes.</string>
     <string name="no_ringtone_selected">Aucune sonnerie sélectionnée</string>
     <string name="no_contacts">Il n\'y a pas de contacts dans le groupe</string>
     <string name="group_contacts_count">Nombre de contacts dans le groupe</string>

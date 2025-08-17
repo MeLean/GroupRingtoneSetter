@@ -14,7 +14,20 @@
         android:textAppearance="?attr/textAppearanceHeadline6"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        tools:textColor="@color/white" />
+
+
+    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+        android:id="@+id/btnAddGroup"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="64dp"
+        android:layout_marginTop="8dp"
+        app:buttonLabel="@string/add_group"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tvTitle" />
 
 
     <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
@@ -29,61 +42,32 @@
         app:layout_constraintBottom_toBottomOf="@+id/rwGroupItems"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/rwGroupItems" />
+        app:layout_constraintTop_toTopOf="@+id/rwGroupItems"
+        tools:visibility="visible" />
 
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rwGroupItems"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layout_marginVertical="8dp"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintBottom_toTopOf="@+id/btnManageGroups"
+        app:layout_constraintBottom_toTopOf="@+id/btnRemoveAds"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvTitle"
+        app:layout_constraintTop_toBottomOf="@+id/btnAddGroup"
         tools:listitem="@layout/item_group_entity" />
 
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/glCenterVertical"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.5" />
-
     <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
-        android:id="@+id/btnManageGroups"
+        android:id="@+id/btnRemoveAds"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginVertical="8dp"
-        app:buttonLabel="@string/manage_groups"
-        app:layout_constraintBottom_toTopOf="@+id/abHome"
-        app:layout_constraintEnd_toStartOf="@+id/glCenterVertical"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
-        android:id="@+id/btnDoTheMagic"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
+        android:layout_marginHorizontal="64dp"
         android:layout_marginVertical="8dp"
         app:buttonLabel="@string/ad_free_forever"
         app:layout_constraintBottom_toTopOf="@+id/abHome"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="@+id/glCenterVertical" />
-
-    <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
-        android:id="@+id/noAddsText"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:text="@string/ad_free_forever"
-        android:textAlignment="center"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/abHome"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="@+id/glCenterVertical"
-        app:layout_constraintTop_toTopOf="@+id/btnManageGroups" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <com.milen.grounpringtonesetter.customviews.ui.ads.AdBannerView
         android:id="@+id/abHome"
@@ -92,6 +76,7 @@
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

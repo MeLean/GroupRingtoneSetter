@@ -13,6 +13,7 @@ import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
+import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
@@ -21,6 +22,7 @@ import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.RESULT_KEY
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModel
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModelFactory
+import com.milen.grounpringtonesetter.ui.picker.PickerScreenFragment
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
 import com.milen.grounpringtonesetter.utils.changeMainTitle
@@ -29,7 +31,6 @@ import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.log
 import com.milen.grounpringtonesetter.utils.manageVisibility
-import com.milen.grounpringtonesetter.utils.navigateAsRoot
 import com.milen.grounpringtonesetter.utils.navigateSingleTop
 import com.milen.grounpringtonesetter.utils.subscribeForConnectivityChanges
 
@@ -39,6 +40,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private val viewModel: HomeViewModel by activityViewModels {
         HomeViewModelFactory.provideFactory(requireActivity())
     }
+
+    private lateinit var dialogShower: DialogShower
 
     private val permissions = mutableListOf(
         android.Manifest.permission.READ_CONTACTS,
@@ -92,14 +95,17 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                             && !state.isLoading
                             && state.arePermissionsGranted
 
-                btnManageGroups.isVisible = !state.isLoading
+                btnAddGroup.apply {
+                    isVisible = !state.isLoading
+                    setOnClickListener {
+                        viewModel.setUpGroupCreateRequest()
+                    }
+                }
 
                 abHome.manageVisibility(state.entitlement)
 
-                val isAddFree = state.entitlement == EntitlementState.OWNED
-                noAddsText.isVisible = isAddFree
-                btnDoTheMagic.apply {
-                    isVisible = !state.isLoading && !isAddFree
+                btnRemoveAds.apply {
+                    isVisible = !state.isLoading && state.entitlement != EntitlementState.OWNED
                     setOnClickListener {
                         viewModel.startPurchase(requireActivity())
                     }
@@ -120,9 +126,25 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     AccountSelectionDialogFragment.show(this, event.accounts)
                 }
                 HomeEvent.ConnectionLost -> findNavController().navigateSingleTop(R.id.noInternetFragment)
-                is HomeEvent.NavigateToCreateGroup -> TODO()
-                is HomeEvent.NavigateToManageContacts -> TODO()
-                is HomeEvent.NavigateToRename -> TODO()
+
+                is HomeEvent.NavigateToRename -> findNavController().navigate(
+                    R.id.action_home_to_picker,
+                    PickerScreenFragment.argsForRename(event.group)
+                )
+
+                is HomeEvent.NavigateToManageContacts -> findNavController().navigate(
+                    R.id.action_home_to_picker,
+                    PickerScreenFragment.argsForManage(event.group)
+                )
+
+                is HomeEvent.NavigateToCreateGroup -> findNavController().navigate(
+                    R.id.action_home_to_picker,
+                    PickerScreenFragment.argsForCreate(event.accounts)
+                )
+
+                is HomeEvent.ShowErrorById -> dialogShower.showErrorById(event.strRes)
+                is HomeEvent.ShowErrorText -> dialogShower.showError(event.message)
+                is HomeEvent.ShowInfoText -> dialogShower.showInfo(event.strRes)
             }
         }
 
@@ -144,17 +166,15 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
         binding.apply {
             rwGroupItems.adapter = groupsAdapter
-
-            btnManageGroups.setOnClickListener {
-                viewModel.setUpGroupCreateRequest()
-                findNavController().navigateAsRoot(R.id.pickerFragment)
-            }
         }
+
+        dialogShower = DialogShower(requireActivity())
     }
 
     override fun onResume() {
         super.onResume()
         changeMainTitle(getString(R.string.app_name))
+        viewModel.updateCachedContactsData()
     }
 
     private fun checkPermissions() {
@@ -169,9 +189,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         requireActivity().showAlertDialog(
             titleResId = R.string.manage_contacts_group_name,
             message = getString(R.string.manage_contacts_group_name_desc),
+            cancelButtonData = ButtonData(R.string.cancel),
             confirmButtonData = ButtonData {
                 viewModel.setUpContactsManaging(labelItem)
-                findNavController().navigateSingleTop(R.id.pickerFragment)
             }
         )
 
@@ -179,9 +199,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         requireActivity().showAlertDialog(
             titleResId = R.string.edit_group_name,
             message = getString(R.string.edit_group_name_desc),
+            cancelButtonData = ButtonData(R.string.cancel),
             confirmButtonData = ButtonData {
                 viewModel.setUpGroupNameEditing(labelItem)
-                findNavController().navigateSingleTop(R.id.pickerFragment)
             }
         )
 
@@ -189,6 +209,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         requireActivity().showAlertDialog(
             titleResId = R.string.delete_group,
             message = getString(R.string.delete_group_desc),
+            cancelButtonData = ButtonData(R.string.cancel),
             confirmButtonData = ButtonData {
                 viewModel.onGroupDeleted(labelItem)
             }

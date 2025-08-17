@@ -1,0 +1,183 @@
+package com.milen.grounpringtonesetter.ui.picker.viewmodel
+
+import android.accounts.Account
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.actions.GroupActions
+import com.milen.grounpringtonesetter.data.Contact
+import com.milen.grounpringtonesetter.data.LabelItem
+import com.milen.grounpringtonesetter.data.cache.ContactsSnapshotStore
+import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.prefs.SelectedAccountsStore
+import com.milen.grounpringtonesetter.data.repos.ContactsRepository
+import com.milen.grounpringtonesetter.ui.picker.PickerEvent
+import com.milen.grounpringtonesetter.ui.picker.PickerScreenState
+import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
+import com.milen.grounpringtonesetter.utils.ContactsHelper
+import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+internal class PickerViewModel(
+    private val contactsHelper: ContactsHelper,
+    private val actions: GroupActions,
+    private val tracker: Tracker,
+    private val encryptedPrefs: EncryptedPreferencesHelper,
+    private val contactsRepo: ContactsRepository,
+    private val contactsStore: ContactsSnapshotStore = ContactsSnapshotStore,
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(PickerScreenState(titleId = R.string.loading))
+    val state: StateFlow<PickerScreenState> = _state
+
+    private val _events = Channel<PickerEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
+
+    private fun accountsKey(): String =
+        SelectedAccountsStore.accountsKeyOrAll(encryptedPrefs)
+
+    private fun persistSnapshotFromRepo() {
+        launchOnIoResultInMain(
+            work = {
+                // updates the changes made
+                val fresh = contactsRepo.load(forceRefresh = true)
+                contactsStore.write(
+                    prefs = encryptedPrefs,
+                    accountsKey = accountsKey(),
+                    items = fresh,
+                )
+            },
+            onError = ::handleError,
+            onSuccess = {
+                _state.update { it.copy(isLoading = false) }
+                viewModelScope.launch { _events.send(PickerEvent.DoneDialog) }
+            }
+        )
+    }
+
+    fun resetGroupRingtones() {
+        _state.update { it.copy(isLoading = true) }
+        launchOnIoResultInMain(
+            work = { actions.clearAllRingtones() },
+            onError = ::handleError,
+            onSuccess = {
+                tracker.trackEvent("Picker_resetAllRingtones_success")
+                persistSnapshotFromRepo()
+            }
+        )
+    }
+
+    fun startRename(group: LabelItem) {
+        tracker.trackEvent("Picker_startRename")
+        _state.update {
+            PickerScreenState(
+                isLoading = false,
+                titleId = R.string.edit_group_name,
+                pikerResultData = PickerResultData.GroupNameChange(labelItem = group)
+            )
+        }
+    }
+
+    fun startManageContacts(group: LabelItem) {
+        tracker.trackEvent("Picker_startManageContacts")
+        _state.update { it.copy(isLoading = true) }
+        launchOnIoResultInMain(
+            work = { contactsHelper.getAllPhoneContacts() },
+            onError = ::handleError,
+            onSuccess = { all ->
+                _state.update {
+                    PickerScreenState(
+                        isLoading = false,
+                        titleId = R.string.manage_contacts_group_name,
+                        pikerResultData = PickerResultData.ManageGroupContacts(
+                            group = group,
+                            selectedContacts = group.contacts,
+                            allContacts = all
+                        )
+                    )
+                }
+            }
+        )
+    }
+
+    fun startCreateGroup(accounts: List<Account>) {
+        tracker.trackEvent("Picker_startCreateGroup")
+        _state.update {
+            PickerScreenState(
+                isLoading = false,
+                titleId = R.string.add_group,
+                pikerResultData = PickerResultData.ManageGroups(
+                    accountLists = accounts,
+                    pickedAccount = null
+                )
+            )
+        }
+    }
+
+    fun confirmRename(group: LabelItem, newNameRaw: String?) {
+        val newName = newNameRaw?.trim().orEmpty()
+        if (newName.isEmpty() || newName == group.groupName) {
+            _events.trySend(PickerEvent.ShowErrorById(R.string.enter_group_name))
+            return
+        }
+        _state.update { it.copy(isLoading = true) }
+        launchOnIoResultInMain(
+            work = { actions.renameGroup(group.id, newName) },
+            onError = ::handleError,
+            onSuccess = {
+                tracker.trackEvent("Picker_rename_success")
+                persistSnapshotFromRepo()
+            }
+        )
+    }
+
+    fun confirmManageContacts(group: LabelItem, newSelected: List<Contact>) {
+        _state.update { it.copy(isLoading = true) }
+        launchOnIoResultInMain(
+            work = {
+                actions.updateGroupMembers(
+                    group.id, newSelected,
+                    group.contacts
+                )
+            },
+            onError = ::handleError,
+            onSuccess = {
+                tracker.trackEvent("Picker_manageContacts_success")
+                persistSnapshotFromRepo()
+            }
+        )
+    }
+
+    fun confirmCreateGroup(nameRaw: String, account: Account?) {
+        val name = nameRaw.trim()
+        if (name.isEmpty()) {
+            _events.trySend(PickerEvent.ShowErrorById(R.string.enter_group_name))
+            return
+        }
+        _state.update { it.copy(isLoading = true) }
+        launchOnIoResultInMain(
+            work = { actions.createGroup(name, account) },
+            onError = ::handleError,
+            onSuccess = {
+                tracker.trackEvent("Picker_createGroup_success")
+                persistSnapshotFromRepo()
+            }
+        )
+    }
+
+    fun cancel() {
+        viewModelScope.launch { _events.send(PickerEvent.Close) }
+    }
+
+    private fun handleError(error: Throwable) {
+        tracker.trackError(error)
+        _state.update { it.copy(isLoading = false) }
+        _events.trySend(PickerEvent.ShowErrorText(error.localizedMessage))
+    }
+}

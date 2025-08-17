@@ -47,7 +47,7 @@ internal class ContactsRepositoryImpl(
                 val fresh = if (selected.isEmpty()) {
                     helper.getAllLabelItems()
                 } else {
-                    helper.getAllLabelItemsForAccounts(selected) // NEW helper method below
+                    helper.getAllLabelItemsForAccounts(selected)
                 }
                 _labels.value = fresh
                 dirty = false

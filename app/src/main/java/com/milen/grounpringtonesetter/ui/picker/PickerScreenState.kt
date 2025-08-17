@@ -10,3 +10,11 @@ internal data class PickerScreenState(
     val pikerResultData: PickerResultData? = null,
     val shouldPop: Boolean = false,
 )
+
+internal sealed interface PickerEvent {
+    data object Close : PickerEvent
+    data object DoneDialog : PickerEvent
+    data class ShowErrorById(@param:StringRes val strRes: Int) : PickerEvent
+    data class ShowInfoText(@param:StringRes val strRes: Int) : PickerEvent
+    data class ShowErrorText(val message: String?) : PickerEvent
+}

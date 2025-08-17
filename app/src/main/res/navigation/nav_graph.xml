@@ -9,13 +9,30 @@
         android:id="@+id/homeFragment"
         android:name="com.milen.grounpringtonesetter.ui.home.HomeScreen"
         android:label="Home"
-        tools:layout="@layout/fragment_home_screen" />
+        tools:layout="@layout/fragment_home_screen">
+
+        <action
+            android:id="@+id/action_home_to_picker"
+            app:destination="@id/pickerFragment" />
+
+        <action
+            android:id="@+id/action_home_to_noInternet"
+            app:destination="@id/noInternetFragment"
+            app:popUpTo="@id/homeFragment"
+            app:popUpToInclusive="false" />
+    </fragment>
 
     <fragment
         android:id="@+id/pickerFragment"
         android:name="com.milen.grounpringtonesetter.ui.picker.PickerScreenFragment"
         android:label="Picker"
-        tools:layout="@layout/fragment_picker_screen" />
+        tools:layout="@layout/fragment_picker_screen">
+
+        <argument
+            android:name="mode"
+            android:defaultValue="MANAGE"
+            app:argType="string" />
+    </fragment>
 
     <fragment
         android:id="@+id/noInternetFragment"

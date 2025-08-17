@@ -579,10 +579,9 @@ internal class ContactsHelper(
 
         return all.filter { it.id in allowedGroupIds }
     }
-
 }
 
-fun Context.getPrimaryPhoneNumberForContact(contactId: Long): String? {
+internal fun Context.getPrimaryPhoneNumberForContact(contactId: Long): String? {
     val phoneUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
     val projection = arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER)
     val selection = "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?"

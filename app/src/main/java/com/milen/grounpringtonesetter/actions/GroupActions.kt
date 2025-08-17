@@ -11,23 +11,23 @@ internal class GroupActions(
     private val tracker: Tracker,
 ) {
     // Groups
-    suspend fun renameGroup(labelId: Long, newName: String) {
+    fun renameGroup(labelId: Long, newName: String) {
         contacts.updateLabelName(labelId, newName)
         tracker.trackEvent("rename_group")
     }
 
-    suspend fun createGroup(name: String, account: Account?): LabelItem? {
+    fun createGroup(name: String, account: Account?): LabelItem? {
         val item = contacts.createLabel(name, account)
         tracker.trackEvent("create_group")
         return item
     }
 
-    suspend fun deleteGroup(labelId: Long) {
+    fun deleteGroup(labelId: Long) {
         contacts.deleteLabel(labelId)
         tracker.trackEvent("delete_group")
     }
 
-    suspend fun updateGroupMembers(
+    fun updateGroupMembers(
         groupId: Long,
         newSelected: List<Contact>,
         oldSelected: List<Contact>,
@@ -47,7 +47,7 @@ internal class GroupActions(
         tracker.trackEvent("set_group_ringtone")
     }
 
-    suspend fun clearAllRingtones() {
+    fun clearAllRingtones() {
         contacts.clearAllRingtoneUris()
         tracker.trackEvent("clear_all_ringtones")
     }

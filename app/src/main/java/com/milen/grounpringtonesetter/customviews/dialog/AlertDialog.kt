@@ -13,7 +13,7 @@ internal data class ButtonData(
 internal fun Activity.showAlertDialog(
     @StringRes titleResId: Int,
     message: String,
-    cancelButtonData: ButtonData? = ButtonData(R.string.cancel),
+    cancelButtonData: ButtonData? = null,
     confirmButtonData: ButtonData,
 ) {
     val dialog = AlertDialog.Builder(this, R.style.AlertDialogCustom)

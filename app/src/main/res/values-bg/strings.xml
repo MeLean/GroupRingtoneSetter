@@ -7,7 +7,6 @@
     <string name="ok">Добре</string>
     <string name="choose_ringtone">Изберете\nМелодия за звънене</string>
     <string name="apply_ringtone">Приложи\nМелодия</string>
-    <string name="manage_groups">Управление на групи</string>
     <string name="add_group">Добавете нова група</string>
     <string name="do_the_magic">Приложи всички мелодии</string>
     <string name="file_name_not_accessible">Името на файла не е достъпно</string>
@@ -31,7 +30,7 @@
     <string name="loading">Зареждане. . .</string>
     <string name="error">Грешка</string>
     <string name="info">Информация</string>
-    <string name="info_text">За най-добра работа:\n- Уверете се, че всички необходими разрешения са предоставени.\n- Влезте с вашия Google акаунт.\n- Избягвайте да добавяте контакт в множество групи.\n- След като добавите мелодии, натиснете бутона „Приложи мелодии“, за да завършите процеса.</string>
+    <string name="info_text">За най-добра работа:\n- Уверете се, че всички необходими разрешения са предоставени.\n- Влезте с вашия Google акаунт.\n- Избягвайте да добавяте контакт в множество групи.</string>
     <string name="no_ringtone_selected">Няма избрана мелодия за звънене</string>
     <string name="no_contacts">Няма контакти в групата</string>
     <string name="group_contacts_count" translatable="false">Брой на контактите в групата</string>

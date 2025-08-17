@@ -44,9 +44,6 @@ internal class GroupsAdapter(
                     crbChooseRingtone.setOnClickListener {
                         interactor.onChoseRingtoneIntent(labelItem = this@run)
                     }
-                    crbApplyRingtone.setOnClickListener {
-                        interactor.onApplyRingtone(labelItem = this@run)
-                    }
                 }
             }
     }
@@ -84,7 +81,5 @@ internal class GroupsAdapter(
         fun onGroupDelete(labelItem: LabelItem)
 
         fun onChoseRingtoneIntent(labelItem: LabelItem)
-
-        fun onApplyRingtone(labelItem: LabelItem)
     }
 }

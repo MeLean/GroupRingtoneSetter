@@ -1,5 +1,6 @@
 package com.milen.grounpringtonesetter.ui.home
 
+import android.accounts.Account
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.data.LabelItem
 
@@ -12,6 +13,12 @@ internal data class HomeScreenState(
 )
 
 internal sealed interface HomeEvent {
-    data object ConnectionLost : HomeEvent
+    object ConnectionLost : HomeEvent
     data class AskAccountSelection(val accounts: List<String>) : HomeEvent
+    data class NavigateToRename(val group: LabelItem) : HomeEvent
+    data class NavigateToManageContacts(val group: LabelItem) : HomeEvent
+    data class NavigateToCreateGroup(
+        val accounts: List<Account>,
+        val preselected: Account? = null,
+    ) : HomeEvent
 }

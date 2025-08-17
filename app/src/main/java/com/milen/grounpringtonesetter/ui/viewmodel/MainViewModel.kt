@@ -9,6 +9,7 @@ import com.android.billingclient.api.BillingClient
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.BuildConfig
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.actions.GroupActions
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
@@ -51,20 +52,17 @@ internal class MainViewModel(
     private val tracker: Tracker,
     private val billing: BillingEntitlementManager,
     private val contactsRepo: ContactsRepository,
+    private val groupActions: GroupActions,
 ) : ViewModel() {
+
     private fun accountsKey(): String = SelectedAccountsStore.accountsKeyOrAll(encryptedPrefs)
 
-
+    // SWR guard
     private val isRefreshing = AtomicBoolean(false)
     private var lastRefreshAt = 0L
     private val refreshCooldownMs = 800L
-    private var _groups: MutableList<LabelItem>? = null
-    private val groups: List<LabelItem>
-        get() = _groups ?: contactsHelper.getAllLabelItems().also {
-            _groups = it.toMutableList()
-        }
 
-
+    // Events & state
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
     val events: Flow<HomeEvent> = _events.receiveAsFlow()
 
@@ -99,7 +97,8 @@ internal class MainViewModel(
             _selectingGroup = value
         }
 
-    fun showInfoDialog(): Unit = dialogShower.showInfo(additionalText = BuildConfig.VERSION_NAME)
+    fun showInfoDialog(): Unit =
+        dialogShower.showInfo(additionalText = BuildConfig.VERSION_NAME)
 
     fun onNoPermissions() {
         _state.tryEmit(
@@ -113,9 +112,7 @@ internal class MainViewModel(
     fun onConnectionChanged(isOnline: Boolean) {
         if (!isOnline && state.value.entitlement != EntitlementState.OWNED) {
             tracker.trackEvent("onConnectionChanged")
-            launch {
-                _events.send(HomeEvent.ConnectionLost)
-            }
+            launch { _events.send(HomeEvent.ConnectionLost) }
         }
     }
 
@@ -125,9 +122,7 @@ internal class MainViewModel(
             isLoading = true,
             arePermissionsGranted = true
         )
-
         ensureAccountSelectionOrAskOnce()
-
         if (SelectedAccountsStore.hasSelection(encryptedPrefs)) {
             updateGroupList()
         }
@@ -138,10 +133,8 @@ internal class MainViewModel(
             ensureAccountSelectionOrAskOnce()
             return
         }
-
         SelectedAccountsStore.write(encryptedPrefs, selected)
-        contactsRepo.invalidate()
-        updateGroupList()
+        invalidateAndUpdate()
     }
 
     fun setUpGroupNameEditing(group: LabelItem) {
@@ -178,21 +171,17 @@ internal class MainViewModel(
         }
     }
 
-    fun onGroupDeleted(labelItem: LabelItem): Unit =
-        showHomeLoading().also {
-            launchOnIoResultInMain(
-                work = { contactsHelper.deleteLabel(labelId = labelItem.id) },
-                onError = ::handleError,
-                onSuccess = {
-                    val newGroups = _groups?.filter { it.id != labelItem.id }.orEmpty()
-                    _groups = newGroups.toMutableList()
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        labelItems = newGroups,
-                    )
-                }
-            )
-        }.also { tracker.trackEvent("onGroupDeleted") }
+    fun onGroupDeleted(labelItem: LabelItem) {
+        showHomeLoading()
+        launchOnIoResultInMain(
+            work = { groupActions.deleteGroup(labelItem.id); true },
+            onError = ::handleError,
+            onSuccess = {
+                invalidateAndUpdate()
+                tracker.trackEvent("onGroupDeleted")
+            }
+        )
+    }
 
     fun onPickerResult(result: PickerResultData) {
         tracker.trackEvent("onPickerResult")
@@ -203,30 +192,25 @@ internal class MainViewModel(
                 launchOnIoResultInMain(
                     work = { manageContacts(result) },
                     onError = ::handleError,
-                    onSuccess = { updateGroupList() }
+                    onSuccess = { invalidateAndUpdate() }
                 ).also { tracker.trackEvent("ManageGroupContacts") }
 
             is PickerResultData.GroupNameChange ->
                 launchOnIoResultInMain(
                     work = { manageGroupChange(result) },
                     onError = ::handleError,
-                    onSuccess = { updateGroupList() }
+                    onSuccess = { invalidateAndUpdate() }
                 ).also { tracker.trackEvent("GroupNameChange") }
 
             is PickerResultData.ManageGroups ->
                 launchOnIoResultInMain(
                     work = { createGroupByName(result.groupName, result.pickedAccount) },
                     onError = ::handleError,
-                    onSuccess = { groupItem ->
-                        val newGroups = _groups?.toMutableList()
-                            ?.also { it.add(groupItem) }
-                            .orEmpty()
-
-                        _state.value = _state.value.copy(
-                            isLoading = false,
-                            labelItems = newGroups,
-                            scrollToBottom = true
-                        )
+                    onSuccess = { _ ->
+                        // Hint UI to scroll on next render
+                        _state.update { it.copy(isLoading = false, scrollToBottom = true) }
+                        // Reconcile from source of truth
+                        invalidateAndUpdate()
                     }
                 ).also { tracker.trackEvent("ManageGroups") }
 
@@ -237,30 +221,25 @@ internal class MainViewModel(
     fun onRingtoneChosen(uri: Uri, fileName: String) {
         tracker.trackEvent("onRingtoneChosen")
         showHomeLoading()
+        val group = _selectingGroup ?: run {
+            hideHomeLoading()
+            return
+        }
+
         launchOnIoResultInMain(
             work = {
-                val uriStr = "$uri"
-                encryptedPrefs.saveString(uri.toString(), fileName).also {
-                    "onRingtoneChosen saved uri: $uriStr fileName: $fileName".log()
-                }
-                _groups = _groups?.map { group ->
-                    if (group.id == selectingGroup.id) {
-                        group.copy(
-                            ringtoneUriList = listOf(uriStr),
-                            ringtoneFileName = fileName,
-                            contacts = group.contacts.map { contact ->
-                                contact.copy(ringtoneUriStr = uriStr)
-                            }
-                        )
-                    } else {
-                        group
-                    }
-                }.also {
-                    _selectingGroup = null
-                }?.toMutableList()
+                val uriStr = uri.toString()
+                encryptedPrefs.saveString(uriStr, fileName)
+                "onRingtoneChosen saved uri: $uriStr fileName: $fileName".log()
+                groupActions.setGroupRingtone(group.contacts, uriStr)
+                true
             },
             onError = ::handleError,
-            onSuccess = { updateGroupList() }
+            onSuccess = {
+                _selectingGroup = null
+                invalidateAndUpdate()
+                showInterstitialAdIfNeeded()
+            }
         )
     }
 
@@ -269,17 +248,14 @@ internal class MainViewModel(
         showHomeLoading()
         launchOnIoResultInMain(
             work = {
+                val current = state.value.labelItems
                 var noRingtoneSelected = true
-                groups.forEach {
-                    "onSetRingtones: ${it.groupName} count:${it.contacts.count()} uri:${it.ringtoneUriList}".log()
-                    it.ringtoneUriList
-                        .takeIf { list -> list.isNotEmpty() }
-                        ?.let { uriStr ->
-                            noRingtoneSelected = false
-                            setRingtoneToGroupContacts(it, uriStr)
-                        }
+                current.forEach { item ->
+                    item.ringtoneUriList.firstOrNull()?.let { uriStr ->
+                        noRingtoneSelected = false
+                        groupActions.setGroupRingtone(item.contacts, uriStr)
+                    }
                 }
-
                 noRingtoneSelected
             },
             onError = ::handleError,
@@ -288,6 +264,7 @@ internal class MainViewModel(
                     hideHomeLoading()
                     dialogShower.showErrorById(R.string.no_ringtone_selected)
                 } else {
+                    invalidateAndUpdate()
                     showInterstitialAdIfNeeded()
                 }
             }
@@ -314,18 +291,6 @@ internal class MainViewModel(
         }
     }
 
-    private fun setRingtoneToGroupContacts(
-        labelItem: LabelItem,
-        uriStr: List<String>,
-    ) {
-        launch {
-            contactsHelper.setRingtoneToLabelContacts(
-                labelContacts = labelItem.contacts,
-                newRingtoneUriStr = uriStr.first()
-            )
-        }
-    }
-
     fun setUpGroupCreateRequest() {
         tracker.trackEvent("setUpGroupCreateRequest")
         val accounts = contactsHelper.getGoogleAccounts()
@@ -343,13 +308,11 @@ internal class MainViewModel(
 
     fun onApplySingleRingtone(labelItem: LabelItem) {
         with(labelItem) {
-
             if (contacts.isEmpty()) {
                 tracker.trackEvent("onSingleRingtoneSetNoContacts")
                 dialogShower.showErrorById(R.string.no_contacts)
                 return
             }
-
             if (ringtoneUriList.isEmpty()) {
                 tracker.trackEvent("onSingleRingtoneSetNoRingtones")
                 dialogShower.showErrorById(R.string.no_ringtone_selected)
@@ -359,44 +322,39 @@ internal class MainViewModel(
             tracker.trackEvent("onSingleRingtoneSet")
             showHomeLoading()
             launchOnIoResultInMain(
-                work = { setRingtoneToGroupContacts(this@with, ringtoneUriList) },
+                work = {
+                    groupActions.setGroupRingtone(
+                        contactsInGroup = this@with.contacts,
+                        mediaStoreUriString = this@with.ringtoneUriList.first()
+                    )
+                    true
+                },
                 onError = ::handleError,
                 onSuccess = {
+                    invalidateAndUpdate()
                     showInterstitialAdIfNeeded()
                 }
             )
         }
     }
 
-    fun trackNoneFatal(error: Exception): Unit =
-        tracker.trackError(error)
+    fun trackNoneFatal(error: Exception): Unit = tracker.trackError(error)
 
     fun resetGroupRingtones() {
         showPickerLoading()
         launchOnIoResultInMain(
-            work = { contactsHelper.clearAllRingtoneUris() },
+            work = { groupActions.clearAllRingtones(); true },
             onError = ::handleError,
             onSuccess = {
-                _state.update {
-                    _state.value.copy(
-                        isLoading = false,
-                        labelItems = _groups?.map {
-                            it.copy(
-                                ringtoneUriList = emptyList(),
-                                ringtoneFileName = ""
-                            )
-                        }.orEmpty()
-                    )
-                }
-
-                _pickerUiState.update {
-                    _pickerUiState.value.copy(
-                        isLoading = false,
-                        shouldPop = true
-                    )
-                }
+                _pickerUiState.update { it.copy(isLoading = false, shouldPop = true) }
+                invalidateAndUpdate()
             }
         )
+    }
+
+    private fun invalidateAndUpdate() {
+        contactsRepo.invalidate()
+        updateGroupList()
     }
 
     private fun handleError(error: Throwable) {
@@ -414,7 +372,6 @@ internal class MainViewModel(
                 dialogShower.showInfo(R.string.everything_set)
                 return
             }
-
             EntitlementState.NOT_OWNED,
             EntitlementState.UNKNOWN,
                 -> {
@@ -428,66 +385,56 @@ internal class MainViewModel(
         }
     }
 
-    private fun createGroupByName(name: String, account: Account?): LabelItem =
+    private suspend fun createGroupByName(name: String, account: Account?): LabelItem =
         name.takeIf { it.isNotEmpty() }
-            ?.let { noneEmptyName -> contactsHelper.createLabel(noneEmptyName, account) }
+            ?.let { noneEmptyName -> groupActions.createGroup(noneEmptyName, account) }
             ?: throw IllegalArgumentException("Group name is empty")
 
-    private fun manageGroupChange(result: PickerResultData.GroupNameChange): Unit =
-        result.newGroupName.takeIf { it?.isNotEmpty() == true && it != result.labelItem.groupName }
-            ?.let { name ->
-                contactsHelper.updateLabelName(result.labelItem.id, name)
-                val updatedGroups = contactsHelper.getAllLabelItems()
-                _groups = updatedGroups.toMutableList()
-            }
-            ?: throw IllegalArgumentException("${result.newGroupName} could not be applied on ${result.labelItem}")
-
-    private fun manageContacts(result: PickerResultData.ManageGroupContacts) {
-        contactsHelper.addAllContactsToLabel(result.group.id, result.selectedContacts)
-        val excludedContacts = result.group.contacts.filterNot { oldContact ->
-            result.selectedContacts.any { newContact -> newContact.id == oldContact.id }
+    private suspend fun manageGroupChange(result: PickerResultData.GroupNameChange) {
+        val newName = result.newGroupName?.trim()
+        if (newName.isNullOrEmpty() || newName == result.labelItem.groupName) {
+            throw IllegalArgumentException("${result.newGroupName} could not be applied on ${result.labelItem}")
         }
-        contactsHelper.removeAllContactsFromLabel(result.group.id, excludedContacts)
+        groupActions.renameGroup(result.labelItem.id, newName)
+    }
 
-        val updatedGroups = contactsHelper.getAllLabelItems()
-        _groups = updatedGroups.toMutableList()
+    private suspend fun manageContacts(result: PickerResultData.ManageGroupContacts) {
+        groupActions.updateGroupMembers(
+            groupId = result.group.id,
+            newSelected = result.selectedContacts,
+            oldSelected = result.group.contacts
+        )
     }
 
     private fun ensureAccountSelectionOrAskOnce() {
         if (SelectedAccountsStore.hasSelection(encryptedPrefs)) return
-
         val available = AccountsResolver.getContactsAccounts(appContext)
         when (available.size) {
-            0 -> {
-                /* do nothing */
+            0 -> { /* do nothing */
             }
-
             1 -> SelectedAccountsStore.write(encryptedPrefs, available)
-
             else -> _events.trySend(HomeEvent.AskAccountSelection(available.toList()))
         }
     }
+
     fun updateGroupList() {
-        // A) show snapshot immediately (unchanged)
+        // A) show snapshot immediately
         viewModelScope.launch {
             ContactsSnapshotStore.read(encryptedPrefs, accountsKey())?.let { (items, _) ->
-                _state.update {
-                    _state.value.copy(isLoading = false, labelItems = items)
-                }
+                _state.update { it.copy(isLoading = false, labelItems = items) }
             }
         }
-
         // B) guard
         val now = System.currentTimeMillis()
         if (isRefreshing.get() || (now - lastRefreshAt) < refreshCooldownMs) return
         isRefreshing.set(true)
 
-        // C) do work; finalize in both branches
-        val finalize = { ->
+        val finalize = {
             lastRefreshAt = System.currentTimeMillis()
             isRefreshing.set(false)
         }
 
+        // C) SWR refresh
         launchOnIoResultInMain(
             work = { contactsRepo.load(forceRefresh = false) },
             onSuccess = {
@@ -496,7 +443,6 @@ internal class MainViewModel(
                     encryptedPrefs,
                     accountsKey(),
                     fresh,
-                    System.currentTimeMillis()
                 )
                 _state.update { it.copy(isLoading = false, labelItems = fresh) }
                 finalize()
@@ -509,25 +455,20 @@ internal class MainViewModel(
     }
 
     private fun setPickerLoadingForResult(result: PickerResultData? = null) {
-        _pickerUiState.update {
-            _pickerUiState.value.copy(
-                isLoading = true,
-                pikerResultData = result
-            )
-        }
+        _pickerUiState.update { it.copy(isLoading = true, pikerResultData = result) }
     }
 
     private fun showHomeLoading(): Unit =
-        _state.update { _state.value.copy(isLoading = true) }
+        _state.update { it.copy(isLoading = true) }
 
     private fun hideHomeLoading(): Unit =
-        _state.update { _state.value.copy(isLoading = false) }
+        _state.update { it.copy(isLoading = false) }
 
     private fun showPickerLoading(): Unit =
-        _pickerUiState.update { _pickerUiState.value.copy(isLoading = true) }
+        _pickerUiState.update { it.copy(isLoading = true) }
 
     private fun hidePickerLoading(): Unit =
-        _pickerUiState.update { _pickerUiState.value.copy(isLoading = false) }
+        _pickerUiState.update { it.copy(isLoading = false) }
 
     private fun getContactPickerData(group: LabelItem, allContacts: List<Contact> = emptyList()) =
         PickerResultData.ManageGroupContacts(

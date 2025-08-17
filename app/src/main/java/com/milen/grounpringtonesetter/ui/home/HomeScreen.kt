@@ -19,8 +19,8 @@ import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.EXTRA_SELECTED
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.RESULT_KEY
-import com.milen.grounpringtonesetter.ui.viewmodel.HomeViewModel
-import com.milen.grounpringtonesetter.ui.viewmodel.HomeViewModelFactory
+import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModel
+import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModelFactory
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
 import com.milen.grounpringtonesetter.utils.changeMainTitle
@@ -83,34 +83,25 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                             rwGroupItems.smoothScrollToPosition(lastPosition)
                         }
                     } catch (e: Exception) {
-                        viewModel.trackNoneFatal(e)
                         (e.localizedMessage ?: e.toString()).log()
                     }
                 }
 
-                noItemDisclaimer.isVisible = state.labelItems.isEmpty() && !state.isLoading
+                noItemDisclaimer.isVisible =
+                    state.labelItems.isEmpty()
+                            && !state.isLoading
+                            && state.arePermissionsGranted
+
                 btnManageGroups.isVisible = !state.isLoading
-                btnDoTheMagic.isVisible = !state.isLoading
 
                 abHome.manageVisibility(state.entitlement)
 
-                when (state.entitlement) {
-                    EntitlementState.OWNED -> {
-                        btnDoTheMagic.apply {
-                            setLabel(getString(R.string.do_the_magic))
-                            setOnClickListener {
-                                viewModel.onSetAllGroupsRingtones()
-                            }
-                        }
-                    }
-
-                    EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN -> {
-                        btnDoTheMagic.apply {
-                            setLabel(getString(R.string.ad_free_forever))
-                            setOnClickListener {
-                                viewModel.startPurchase(requireActivity())
-                            }
-                        }
+                val isAddFree = state.entitlement == EntitlementState.OWNED
+                noAddsText.isVisible = isAddFree
+                btnDoTheMagic.apply {
+                    isVisible = !state.isLoading && !isAddFree
+                    setOnClickListener {
+                        viewModel.startPurchase(requireActivity())
                     }
                 }
             }
@@ -129,6 +120,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     AccountSelectionDialogFragment.show(this, event.accounts)
                 }
                 HomeEvent.ConnectionLost -> findNavController().navigateSingleTop(R.id.noInternetFragment)
+                is HomeEvent.NavigateToCreateGroup -> TODO()
+                is HomeEvent.NavigateToManageContacts -> TODO()
+                is HomeEvent.NavigateToRename -> TODO()
             }
         }
 
@@ -207,9 +201,5 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         } else {
             viewModel.onNoPermissions()
         }
-    }
-
-    override fun onApplyRingtone(labelItem: LabelItem) {
-        viewModel.onApplySingleRingtone(labelItem)
     }
 }

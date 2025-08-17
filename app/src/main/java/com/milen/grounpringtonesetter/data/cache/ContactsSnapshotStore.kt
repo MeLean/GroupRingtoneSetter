@@ -14,7 +14,7 @@ internal object ContactsSnapshotStore {
         prefs: EncryptedPreferencesHelper,
         accountsKey: String,
         items: List<LabelItem>,
-        ts: Long,
+        ts: Long = System.currentTimeMillis(),
     ) {
         val arr = JSONArray()
         items.forEach { label ->

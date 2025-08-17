@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.actions.GroupActions
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
-import com.milen.grounpringtonesetter.data.repos.RepoGraph
 import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 
@@ -27,12 +26,6 @@ internal object PickerViewModelFactory {
             contactRingtoneUpdateHelper = ringtoneUpdater,
             tracker = tracker
         )
-        val contactsRepo = RepoGraph.contacts(
-            app = app,
-            helper = contactsHelper,
-            tracker = tracker,
-            prefs = prefs
-        )
         val actions = GroupActions(contactsHelper, tracker)
 
         return object : ViewModelProvider.Factory {
@@ -41,7 +34,6 @@ internal object PickerViewModelFactory {
                 return PickerViewModel(
                     contactsHelper = contactsHelper,
                     actions = actions,
-                    contactsRepo = contactsRepo,
                     tracker = tracker,
                     encryptedPrefs = prefs,
                 ) as T

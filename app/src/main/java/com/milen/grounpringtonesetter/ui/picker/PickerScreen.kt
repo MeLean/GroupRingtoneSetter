@@ -68,12 +68,10 @@ internal class PickerScreenFragment : Fragment() {
                 val group = requireArguments().parcelableOrThrow<LabelItem>(ARG_GROUP)
                 viewModel.startRename(group)
             }
-
             PickerMode.MANAGE -> {
                 val group = requireArguments().parcelableOrThrow<LabelItem>(ARG_GROUP)
                 viewModel.startManageContacts(group)
             }
-
             PickerMode.CREATE -> {
                 val accounts = requireArguments().parcelableArrayListOrThrow<Account>(ARG_ACCOUNTS)
                 viewModel.startCreateGroup(accounts)
@@ -84,6 +82,8 @@ internal class PickerScreenFragment : Fragment() {
         collectScoped(viewModel.state) { ui ->
             binding.apply {
                 changeMainTitle(getString(ui.titleId))
+
+                // Only Done triggers a write:
                 crbDone.run {
                     setOnClickListener {
                         hideSoftInput()
@@ -108,7 +108,6 @@ internal class PickerScreenFragment : Fragment() {
             handleLoading(ui.isLoading)
         }
 
-        // One-shot events (Close)
         collectScoped(viewModel.events) { event ->
             when (event) {
                 is PickerEvent.Close -> findNavController().popBackStack()
@@ -209,25 +208,23 @@ internal class PickerScreenFragment : Fragment() {
         else
             null
 
+    /** Only Done calls the VM writes. */
     private fun onResult(data: PickerResultData) {
         when (data) {
             is PickerResultData.GroupNameChange -> {
                 val newName = binding.civNameInput.getText()
                 viewModel.confirmRename(data.labelItem, newName)
             }
-
             is PickerResultData.ManageGroups -> {
                 val name = binding.civNameInput.getText()
                 val account = binding.getDataOrNull(data)
                 viewModel.confirmCreateGroup(name, account)
             }
-
             is PickerResultData.ManageGroupContacts -> {
                 val chosen: List<Contact> = binding.scvContacts.selectedContacts
                 viewModel.confirmManageContacts(data.group, chosen)
             }
-
-            is PickerResultData.Canceled -> viewModel.cancel()
+            is PickerResultData.Canceled -> viewModel.close()
         }
     }
 
@@ -237,7 +234,7 @@ internal class PickerScreenFragment : Fragment() {
             message = getString(R.string.everything_set),
             confirmButtonData = ButtonData(
                 R.string.ok,
-                onClick = { findNavController().popBackStack() }
+                onClick = { viewModel.close() } // emits Close event
             )
         )
     }
@@ -259,12 +256,10 @@ internal class PickerScreenFragment : Fragment() {
 
         fun argsForCreate(accounts: List<Account>) = bundleOf(
             ARG_MODE to PickerMode.CREATE.name,
-            ARG_GROUP to "",
             ARG_ACCOUNTS to ArrayList(accounts),
         )
     }
 }
-
 
 private fun List<Contact>.hasContact(contact: Contact): Boolean =
     any { it.id == contact.id && it.phone == contact.phone && it.name == contact.name }

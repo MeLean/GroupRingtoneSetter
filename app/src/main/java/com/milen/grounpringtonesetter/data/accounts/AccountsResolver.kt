@@ -1,41 +1,33 @@
 package com.milen.grounpringtonesetter.data.accounts
 
+import android.accounts.AccountManager
+import android.content.ContentResolver
 import android.content.Context
 import android.provider.ContactsContract
 
 internal class AccountsResolver(context: Context) {
+    private val app = context.applicationContext
 
-    private val appContext = context.applicationContext
-
-    /** Returns raw accounts as "type:name" (deduped). */
+    /** Returns accounts as "type:name", deduped. */
     fun getAccounts(): Set<String> {
-        val accs = linkedSetOf<String>()
-        val projection = arrayOf(
-            ContactsContract.RawContacts.ACCOUNT_TYPE,
-            ContactsContract.RawContacts.ACCOUNT_NAME
-        )
-        appContext.contentResolver.query(
-            ContactsContract.RawContacts.CONTENT_URI,
-            projection,
-            null,
-            null,
-            null
-        )?.use { c ->
-            val idxType = c.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_TYPE)
-            val idxName = c.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_NAME)
-            while (c.moveToNext()) {
-                val type = c.getString(idxType) ?: continue
-                val name = c.getString(idxName) ?: continue
-                if (type.isNotBlank() && name.isNotBlank()) {
-                    accs.add("$type:$name")
-                }
-            }
-        }
-        return accs
+        // 1) Which account TYPES can own contacts on this device
+        val contactCapableTypes: Set<String> =
+            ContentResolver.getSyncAdapterTypes()
+                .asSequence()
+                .filter { it.authority == ContactsContract.AUTHORITY }
+                .map { it.accountType }
+                .toSet()
+
+        // 2) All accounts visible to this app, filtered to contact-capable types
+        val am = AccountManager.get(app)
+        return am.accounts
+            .asSequence()
+            .filter { it.type in contactCapableTypes }
+            .map { "${it.type}:${it.name}" }
+            .toCollection(linkedSetOf())
     }
 
     companion object {
-        /** "type:name" -> "name" for compact labels in UI. */
         fun labelOf(raw: String): String = raw.substringAfter(':', raw)
     }
 }

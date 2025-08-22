@@ -9,7 +9,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.accounts.AccountId
-import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
+import com.milen.grounpringtonesetter.utils.parcelableArrayListOrEmpty
+import com.milen.grounpringtonesetter.utils.parcelableOrNull
 
 /**
  * Single-choice account picker.
@@ -17,40 +18,38 @@ import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
  */
 class AccountSelectionDialogFragment : DialogFragment() {
 
-    private lateinit var accounts: ArrayList<String>
-    private var accountSelected: String? = null
+    private lateinit var accounts: ArrayList<AccountId>
     private var selectedIndex: Int = NO_INDEX
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        accounts = requireArguments().getStringArrayList(ARG_ACCOUNTS) ?: arrayListOf()
-        accountSelected = requireArguments().getString(ARG_ACCOUNT_SELECTED)
+        accounts = requireArguments().parcelableArrayListOrEmpty(ARG_ACCOUNTS)
+        val preselected: AccountId? = requireArguments().parcelableOrNull(ARG_ACCOUNT_SELECTED)
 
         selectedIndex =
             savedInstanceState?.getInt(STATE_SELECTED_INDEX, NO_INDEX)
-                .takeIf { it != NO_INDEX }
-                ?: accounts.indexOf(accountSelected.orEmpty())
+                ?.takeIf { it != NO_INDEX }
+                ?: preselected
+                    ?.let { sel -> accounts.indexOfFirst { it.raw == sel.raw } } ?: NO_INDEX
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val labels = accounts.map { AccountsResolver.labelOf(it) }.toTypedArray()
+        val labels = accounts.map { it.label }.toTypedArray()
 
         return AlertDialog.Builder(requireContext(), R.style.AlertDialogCustom)
             .setTitle(R.string.pick_account_contacts)
-            .setSingleChoiceItems(labels, selectedIndex) { _, which ->
-                // Only update the in-memory selection; DO NOT return result here
-                selectedIndex = which.coerceIn(0, accounts.lastIndex)
-            }
+            .setSingleChoiceItems(labels, selectedIndex) { _, which -> selectedIndex = which }
             .setPositiveButton(android.R.string.ok) { dialog, _ ->
-                // Return the chosen account ONLY on positive click
                 if (accounts.isNotEmpty()) {
                     val index = selectedIndex.coerceIn(0, accounts.lastIndex)
-                    val chosen = arrayListOf(accounts[index])
-                    setFragmentResult(RESULT_KEY, bundleOf(EXTRA_SELECTED to chosen))
+                    setFragmentResult(
+                        requestKey = RESULT_KEY,
+                        result = bundleOf(EXTRA_SELECTED to accounts[index])
+                    )
                 }
                 dialog.dismiss()
             }
-            .setNegativeButton(R.string.cancel, null) // No result on cancel
+            .setNegativeButton(R.string.cancel, null)
             .create()
             .apply { setCanceledOnTouchOutside(false) }
     }
@@ -68,9 +67,9 @@ class AccountSelectionDialogFragment : DialogFragment() {
         private const val NO_INDEX = -1
 
         const val RESULT_KEY = "AccountSelectionDialogFragment.result"
-        const val EXTRA_SELECTED = "selected" // ArrayList<String> with one "type:name"
+        const val EXTRA_SELECTED = "selected"
 
-        fun show(host: Fragment, accounts: Collection<String>, selected: AccountId?) {
+        fun show(host: Fragment, accounts: Collection<AccountId>, selected: AccountId?) {
             val fm = host.parentFragmentManager
             val existing = fm.findFragmentByTag(TAG) as? AccountSelectionDialogFragment
             if (existing?.dialog?.isShowing == true || existing?.isAdded == true) return
@@ -78,7 +77,7 @@ class AccountSelectionDialogFragment : DialogFragment() {
             AccountSelectionDialogFragment().apply {
                 arguments = bundleOf(
                     ARG_ACCOUNTS to ArrayList(accounts),
-                    ARG_ACCOUNT_SELECTED to selected?.name
+                    ARG_ACCOUNT_SELECTED to selected
                 )
             }.also { dlg ->
                 if (fm.isStateSaved) {

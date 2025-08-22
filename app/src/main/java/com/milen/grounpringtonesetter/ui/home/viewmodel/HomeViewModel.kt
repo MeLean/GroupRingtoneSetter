@@ -116,19 +116,19 @@ internal class HomeViewModel(
         ensureAccountSelectionOrAskOnce()
     }
 
-    fun onAccountsSelected(selected: Set<String>?) {
+    fun onSelectAccountClicked() =
+        showAccountPicker(
+            accountRepo.getAccountsAvailable(),
+            accountRepo.selected.value
+        )
+
+    fun onAccountsSelected(selected: AccountId?) {
         tracker.trackEvent("onAccountsSelected", mapOf("account" to "$selected"))
 
-        if (selected.isNullOrEmpty()) {
-            // User canceled – just stop loading and remain on screen
-            _state.update { it.copy(isLoading = false) }
-            return
-        }
-
-        selected.firstOrNull()?.let {
-            accountRepo.select(AccountId(it))
+        selected?.let {
+            accountRepo.select(selected)
             invalidateAndUpdate(force = true)
-        }
+        } ?: _state.update { it.copy(isLoading = false) }
     }
 
     fun onGroupDeleted(labelItem: LabelItem) {
@@ -214,6 +214,14 @@ internal class HomeViewModel(
         }
     }
 
+    fun updateFromCachedContactsData() {
+        viewModelScope.launch {
+            // Keeping the safe-call to match your current store signature
+            contactsStore.read(encryptedPrefs, accountsKey())?.let { (items, _) ->
+                _state.update { it.copy(labelItems = items) }
+            }
+        }
+    }
     private fun applyRingtoneToGroupInState(
         groupId: Long,
         uriStr: String,
@@ -250,15 +258,6 @@ internal class HomeViewModel(
         }
     }
 
-    fun updateFromCachedContactsData() {
-        viewModelScope.launch {
-            // Keeping the safe-call to match your current store signature
-            contactsStore.read(encryptedPrefs, accountsKey())?.let { (items, _) ->
-                _state.update { it.copy(labelItems = items) }
-            }
-        }
-    }
-
     private fun updateGroupList(force: Boolean = false) {
         if (!force) {
             updateFromCachedContactsData()
@@ -271,7 +270,7 @@ internal class HomeViewModel(
 
             try {
                 refreshMutex.withLock {
-                    val fresh = withContext(Dispatchers.IO) {
+                    val freshItems = withContext(Dispatchers.IO) {
                         val selected = accountRepo.selectedSetOrEmpty()
                         if (selected.isEmpty()) {
                             contactsRepo.load(forceRefresh = false)
@@ -282,14 +281,14 @@ internal class HomeViewModel(
                     }
 
                     contactsStore.write(
-                        encryptedPrefs,
-                        accountsKey(),
-                        fresh,
+                        prefs = encryptedPrefs,
+                        accountsKey = accountsKey(),
+                        items = freshItems,
                     )
 
                     // Update state
-                    if (_state.value.labelItems != fresh) {
-                        _state.update { it.copy(labelItems = fresh) }
+                    if (_state.value.labelItems != freshItems) {
+                        _state.update { it.copy(labelItems = freshItems) }
                     } else {
                         _state.update { it.copy() }
                     }
@@ -304,9 +303,6 @@ internal class HomeViewModel(
             hideLoading()
         }
     }
-
-    fun onSelectAccountClicked() =
-        showAccountPicker(accountRepo.getAccountsAvailable())
 
     private fun invalidateAndUpdate(force: Boolean = false) {
         contactsRepo.invalidate()
@@ -323,27 +319,30 @@ internal class HomeViewModel(
         }
 
         // Fallback: if repo hasn't filled yet, do a direct resolver read (permission is granted now)
-        val available = accountRepo.getAccountsAvailable()
-        when (available.size) {
+        val deviceAccounts = accountRepo.getAccountsAvailable()
+        when (deviceAccounts.size) {
             0 -> {
                 _state.update { it.copy(isLoading = false) }
                 _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
             }
 
             1 -> {
-                accountRepo.select(AccountId(available.first()))
+                accountRepo.select(deviceAccounts.first())
                 invalidateAndUpdate(force = true)
             }
 
             else -> {
                 _state.update { it.copy(isLoading = false) }
-                showAccountPicker(available)
+                showAccountPicker(
+                    accounts = deviceAccounts,
+                    selectedAccount = accountRepo.selected.value
+                )
             }
         }
     }
 
     // --- picker trigger stays event-driven to match your current UI wiring ---
-    private fun showAccountPicker(accounts: Set<String>) {
+    private fun showAccountPicker(accounts: Set<AccountId>, selectedAccount: AccountId?) {
         if (accounts.isEmpty()) {
             _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
             return

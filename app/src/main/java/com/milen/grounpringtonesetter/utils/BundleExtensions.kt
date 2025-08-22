@@ -25,3 +25,22 @@ inline fun <reified T : Parcelable> Bundle.parcelableArrayListOrThrow(key: Strin
         "Missing required Parcelable ArrayList for key=\"$key\" of type ${T::class.java.name}"
     }
 }
+
+
+inline fun <reified T : Parcelable> Bundle.parcelableOrNull(key: String): T? {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelable(key, T::class.java)
+    } else {
+        @Suppress("DEPRECATION") getParcelable(key) as? T
+    }
+}
+
+inline fun <reified T : Parcelable> Bundle.parcelableArrayListOrEmpty(key: String): ArrayList<T> {
+    val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelableArrayList(key, T::class.java)
+    } else {
+        @Suppress("DEPRECATION") getParcelableArrayList(key)
+    }
+
+    return result ?: arrayListOf()
+}

@@ -16,6 +16,7 @@ import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.data.LabelItem
+import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.EXTRA_SELECTED
@@ -33,6 +34,7 @@ import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.log
 import com.milen.grounpringtonesetter.utils.manageVisibility
 import com.milen.grounpringtonesetter.utils.navigateSingleTop
+import com.milen.grounpringtonesetter.utils.parcelableOrNull
 import com.milen.grounpringtonesetter.utils.subscribeForConnectivityChanges
 
 internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
@@ -179,10 +181,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             RESULT_KEY,
             viewLifecycleOwner
         ) { _, bundle ->
-            val list = bundle.getStringArrayList(
-                EXTRA_SELECTED
-            )
-            viewModel.onAccountsSelected(list?.toSet())
+            val selectedAccount: AccountId? = bundle.parcelableOrNull(EXTRA_SELECTED)
+            viewModel.onAccountsSelected(selectedAccount)
         }
     }
 

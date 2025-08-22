@@ -18,7 +18,7 @@ internal interface AccountRepository {
     fun clearSelection()
     fun cacheKeyOrAll(): String
 
-    fun getAccountsAvailable(): Set<String>
+    fun getAccountsAvailable(): Set<AccountId>
 }
 
 internal class AccountRepositoryImpl(
@@ -44,8 +44,7 @@ internal class AccountRepositoryImpl(
     override fun refreshAvailable() {
         scope.launch {
             try {
-                val raws = resolver.getAccounts()
-                _available.value = raws.map { AccountId(it) }.sortedBy { it.name.lowercase() }
+                _available.value = resolver.getAccounts().sortedBy { it.name.lowercase() }
             } catch (_: SecurityException) {
                 _available.value = emptyList()
             }
@@ -65,8 +64,8 @@ internal class AccountRepositoryImpl(
     override fun cacheKeyOrAll(): String =
         SelectedAccountsStore.accountsKeyOrAll(prefs)
 
-    override fun getAccountsAvailable(): Set<String> =
-        resolver.getAccounts() // TODO .map { AccountId(it) }
+    override fun getAccountsAvailable(): Set<AccountId> =
+        resolver.getAccounts()
 }
 
 internal fun AccountRepository.selectedSetOrEmpty(): Set<String> =

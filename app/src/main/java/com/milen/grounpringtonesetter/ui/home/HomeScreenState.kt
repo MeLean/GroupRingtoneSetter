@@ -23,7 +23,10 @@ internal sealed interface HomeEvent {
     data class ShowErrorById(@param:StringRes val strRes: Int) : HomeEvent
     data class ShowInfoText(@param:StringRes val strRes: Int) : HomeEvent
     data class ShowErrorText(val message: String?) : HomeEvent
-    data class AskAccountSelection(val accounts: Set<String>, val selected: AccountId?) : HomeEvent
+    data class AskAccountSelection(
+        val accounts: Set<AccountId>,
+        val selected: AccountId? = null,
+    ) : HomeEvent
     data class NavigateToRename(val group: LabelItem) : HomeEvent
     data class NavigateToManageContacts(val group: LabelItem) : HomeEvent
     data class NavigateToCreateGroup(val accounts: List<Account>) : HomeEvent

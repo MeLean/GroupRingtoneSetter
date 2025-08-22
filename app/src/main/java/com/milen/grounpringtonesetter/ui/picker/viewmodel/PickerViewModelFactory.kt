@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.actions.GroupActions
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.repos.RepoGraph
 import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 
@@ -36,6 +37,7 @@ internal object PickerViewModelFactory {
                     actions = actions,
                     tracker = tracker,
                     encryptedPrefs = prefs,
+                    accountRepo = RepoGraph.accountRepo(activity.application, prefs)
                 ) as T
             }
         }

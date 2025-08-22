@@ -10,9 +10,6 @@ import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.R
@@ -28,13 +25,13 @@ import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
 import com.milen.grounpringtonesetter.ui.picker.viewmodel.PickerViewModel
 import com.milen.grounpringtonesetter.ui.picker.viewmodel.PickerViewModelFactory
 import com.milen.grounpringtonesetter.utils.changeMainTitle
-import com.milen.grounpringtonesetter.utils.collectScoped
+import com.milen.grounpringtonesetter.utils.collectEventsIn
+import com.milen.grounpringtonesetter.utils.collectStateIn
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.hideSoftInput
 import com.milen.grounpringtonesetter.utils.manageVisibility
 import com.milen.grounpringtonesetter.utils.parcelableArrayListOrThrow
 import com.milen.grounpringtonesetter.utils.parcelableOrThrow
-import kotlinx.coroutines.launch
 
 internal class PickerScreenFragment : Fragment() {
     private lateinit var binding: FragmentPickerScreenBinding
@@ -77,9 +74,8 @@ internal class PickerScreenFragment : Fragment() {
                 viewModel.startCreateGroup(accounts)
             }
         }
-
-        // UI state
-        collectScoped(viewModel.state) { ui ->
+        
+        viewModel.state.collectStateIn(viewLifecycleOwner) { ui ->
             binding.apply {
                 changeMainTitle(getString(ui.titleId))
 
@@ -108,7 +104,7 @@ internal class PickerScreenFragment : Fragment() {
             handleLoading(ui.isLoading)
         }
 
-        collectScoped(viewModel.events) { event ->
+        viewModel.events.collectEventsIn(viewLifecycleOwner) { event ->
             when (event) {
                 is PickerEvent.Close -> findNavController().popBackStack()
                 is PickerEvent.DoneDialog -> showDoneDialog()
@@ -118,14 +114,9 @@ internal class PickerScreenFragment : Fragment() {
             }
         }
 
-        binding.abPicker.isVisible = false
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                billing.state.collect { st ->
-                    binding.abPicker.manageVisibility(st)
-                }
-            }
+        binding.adBannerPicker.isVisible = false
+        billing.state.collectStateIn(viewLifecycleOwner) { st ->
+            binding.adBannerPicker.manageVisibility(st)
         }
 
         dialogShower = DialogShower(requireActivity())

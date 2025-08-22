@@ -12,13 +12,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.flowWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.milen.grounpringtonesetter.MainActivity
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -79,13 +79,29 @@ internal fun Activity.subscribeForConnectivityChanges(block: (Boolean) -> Unit) 
     }
 }
 
-internal fun <T> LifecycleOwner.collectScoped(flow: Flow<T>, collect: suspend (T) -> Unit) {
-    lifecycleScope.launch {
-        flow
-            .distinctUntilChanged()
-            .flowWithLifecycle(lifecycle, Lifecycle.State.STARTED).collect { value ->
-                collect(value)
-            }
+inline fun <T> Flow<T>.collectStateIn(
+    owner: LifecycleOwner,
+    minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
+    crossinline collector: (T) -> Unit,
+) {
+    owner.lifecycleScope.launch {
+        owner.lifecycle.repeatOnLifecycle(minActiveState) {
+            this@collectStateIn
+                .distinctUntilChanged()
+                .collectLatest { collector(it) }
+        }
+    }
+}
+
+inline fun <T> Flow<T>.collectEventsIn(
+    owner: LifecycleOwner,
+    minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
+    crossinline collector: (T) -> Unit,
+) {
+    owner.lifecycleScope.launch {
+        owner.lifecycle.repeatOnLifecycle(minActiveState) {
+            this@collectEventsIn.collect { collector(it) } // note: NOT collectLatest
+        }
     }
 }
 

@@ -7,9 +7,9 @@ import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.actions.GroupActions
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
+import com.milen.grounpringtonesetter.data.accounts.AccountRepository
 import com.milen.grounpringtonesetter.data.cache.ContactsSnapshotStore
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
-import com.milen.grounpringtonesetter.data.prefs.SelectedAccountsStore
 import com.milen.grounpringtonesetter.ui.picker.PickerEvent
 import com.milen.grounpringtonesetter.ui.picker.PickerScreenState
 import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
@@ -29,6 +29,7 @@ internal class PickerViewModel(
     private val tracker: Tracker,
     private val encryptedPrefs: EncryptedPreferencesHelper,
     private val contactsStore: ContactsSnapshotStore = ContactsSnapshotStore,
+    private val accountRepo: AccountRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PickerScreenState(titleId = R.string.loading))
@@ -37,8 +38,7 @@ internal class PickerViewModel(
     private val _events = Channel<PickerEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    private fun accountsKey(): String =
-        SelectedAccountsStore.accountsKeyOrAll(encryptedPrefs)
+    private fun accountsKey(): String = accountRepo.cacheKeyOrAll()
 
     /** Read fresh items from provider and persist snapshot; show Done dialog afterwards. */
     private fun rebuildSnapshotFromProviderThenNotify() {

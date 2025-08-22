@@ -26,10 +26,9 @@ internal object AppViewModelFactory {
             tracker = tracker
         )
         val repo = RepoGraph.contacts(
-            activity.application,
-            contactsHelper,
-            tracker,
-            prefs
+            app = activity.application,
+            helper = contactsHelper,
+            prefs = prefs
         )
 
         return object : ViewModelProvider.Factory {

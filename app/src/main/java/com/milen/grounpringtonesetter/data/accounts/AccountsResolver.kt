@@ -3,35 +3,39 @@ package com.milen.grounpringtonesetter.data.accounts
 import android.content.Context
 import android.provider.ContactsContract
 
-internal object AccountsResolver {
+internal class AccountsResolver(context: Context) {
 
-    /**
-     * Returns a stable set like: "com.google:you@gmail.com" or "local_phone:Device"
-     * We read from RawContacts to reflect actual accounts that have contacts.
-     */
-    fun getContactsAccounts(context: Context): Set<String> {
-        val resolver = context.contentResolver
+    private val appContext = context.applicationContext
+
+    /** Returns raw accounts as "type:name" (deduped). */
+    fun getAccounts(): Set<String> {
+        val accs = linkedSetOf<String>()
         val projection = arrayOf(
             ContactsContract.RawContacts.ACCOUNT_TYPE,
             ContactsContract.RawContacts.ACCOUNT_NAME
         )
-        val set = LinkedHashSet<String>()
-        val sel = "${ContactsContract.RawContacts.DELETED}=0"
-        resolver.query(
+        appContext.contentResolver.query(
             ContactsContract.RawContacts.CONTENT_URI,
             projection,
-            sel,
+            null,
             null,
             null
         )?.use { c ->
-            val idxType = c.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_TYPE)
-            val idxName = c.getColumnIndex(ContactsContract.RawContacts.ACCOUNT_NAME)
+            val idxType = c.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_TYPE)
+            val idxName = c.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_NAME)
             while (c.moveToNext()) {
-                val type = c.getString(idxType) ?: "unknown"
-                val name = c.getString(idxName) ?: "unknown"
-                set.add("$type:$name")
+                val type = c.getString(idxType) ?: continue
+                val name = c.getString(idxName) ?: continue
+                if (type.isNotBlank() && name.isNotBlank()) {
+                    accs.add("$type:$name")
+                }
             }
         }
-        return set
+        return accs
+    }
+
+    companion object {
+        /** "type:name" -> "name" for compact labels in UI. */
+        fun labelOf(raw: String): String = raw.substringAfter(':', raw)
     }
 }

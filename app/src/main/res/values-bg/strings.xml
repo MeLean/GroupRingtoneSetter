@@ -44,4 +44,5 @@
     <string name="reset_all_ringtones_description">Ако продължите, всички персонализирани мелодии, зададени за вашите контакти, ще бъдат премахнати. Това означава, че контактите ви ще се върнат към стандартната мелодия и няма да останат индивидуални настройки за мелодии.</string>
     <string name="ad_free_forever">Без реклами завинаги</string>
     <string name="pick_account_contacts">Изберете акаунтите, чиито контакти приложението ще използва</string>
+    <string name="pick_account_btn_label">Изберете акаунтите</string>
 </resources>

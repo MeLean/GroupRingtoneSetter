@@ -88,12 +88,12 @@
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="16dp"
         app:buttonLabel="@string/done"
-        app:layout_constraintBottom_toTopOf="@+id/abPicker"
+        app:layout_constraintBottom_toTopOf="@+id/ad_banner_picker"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
     <com.milen.grounpringtonesetter.customviews.ui.ads.AdBannerView
-        android:id="@+id/abPicker"
+        android:id="@+id/ad_banner_picker"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"

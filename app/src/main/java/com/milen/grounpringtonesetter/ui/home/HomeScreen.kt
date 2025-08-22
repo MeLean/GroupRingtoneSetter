@@ -26,7 +26,8 @@ import com.milen.grounpringtonesetter.ui.picker.PickerScreenFragment
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
 import com.milen.grounpringtonesetter.utils.changeMainTitle
-import com.milen.grounpringtonesetter.utils.collectScoped
+import com.milen.grounpringtonesetter.utils.collectEventsIn
+import com.milen.grounpringtonesetter.utils.collectStateIn
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.log
@@ -68,8 +69,32 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
         groupsAdapter = GroupsAdapter(this)
 
-        collectScoped(viewModel.state) { state ->
-            handleLoading(state.isLoading)
+        checkPermissions()
+
+        requireActivity().subscribeForConnectivityChanges { isOnline ->
+            viewModel.onConnectionChanged(isOnline)
+        }
+    }
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        binding = FragmentHomeScreenBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        binding.apply {
+            rwGroupItems.adapter = groupsAdapter
+        }
+
+        dialogShower = DialogShower(requireActivity())
+
+        viewModel.state.collectStateIn(viewLifecycleOwner) { state ->
+            handleLoading(state.loadingVisible)
 
             if (!state.arePermissionsGranted) {
                 requestMultiplePermissions.launch(permissions.toTypedArray())
@@ -102,6 +127,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     }
                 }
 
+                btnSelectAccount.apply {
+                    isVisible = !state.isLoading && state.canChangeAccount
+                    setOnClickListener { viewModel.onSelectAccountClicked() }
+                }
+
                 abHome.manageVisibility(state.entitlement)
 
                 btnRemoveAds.apply {
@@ -113,34 +143,31 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             }
         }
 
-        parentFragmentManager.setFragmentResultListener(RESULT_KEY, this) { _, bundle ->
-            val list = bundle.getStringArrayList(EXTRA_SELECTED)
-            viewModel.onAccountsSelected(list?.toSet())
-        }
-
-        checkPermissions()
-
-        collectScoped(viewModel.events) { event ->
+        viewModel.events.collectEventsIn(viewLifecycleOwner) { event ->
             when (event) {
-                is HomeEvent.AskAccountSelection -> {
-                    AccountSelectionDialogFragment.show(this, event.accounts)
-                }
-                HomeEvent.ConnectionLost -> findNavController().navigateSingleTop(R.id.noInternetFragment)
+                is HomeEvent.AskAccountSelection ->
+                    AccountSelectionDialogFragment.show(this, event.accounts, event.selected)
 
-                is HomeEvent.NavigateToRename -> findNavController().navigate(
-                    R.id.action_home_to_picker,
-                    PickerScreenFragment.argsForRename(event.group)
-                )
+                is HomeEvent.ConnectionLost ->
+                    findNavController().navigateSingleTop(R.id.noInternetFragment)
 
-                is HomeEvent.NavigateToManageContacts -> findNavController().navigate(
-                    R.id.action_home_to_picker,
-                    PickerScreenFragment.argsForManage(event.group)
-                )
+                is HomeEvent.NavigateToRename ->
+                    findNavController().navigate(
+                        R.id.action_home_to_picker,
+                        PickerScreenFragment.argsForRename(event.group)
+                    )
 
-                is HomeEvent.NavigateToCreateGroup -> findNavController().navigate(
-                    R.id.action_home_to_picker,
-                    PickerScreenFragment.argsForCreate(event.accounts)
-                )
+                is HomeEvent.NavigateToManageContacts ->
+                    findNavController().navigate(
+                        R.id.action_home_to_picker,
+                        PickerScreenFragment.argsForManage(event.group)
+                    )
+
+                is HomeEvent.NavigateToCreateGroup ->
+                    findNavController().navigate(
+                        R.id.action_home_to_picker,
+                        PickerScreenFragment.argsForCreate(event.accounts)
+                    )
 
                 is HomeEvent.ShowErrorById -> dialogShower.showErrorById(event.strRes)
                 is HomeEvent.ShowErrorText -> dialogShower.showError(event.message)
@@ -148,33 +175,21 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             }
         }
 
-        requireActivity().subscribeForConnectivityChanges { isOnline ->
-            viewModel.onConnectionChanged(isOnline)
+        parentFragmentManager.setFragmentResultListener(
+            RESULT_KEY,
+            viewLifecycleOwner
+        ) { _, bundle ->
+            val list = bundle.getStringArrayList(
+                EXTRA_SELECTED
+            )
+            viewModel.onAccountsSelected(list?.toSet())
         }
-    }
-
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View {
-        binding = FragmentHomeScreenBinding.inflate(inflater, container, false)
-        return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
-        binding.apply {
-            rwGroupItems.adapter = groupsAdapter
-        }
-
-        dialogShower = DialogShower(requireActivity())
     }
 
     override fun onResume() {
         super.onResume()
         changeMainTitle(getString(R.string.app_name))
-        viewModel.updateCachedContactsData()
+        viewModel.updateFromCachedContactsData()
     }
 
     private fun checkPermissions() {

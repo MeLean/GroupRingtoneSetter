@@ -44,4 +44,5 @@
     <string name="reset_all_ringtones_description">If you proceed, all custom ringtones set for your contacts will be removed. This means your contacts will revert to the default ringtone, and no individual ringtone settings will remain</string>
     <string name="ad_free_forever">Ad-Free Forever</string>
     <string name="pick_account_contacts">Select the accounts whose contacts the app will use</string>
+    <string name="pick_account_btn_label">Pick up account</string>
 </resources>

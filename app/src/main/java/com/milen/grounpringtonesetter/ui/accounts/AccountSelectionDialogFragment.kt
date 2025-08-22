@@ -8,92 +8,84 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.data.accounts.AccountId
+import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
 
+/**
+ * Single-choice account picker.
+ * Returns a result ONLY when the positive button is clicked.
+ */
 class AccountSelectionDialogFragment : DialogFragment() {
 
     private lateinit var accounts: ArrayList<String>
-    private lateinit var checked: BooleanArray
+    private var accountSelected: String? = null
+    private var selectedIndex: Int = NO_INDEX
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         accounts = requireArguments().getStringArrayList(ARG_ACCOUNTS) ?: arrayListOf()
+        accountSelected = requireArguments().getString(ARG_ACCOUNT_SELECTED)
 
-        // ✅ Default: ALL preselected. If we rotate, restore the previous state.
-        checked = savedInstanceState?.getBooleanArray(STATE_CHECKED)
-            ?: BooleanArray(accounts.size) { true }
+        selectedIndex =
+            savedInstanceState?.getInt(STATE_SELECTED_INDEX, NO_INDEX)
+                .takeIf { it != NO_INDEX }
+                ?: accounts.indexOf(accountSelected.orEmpty())
+    }
+
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        val labels = accounts.map { AccountsResolver.labelOf(it) }.toTypedArray()
+
+        return AlertDialog.Builder(requireContext(), R.style.AlertDialogCustom)
+            .setTitle(R.string.pick_account_contacts)
+            .setSingleChoiceItems(labels, selectedIndex) { _, which ->
+                // Only update the in-memory selection; DO NOT return result here
+                selectedIndex = which.coerceIn(0, accounts.lastIndex)
+            }
+            .setPositiveButton(android.R.string.ok) { dialog, _ ->
+                // Return the chosen account ONLY on positive click
+                if (accounts.isNotEmpty()) {
+                    val index = selectedIndex.coerceIn(0, accounts.lastIndex)
+                    val chosen = arrayListOf(accounts[index])
+                    setFragmentResult(RESULT_KEY, bundleOf(EXTRA_SELECTED to chosen))
+                }
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.cancel, null) // No result on cancel
+            .create()
+            .apply { setCanceledOnTouchOutside(false) }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBooleanArray(STATE_CHECKED, checked)
-    }
-
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val items = accounts.map(::labelOf).toTypedArray()
-
-        val dlg = AlertDialog.Builder(requireContext(), R.style.AlertDialogCustom)
-            .setTitle(R.string.pick_account_contacts)
-            .setMultiChoiceItems(items, checked) { _, which, isChecked ->
-                checked[which] = isChecked
-                (dialog as? AlertDialog)
-                    ?.getButton(AlertDialog.BUTTON_POSITIVE)
-                    ?.isEnabled = checked.any { it }
-            }
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                // ✅ If the user never changes anything, this still returns ALL accounts,
-                // because all checkboxes start true.
-                val selected = ArrayList<String>().apply {
-                    accounts.forEachIndexed { i, raw -> if (checked[i]) add(raw) }
-                }
-                if (selected.isEmpty()) return@setPositiveButton
-                setFragmentResult(RESULT_KEY, bundleOf(EXTRA_SELECTED to selected))
-            }
-            .create().apply {
-                setOnShowListener {
-                    // With all preselected, this starts enabled.
-                    getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = checked.any { it }
-                }
-                setCanceledOnTouchOutside(false)
-            }
-
-        isCancelable = false
-        return dlg
-    }
-
-    private fun labelOf(raw: String): String {
-        val i = raw.indexOf(':')
-        return if (i >= 0 && i < raw.length - 1) raw.substring(i + 1) else raw
+        outState.putInt(STATE_SELECTED_INDEX, selectedIndex)
     }
 
     companion object {
         private const val TAG = "AccountSelectionDialogFragment"
         private const val ARG_ACCOUNTS = "accounts"
-        private const val STATE_CHECKED = "state_checked"
+        private const val ARG_ACCOUNT_SELECTED = "selected"
+        private const val STATE_SELECTED_INDEX = "selected_index"
+        private const val NO_INDEX = -1
 
-        const val RESULT_KEY = "AccountSelectionDialogFragment_result"
-        const val EXTRA_SELECTED = "selected_accounts"
+        const val RESULT_KEY = "AccountSelectionDialogFragment.result"
+        const val EXTRA_SELECTED = "selected" // ArrayList<String> with one "type:name"
 
-        /**
-         * Show the dialog with **all accounts preselected**.
-         * If an instance already exists, dismiss it first to avoid duplicates.
-         */
-        fun show(host: Fragment, accounts: List<String>) {
+        fun show(host: Fragment, accounts: Collection<String>, selected: AccountId?) {
             val fm = host.parentFragmentManager
+            val existing = fm.findFragmentByTag(TAG) as? AccountSelectionDialogFragment
+            if (existing?.dialog?.isShowing == true || existing?.isAdded == true) return
 
-            (fm.findFragmentByTag(TAG) as? DialogFragment)?.let { existing ->
-                if (existing.dialog?.isShowing == true || existing.isAdded) {
-                    if (fm.isStateSaved) existing.dismissAllowingStateLoss() else existing.dismiss()
+            AccountSelectionDialogFragment().apply {
+                arguments = bundleOf(
+                    ARG_ACCOUNTS to ArrayList(accounts),
+                    ARG_ACCOUNT_SELECTED to selected?.name
+                )
+            }.also { dlg ->
+                if (fm.isStateSaved) {
+                    fm.beginTransaction().add(dlg, TAG).commitAllowingStateLoss()
+                } else {
+                    dlg.show(fm, TAG)
                 }
-            }
-
-            val dlg = AccountSelectionDialogFragment().apply {
-                arguments = bundleOf(ARG_ACCOUNTS to ArrayList(accounts))
-            }
-
-            if (fm.isStateSaved) {
-                fm.beginTransaction().add(dlg, TAG).commitAllowingStateLoss()
-            } else {
-                dlg.show(fm, TAG)
             }
         }
     }

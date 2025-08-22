@@ -1,9 +1,8 @@
 package com.milen.grounpringtonesetter.data.repos
 
-import android.app.Application
+import android.accounts.Account
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.utils.ContactsHelper
-import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
@@ -22,13 +21,17 @@ internal interface ContactsRepository {
 
     /** Mark cache as dirty; next load(force=false) will refresh. */
     fun invalidate()
+
+    fun getGoogleAccounts(): List<Account>
+
+    fun getAllLabelItemsForAccounts(selected: Set<String>): List<LabelItem>
+
+    fun getContactsAccountName(): String?
 }
 
 
 internal class ContactsRepositoryImpl(
-    private val app: Application,
     private val helper: ContactsHelper,
-    private val tracker: Tracker,
     private val accountsProvider: () -> Set<String>,
 ) : ContactsRepository {
 
@@ -59,4 +62,12 @@ internal class ContactsRepositoryImpl(
     override fun invalidate() {
         dirty = true
     }
+
+    override fun getGoogleAccounts(): List<Account> =
+        helper.getGoogleAccounts()
+
+    override fun getAllLabelItemsForAccounts(selected: Set<String>): List<LabelItem> =
+        helper.getAllLabelItemsForAccounts(selected)
+
+    override fun getContactsAccountName(): String? = accountsProvider().firstOrNull()
 }

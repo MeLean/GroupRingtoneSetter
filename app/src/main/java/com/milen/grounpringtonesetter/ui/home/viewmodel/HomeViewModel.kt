@@ -5,24 +5,25 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
-import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.actions.GroupActions
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.LabelItem
-import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
+import com.milen.grounpringtonesetter.data.accounts.AccountId
+import com.milen.grounpringtonesetter.data.accounts.AccountRepository
+import com.milen.grounpringtonesetter.data.accounts.selectedSetOrEmpty
 import com.milen.grounpringtonesetter.data.cache.ContactsSnapshotStore
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
-import com.milen.grounpringtonesetter.data.prefs.SelectedAccountsStore
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
-import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launch
 import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,34 +34,44 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 internal class HomeViewModel(
-    private val appContext: App,
     private val adHelper: AdLoadingHelper,
-    private val contactsHelper: ContactsHelper,
-    private val encryptedPrefs: EncryptedPreferencesHelper,
     private val tracker: Tracker,
     private val billing: BillingEntitlementManager,
     private val contactsRepo: ContactsRepository,
     private val actions: GroupActions,
+    private val encryptedPrefs: EncryptedPreferencesHelper,
     private val contactsStore: ContactsSnapshotStore = ContactsSnapshotStore,
+    private val accountRepo: AccountRepository,
 ) : ViewModel() {
 
-    private fun accountsKey(): String = SelectedAccountsStore.accountsKeyOrAll(encryptedPrefs)
-    private val isRefreshing = AtomicBoolean(false)
-    private var lastRefreshAt = 0L
-    private val refreshCooldownMs = 2000L
+    private fun accountsKey(): String = accountRepo.cacheKeyOrAll()
+
+    private val refreshMutex = Mutex()
+    private var refreshJob: Job? = null
 
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
     val events: Flow<HomeEvent> = _events.receiveAsFlow()
 
     private val _state = MutableStateFlow(HomeScreenState(isLoading = true))
     val state: StateFlow<HomeScreenState> =
-        combine(_state, billing.state) { base, entitlement ->
+        combine(
+            _state,
+            billing.state,
+            accountRepo.selected,
+            accountRepo.available,
+        ) { base, entitlement, selectedAcc, availableAccounts ->
             base.copy(
                 entitlement = entitlement,
-                isLoading = base.isLoading || entitlement == EntitlementState.UNKNOWN
+                isLoading = base.isLoading,
+                selectedAccount = selectedAcc,
+                canChangeAccount = availableAccounts.size > 1,
+                loadingVisible = base.arePermissionsGranted && base.isLoading || entitlement == EntitlementState.UNKNOWN
             )
         }.stateIn(
             scope = viewModelScope,
@@ -77,16 +88,16 @@ internal class HomeViewModel(
         }
 
     fun onNoPermissions() {
-        _state.tryEmit(_state.value.copy(isLoading = false, arePermissionsGranted = false))
+        _state.update { it.copy(arePermissionsGranted = false) }
     }
 
     fun onPermissionsRefused() {
+        _state.update { it.copy(isLoading = false) }
         launch {
             _events.trySend(HomeEvent.ShowErrorById(R.string.need_permission_to_run))
-                .also { tracker.trackEvent("onPermissionsRefused") }
+            tracker.trackEvent("onPermissionsRefused")
         }
     }
-
 
     fun onConnectionChanged(isOnline: Boolean) {
         if (!isOnline && state.value.entitlement != EntitlementState.OWNED) {
@@ -97,22 +108,31 @@ internal class HomeViewModel(
 
     fun onPermissionsGranted() {
         tracker.trackEvent("onPermissionsGranted")
-        _state.value = _state.value.copy(isLoading = true, arePermissionsGranted = true)
+        accountRepo.refreshAvailable()
+        if (!_state.value.arePermissionsGranted) {
+            _state.update { it.copy(arePermissionsGranted = true) }
+        }
+
         ensureAccountSelectionOrAskOnce()
-        if (SelectedAccountsStore.hasSelection(encryptedPrefs)) updateGroupList()
     }
 
     fun onAccountsSelected(selected: Set<String>?) {
+        tracker.trackEvent("onAccountsSelected", mapOf("account" to "$selected"))
+
         if (selected.isNullOrEmpty()) {
-            ensureAccountSelectionOrAskOnce(); return
+            // User canceled – just stop loading and remain on screen
+            _state.update { it.copy(isLoading = false) }
+            return
         }
-        SelectedAccountsStore.write(encryptedPrefs, selected)
-        invalidateAndUpdate()
+
+        selected.firstOrNull()?.let {
+            accountRepo.select(AccountId(it))
+            invalidateAndUpdate(force = true)
+        }
     }
 
-
     fun onGroupDeleted(labelItem: LabelItem) {
-        showHomeLoading()
+        showLoading()
         launchOnIoResultInMain(
             work = { actions.deleteGroup(labelItem.id); true },
             onError = ::handleError,
@@ -130,10 +150,9 @@ internal class HomeViewModel(
             return
         }
 
-        showHomeLoading()
+        showLoading()
 
         val uriStr = uri.toString()
-
 
         launchOnIoResultInMain(
             work = {
@@ -146,9 +165,11 @@ internal class HomeViewModel(
 
                 _selectingGroup = null
 
-                invalidateAndUpdate()
-
+                // Keep UI snappy: apply to state immediately and persist snapshot
                 applyRingtoneToGroupInState(group.id, uriStr, fileName)
+
+                // Then kick a cancellable refresh
+                invalidateAndUpdate()
 
                 showInterstitialAdIfNeededAndManageLoading()
             }
@@ -167,7 +188,10 @@ internal class HomeViewModel(
 
     fun setUpGroupCreateRequest() {
         tracker.trackEvent("setUpGroupCreateRequest")
-        val accounts = contactsHelper.getGoogleAccounts()
+        val accounts =
+            contactsRepo.getGoogleAccounts() // TODO REMOVE ACCOUNTS FORM THE EVENT AND CROUP CREATING AT ALL
+
+        accountRepo.getAccountsAvailable()
         viewModelScope.launch {
             _events.send(
                 HomeEvent.NavigateToCreateGroup(
@@ -182,7 +206,7 @@ internal class HomeViewModel(
             runCatching {
                 _state.update { it.copy(isLoading = true) }
                 handleBillingResult(billing.launchPurchase(activity))
-                _state.update { it.copy(isLoading = false) }
+                _state.update { it.copy() }
             }.onFailure {
                 tracker.trackError(it)
                 _events.trySend(HomeEvent.ShowErrorText(it.localizedMessage))
@@ -205,15 +229,15 @@ internal class HomeViewModel(
                     )
                 } else g
             }
-            s.copy(isLoading = false, labelItems = updated)
+            s.copy(labelItems = updated)
         }
 
-        // 2) Persist the snapshot right away so the next cold read shows this state
-        launch {
+        // Persist the snapshot right away so the next cold read shows this state
+        viewModelScope.launch {
             ContactsSnapshotStore.write(
                 encryptedPrefs,
                 accountsKey(),
-                state.value.labelItems,           // includes the update above
+                state.value.labelItems, // includes the update above
                 System.currentTimeMillis()
             )
         }
@@ -226,60 +250,108 @@ internal class HomeViewModel(
         }
     }
 
-    fun updateCachedContactsData() {
+    fun updateFromCachedContactsData() {
         viewModelScope.launch {
+            // Keeping the safe-call to match your current store signature
             contactsStore.read(encryptedPrefs, accountsKey())?.let { (items, _) ->
-                _state.update { it.copy(isLoading = false, labelItems = items) }
+                _state.update { it.copy(labelItems = items) }
             }
         }
     }
 
-    fun updateGroupList() {
-        updateCachedContactsData()
-
-        // Guard
-        val now = System.currentTimeMillis()
-        if (isRefreshing.get() || (now - lastRefreshAt) < refreshCooldownMs) return
-        isRefreshing.set(true)
-
-        val finalize = {
-            lastRefreshAt = System.currentTimeMillis()
-            isRefreshing.set(false)
+    private fun updateGroupList(force: Boolean = false) {
+        if (!force) {
+            updateFromCachedContactsData()
         }
 
-        launchOnIoResultInMain(
-            work = { contactsRepo.load(forceRefresh = false) },
-            onSuccess = { fresh ->
-                contactsStore.write(
-                    encryptedPrefs,
-                    accountsKey(),
-                    fresh,
-                )
-                if (_state.value.labelItems != fresh) {
-                    _state.update { it.copy(isLoading = false, labelItems = fresh) }
+        refreshJob?.cancel()
+
+        refreshJob = launch {
+            showLoading()
+
+            try {
+                refreshMutex.withLock {
+                    val fresh = withContext(Dispatchers.IO) {
+                        val selected = accountRepo.selectedSetOrEmpty()
+                        if (selected.isEmpty()) {
+                            contactsRepo.load(forceRefresh = false)
+                        } else {
+                            // Scope to the selected account
+                            contactsRepo.getAllLabelItemsForAccounts(selected)
+                        }
+                    }
+
+                    contactsStore.write(
+                        encryptedPrefs,
+                        accountsKey(),
+                        fresh,
+                    )
+
+                    // Update state
+                    if (_state.value.labelItems != fresh) {
+                        _state.update { it.copy(labelItems = fresh) }
+                    } else {
+                        _state.update { it.copy() }
+                    }
                 }
-                finalize()
-            },
-            onError = { err -> handleError(err); finalize() }
-        )
+            } catch (ce: CancellationException) {
+                // expected when superseded by a newer refresh; ignore
+                ce.localizedMessage
+            } catch (t: Throwable) {
+                handleError(t)
+            }
+
+            hideLoading()
+        }
     }
 
-    private fun invalidateAndUpdate() {
+    fun onSelectAccountClicked() =
+        showAccountPicker(accountRepo.getAccountsAvailable())
+
+    private fun invalidateAndUpdate(force: Boolean = false) {
         contactsRepo.invalidate()
-        updateGroupList()
+        updateGroupList(force)
     }
 
     private fun ensureAccountSelectionOrAskOnce() {
-        if (SelectedAccountsStore.hasSelection(encryptedPrefs)) return
-        val available = AccountsResolver.getContactsAccounts(appContext)
+        if (!_state.value.arePermissionsGranted) return
+
+        // If we already have a selection, just ensure data loading happens.
+        if (accountRepo.selected.value != null) {
+            invalidateAndUpdate(force = true)
+            return
+        }
+
+        // Fallback: if repo hasn't filled yet, do a direct resolver read (permission is granted now)
+        val available = accountRepo.getAccountsAvailable()
         when (available.size) {
-            0 -> Unit
-            1 -> SelectedAccountsStore.write(encryptedPrefs, available)
-            else -> _events.trySend(HomeEvent.AskAccountSelection(available.toList()))
+            0 -> {
+                _state.update { it.copy(isLoading = false) }
+                _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
+            }
+
+            1 -> {
+                accountRepo.select(AccountId(available.first()))
+                invalidateAndUpdate(force = true)
+            }
+
+            else -> {
+                _state.update { it.copy(isLoading = false) }
+                showAccountPicker(available)
+            }
         }
     }
 
-    private fun showHomeLoading() = _state.update { it.copy(isLoading = true) }
+    // --- picker trigger stays event-driven to match your current UI wiring ---
+    private fun showAccountPicker(accounts: Set<String>) {
+        if (accounts.isEmpty()) {
+            _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
+            return
+        }
+        _events.trySend(HomeEvent.AskAccountSelection(accounts, accountRepo.selected.value))
+    }
+
+    private fun showLoading() = _state.update { it.copy(isLoading = true) }
     private fun hideLoading() = _state.update { it.copy(isLoading = false) }
 
     private fun handleError(error: Throwable) {
@@ -296,15 +368,13 @@ internal class HomeViewModel(
                 hideLoading()
                 _events.trySend(HomeEvent.ShowInfoText(R.string.everything_set))
             }
-
-            EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN ->
-                adHelper.run {
-                    loadInterstitialAd {
-                        hideLoading()
-                        _events.trySend(HomeEvent.ShowInfoText(R.string.everything_set))
-                        showInterstitialAd()
-                    }
+            EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN -> adHelper.run {
+                loadInterstitialAd {
+                    hideLoading()
+                    _events.trySend(HomeEvent.ShowInfoText(R.string.everything_set))
+                    showInterstitialAd()
                 }
+            }
         }
     }
 }

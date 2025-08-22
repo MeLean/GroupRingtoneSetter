@@ -45,4 +45,6 @@
     <string name="ad_free_forever">हमेशा के लिए विज्ञापन-मुक्त</string>
     <string name="pick_account_contacts">वे खाते चुनें जिनके संपर्क ऐप उपयोग करेगा</string>
     <string name="pick_account_btn_label">खाता चुनें</string>
+    <string name="click_here">यहाँ क्लिक करें</string>
+    <string name="mysongplease_promo">अपने या किसी प्रियजन के लिए खास तौर पर बनी रिंगटोन पाएं — हमारी म्यूज़िक ऐप आज़माने के लिए %1$s।</string>
 </resources>

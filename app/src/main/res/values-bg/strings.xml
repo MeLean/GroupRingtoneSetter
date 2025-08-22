@@ -45,4 +45,6 @@
     <string name="ad_free_forever">Без реклами завинаги</string>
     <string name="pick_account_contacts">Изберете акаунтите, чиито контакти приложението ще използва</string>
     <string name="pick_account_btn_label">Изберете акаунтите</string>
+    <string name="click_here">натисни тук</string>
+    <string name="mysongplease_promo">Вземи рингтон, направен специално за теб или за твой любим човек — %1$s, за да пробваш нашето музикално приложение.</string>
 </resources>

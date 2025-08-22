@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.provider.ContactsContract
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
+import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.data.exceptions.NoContactsFoundException
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.data.prefs.SelectedAccountsStore
@@ -349,20 +350,18 @@ internal class ContactsHelper(
         return rawContactIds
     }
 
-    fun createLabel(labelName: String, account: Account?): LabelItem? {
+    fun createLabel(labelName: String, accountId: AccountId?): LabelItem? {
         tracker.trackEvent("createLabel called", mapOf("labelName" to labelName))
 
-        // Prepare ContentValues with account details
         val contentValues = ContentValues().apply {
             put(ContactsContract.Groups.TITLE, labelName)
 
-            if (account != null) {
-                put(ContactsContract.Groups.ACCOUNT_NAME, account.name)
-                put(ContactsContract.Groups.ACCOUNT_TYPE, account.type)
+            if (accountId != null) {
+                put(ContactsContract.Groups.ACCOUNT_NAME, accountId.name)
+                put(ContactsContract.Groups.ACCOUNT_TYPE, accountId.type)
             }
         }
 
-        // Insert the label into the ContactsContract.Groups table
         val labelUri =
             appContext.contentResolver.insert(ContactsContract.Groups.CONTENT_URI, contentValues)
 

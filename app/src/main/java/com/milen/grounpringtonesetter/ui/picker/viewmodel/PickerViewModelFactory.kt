@@ -27,7 +27,11 @@ internal object PickerViewModelFactory {
             contactRingtoneUpdateHelper = ringtoneUpdater,
             tracker = tracker
         )
-        val actions = GroupActions(contactsHelper, tracker)
+        val actions = GroupActions(
+            contacts = contactsHelper,
+            tracker = tracker,
+            accountRepo = RepoGraph.accountRepo(app, prefs)
+        )
 
         return object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

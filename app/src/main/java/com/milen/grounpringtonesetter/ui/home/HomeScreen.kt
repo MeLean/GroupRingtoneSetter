@@ -168,7 +168,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                 is HomeEvent.NavigateToCreateGroup ->
                     findNavController().navigate(
                         R.id.action_home_to_picker,
-                        PickerScreenFragment.argsForCreate(event.accounts)
+                        PickerScreenFragment.argsForCreate()
                     )
 
                 is HomeEvent.ShowErrorById -> dialogShower.showErrorById(event.strRes)

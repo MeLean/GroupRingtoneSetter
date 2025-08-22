@@ -1,11 +1,9 @@
 package com.milen.grounpringtonesetter.ui.picker
 
-import android.accounts.Account
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import androidx.core.os.bundleOf
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -30,7 +28,6 @@ import com.milen.grounpringtonesetter.utils.collectStateIn
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.hideSoftInput
 import com.milen.grounpringtonesetter.utils.manageVisibility
-import com.milen.grounpringtonesetter.utils.parcelableArrayListOrThrow
 import com.milen.grounpringtonesetter.utils.parcelableOrThrow
 
 internal class PickerScreenFragment : Fragment() {
@@ -69,12 +66,9 @@ internal class PickerScreenFragment : Fragment() {
                 val group = requireArguments().parcelableOrThrow<LabelItem>(ARG_GROUP)
                 viewModel.startManageContacts(group)
             }
-            PickerMode.CREATE -> {
-                val accounts = requireArguments().parcelableArrayListOrThrow<Account>(ARG_ACCOUNTS)
-                viewModel.startCreateGroup(accounts)
-            }
+            PickerMode.CREATE -> viewModel.startCreateGroup()
         }
-        
+
         viewModel.state.collectStateIn(viewLifecycleOwner) { ui ->
             binding.apply {
                 changeMainTitle(getString(ui.titleId))
@@ -172,15 +166,6 @@ internal class PickerScreenFragment : Fragment() {
     private fun handleSetName(data: PickerResultData.ManageGroups) {
         binding.run {
             scvContacts.isVisible = false
-            llAccountPickerHolder.isVisible = data.accountLists.size > 1
-
-            val adapter = ArrayAdapter(
-                requireContext(),
-                R.layout.custom_dropdown_holder,
-                data.accountLists.map { it.name }
-            ).also { it.setDropDownViewResource(R.layout.custom_dropdown_item) }
-            accountPicker.adapter = adapter
-
             civNameInput.apply {
                 isVisible = true
                 setText(data.groupName)
@@ -191,14 +176,6 @@ internal class PickerScreenFragment : Fragment() {
         }
     }
 
-    private fun FragmentPickerScreenBinding.getDataOrNull(
-        data: PickerResultData.ManageGroups,
-    ): Account? =
-        if (accountPicker.selectedItemPosition != -1 && data.accountLists.isNotEmpty())
-            data.accountLists[accountPicker.selectedItemPosition]
-        else
-            null
-
     /** Only Done calls the VM writes. */
     private fun onResult(data: PickerResultData) {
         when (data) {
@@ -208,8 +185,7 @@ internal class PickerScreenFragment : Fragment() {
             }
             is PickerResultData.ManageGroups -> {
                 val name = binding.civNameInput.getText()
-                val account = binding.getDataOrNull(data)
-                viewModel.confirmCreateGroup(name, account)
+                viewModel.confirmCreateGroup(name)
             }
             is PickerResultData.ManageGroupContacts -> {
                 val chosen: List<Contact> = binding.scvContacts.selectedContacts
@@ -233,7 +209,6 @@ internal class PickerScreenFragment : Fragment() {
     companion object {
         private const val ARG_MODE = "mode"
         private const val ARG_GROUP = "group"
-        private const val ARG_ACCOUNTS = "accounts"
 
         fun argsForRename(group: LabelItem) = bundleOf(
             ARG_MODE to PickerMode.RENAME.name,
@@ -245,9 +220,8 @@ internal class PickerScreenFragment : Fragment() {
             ARG_GROUP to group
         )
 
-        fun argsForCreate(accounts: List<Account>) = bundleOf(
+        fun argsForCreate() = bundleOf(
             ARG_MODE to PickerMode.CREATE.name,
-            ARG_ACCOUNTS to ArrayList(accounts),
         )
     }
 }

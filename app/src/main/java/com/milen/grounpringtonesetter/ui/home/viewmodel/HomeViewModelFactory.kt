@@ -42,7 +42,8 @@ internal object HomeViewModelFactory {
 
         val actions = GroupActions(
             contacts = contactsHelper,
-            tracker = tracker
+            tracker = tracker,
+            accountRepo = RepoGraph.accountRepo(app, prefs)
         )
 
         val ads = AdLoadingHelper(activity)

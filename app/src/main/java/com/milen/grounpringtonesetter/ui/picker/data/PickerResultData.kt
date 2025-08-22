@@ -1,6 +1,5 @@
 package com.milen.grounpringtonesetter.ui.picker.data
 
-import android.accounts.Account
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 
@@ -10,11 +9,7 @@ internal sealed interface PickerResultData {
         val newGroupName: String? = null,
     ) : PickerResultData
 
-    data class ManageGroups(
-        val groupName: String = "",
-        val accountLists: List<Account>,
-        val pickedAccount: Account?,
-    ) : PickerResultData
+    data class ManageGroups(val groupName: String = "") : PickerResultData
 
     data class ManageGroupContacts(
         val group: LabelItem,

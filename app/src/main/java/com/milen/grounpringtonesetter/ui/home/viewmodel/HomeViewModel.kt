@@ -188,16 +188,9 @@ internal class HomeViewModel(
 
     fun setUpGroupCreateRequest() {
         tracker.trackEvent("setUpGroupCreateRequest")
-        val accounts =
-            contactsRepo.getGoogleAccounts() // TODO REMOVE ACCOUNTS FORM THE EVENT AND CROUP CREATING AT ALL
-
         accountRepo.getAccountsAvailable()
         viewModelScope.launch {
-            _events.send(
-                HomeEvent.NavigateToCreateGroup(
-                    accounts = accounts,
-                )
-            )
+            _events.send(HomeEvent.NavigateToCreateGroup)
         }
     }
 

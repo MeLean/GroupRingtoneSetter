@@ -1,6 +1,5 @@
 package com.milen.grounpringtonesetter.ui.picker.viewmodel
 
-import android.accounts.Account
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.milen.grounpringtonesetter.R
@@ -61,8 +60,6 @@ internal class PickerViewModel(
         )
     }
 
-    // ---- Screen starters ----
-
     fun startRename(group: LabelItem) {
         tracker.trackEvent("Picker_startRename")
         _state.update {
@@ -96,21 +93,16 @@ internal class PickerViewModel(
         )
     }
 
-    fun startCreateGroup(accounts: List<Account>) {
+    fun startCreateGroup() {
         tracker.trackEvent("Picker_startCreateGroup")
         _state.update {
             PickerScreenState(
                 isLoading = false,
                 titleId = R.string.add_group,
-                pikerResultData = PickerResultData.ManageGroups(
-                    accountLists = accounts,
-                    pickedAccount = null
-                )
+                pikerResultData = PickerResultData.ManageGroups()
             )
         }
     }
-
-    // ---- Confirms (Done button only) ----
 
     fun confirmRename(group: LabelItem, newNameRaw: String?) {
         val newName = newNameRaw?.trim().orEmpty()
@@ -149,7 +141,7 @@ internal class PickerViewModel(
         )
     }
 
-    fun confirmCreateGroup(nameRaw: String, account: Account?) {
+    fun confirmCreateGroup(nameRaw: String) {
         val name = nameRaw.trim()
         if (name.isEmpty()) {
             _events.trySend(PickerEvent.ShowErrorById(R.string.enter_group_name))
@@ -157,7 +149,7 @@ internal class PickerViewModel(
         }
         _state.update { it.copy(isLoading = true) }
         launchOnIoResultInMain(
-            work = { actions.createGroup(name, account) },
+            work = { actions.createGroup(name) },
             onError = ::handleError,
             onSuccess = {
                 tracker.trackEvent("Picker_createGroup_success")

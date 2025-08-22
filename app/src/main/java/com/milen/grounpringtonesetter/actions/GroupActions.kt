@@ -1,14 +1,15 @@
 package com.milen.grounpringtonesetter.actions
 
-import android.accounts.Account
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
+import com.milen.grounpringtonesetter.data.accounts.AccountRepository
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.Tracker
 
 internal class GroupActions(
     private val contacts: ContactsHelper,
     private val tracker: Tracker,
+    private val accountRepo: AccountRepository,
 ) {
     // Groups
     fun renameGroup(labelId: Long, newName: String) {
@@ -16,9 +17,17 @@ internal class GroupActions(
         tracker.trackEvent("rename_group")
     }
 
-    fun createGroup(name: String, account: Account?): LabelItem? {
-        val item = contacts.createLabel(name, account)
-        tracker.trackEvent("create_group")
+    fun createGroup(name: String): LabelItem? {
+        var item: LabelItem? = null
+
+        accountRepo.selected.value?.let {
+            item = contacts.createLabel(
+                labelName = name,
+                accountId = it
+            )
+            tracker.trackEvent("create_group")
+        } ?: tracker.trackError(RuntimeException("createGroup in account id null!"))
+
         return item
     }
 

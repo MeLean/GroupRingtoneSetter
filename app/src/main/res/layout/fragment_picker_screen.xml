@@ -11,6 +11,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="16dp"
+        android:layout_marginTop="32dp"
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -26,44 +27,17 @@
         app:layout_constraintEnd_toEndOf="@+id/civNameInput"
         app:layout_constraintTop_toBottomOf="@+id/civNameInput" />
 
-    <LinearLayout
-        android:id="@+id/llAccountPickerHolder"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginTop="8dp"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/crbResetRingtones"
-        tools:visibility="visible">
-
-        <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
-            android:id="@+id/ctwAccountSpinnerLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginVertical="8dp"
-            android:text="@string/pick_account" />
-
-        <Spinner
-            android:id="@+id/accountPicker"
-            style="@style/CustomSpinnerStyle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-    </LinearLayout>
-
     <com.milen.grounpringtonesetter.customviews.ui.texts.SearchContactView
         android:id="@+id/scvContacts"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginHorizontal="16dp"
-        android:layout_marginVertical="8dp"
+        android:layout_marginBottom="8dp"
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@+id/crbDone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/llAccountPickerHolder"
+        app:layout_constraintTop_toBottomOf="@+id/crbResetRingtones"
         tools:listitem="@layout/item_contact"
         tools:visibility="visible" />
 

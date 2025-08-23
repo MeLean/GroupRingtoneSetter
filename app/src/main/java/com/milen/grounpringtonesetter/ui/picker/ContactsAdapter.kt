@@ -12,9 +12,15 @@ import com.milen.grounpringtonesetter.databinding.ItemContactBinding
 internal class ContactsAdapter :
     ListAdapter<SelectableContact, ContactsAdapter.ViewHolder>(DiffCallback) {
 
+    private var onContactCheckedStateChanged: (SelectableContact) -> Unit = {}
+
     class ViewHolder(private val binding: ItemContactBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(contact: SelectableContact, onContactChecked: () -> Unit): Unit =
+        fun bind(
+            contact: SelectableContact,
+            onContactChecked: () -> Unit,
+            onContactCheckedStateChanged: (SelectableContact) -> Unit,
+        ): Unit =
             binding.run {
                 ctvContactName.text = contact.name
                 ctvContactPhone.text = contact.phone
@@ -28,7 +34,9 @@ internal class ContactsAdapter :
                     }
                     setOnCheckedChangeListener { _, checked ->
                         contact.isChecked = checked
+                        onContactCheckedStateChanged(contact)
                         onContactChecked()
+
                     }
                 }
             }
@@ -46,10 +54,18 @@ internal class ContactsAdapter :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val contact = getItem(position)
-        holder.bind(contact, ::onContactChecked)
+        holder.bind(
+            contact, ::onContactChecked,
+            onContactCheckedStateChanged = onContactCheckedStateChanged
+        )
     }
 
-    override fun submitList(list: List<SelectableContact>?) {
+    fun submitListWithCallback(
+        list: List<SelectableContact>?,
+        onContactCheckedStateChanged: (SelectableContact) -> Unit,
+    ) {
+        this.onContactCheckedStateChanged = onContactCheckedStateChanged
+
         super.submitList(
             list?.sortedWith(
                 compareByDescending<SelectableContact> { it.isChecked }

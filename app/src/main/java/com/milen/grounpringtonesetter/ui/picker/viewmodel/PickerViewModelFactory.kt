@@ -4,7 +4,6 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
-import com.milen.grounpringtonesetter.actions.GroupActions
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.data.repos.RepoGraph
 import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
@@ -21,27 +20,19 @@ internal object PickerViewModelFactory {
             tracker = tracker,
             preferenceHelper = prefs
         )
-        val contactsHelper = ContactsHelper(
+        val helper = ContactsHelper(
             appContext = app,
             preferenceHelper = prefs,
             contactRingtoneUpdateHelper = ringtoneUpdater,
             tracker = tracker
-        )
-        val actions = GroupActions(
-            contacts = contactsHelper,
-            tracker = tracker,
-            accountRepo = RepoGraph.accountRepo(app, prefs)
         )
 
         return object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return PickerViewModel(
-                    contactsHelper = contactsHelper,
-                    actions = actions,
                     tracker = tracker,
-                    encryptedPrefs = prefs,
-                    accountRepo = RepoGraph.accountRepo(activity.application, prefs)
+                    contactsRepo = RepoGraph.contactsRepo(app, helper, prefs)
                 ) as T
             }
         }

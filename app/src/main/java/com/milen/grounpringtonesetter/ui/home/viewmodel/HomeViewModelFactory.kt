@@ -4,7 +4,6 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
-import com.milen.grounpringtonesetter.actions.GroupActions
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
@@ -34,16 +33,10 @@ internal object HomeViewModelFactory {
             tracker = tracker
         )
 
-        val contactsRepo = RepoGraph.contacts(
+        val contactsRepo = RepoGraph.contactsRepo(
             app = app,
             helper = contactsHelper,
             prefs = prefs
-        )
-
-        val actions = GroupActions(
-            contacts = contactsHelper,
-            tracker = tracker,
-            accountRepo = RepoGraph.accountRepo(app, prefs)
         )
 
         val ads = AdLoadingHelper(activity)
@@ -53,12 +46,10 @@ internal object HomeViewModelFactory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return HomeViewModel(
                     adHelper = ads,
-                    encryptedPrefs = prefs,
                     tracker = tracker,
                     billing = billing,
-                    actions = actions,
                     contactsRepo = contactsRepo,
-                    accountRepo = RepoGraph.accountRepo(activity.application, prefs)
+                    accountRepo = RepoGraph.accountRepo(app, prefs)
                 ) as T
             }
         }

@@ -1,10 +1,9 @@
 package com.milen.grounpringtonesetter.data.repos
 
-import android.app.Application
+import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.data.accounts.AccountRepository
 import com.milen.grounpringtonesetter.data.accounts.AccountRepositoryImpl
 import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
-import com.milen.grounpringtonesetter.data.accounts.selectedSetOrEmpty
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 
@@ -17,7 +16,7 @@ internal object RepoGraph {
     private var accRepo: AccountRepository? = null
 
     fun accountRepo(
-        app: Application,
+        app: App,
         prefs: EncryptedPreferencesHelper,
     ): AccountRepository = accRepo ?: synchronized(this) {
         accRepo ?: AccountRepositoryImpl(
@@ -26,8 +25,8 @@ internal object RepoGraph {
         ).also { accRepo = it }
     }
 
-    fun contacts(
-        app: Application,
+    fun contactsRepo(
+        app: App,
         helper: ContactsHelper,
         prefs: EncryptedPreferencesHelper,
     ): ContactsRepository =
@@ -35,7 +34,9 @@ internal object RepoGraph {
             val ar = accountRepo(app, prefs)
             repo ?: ContactsRepositoryImpl(
                 helper = helper,
-                accountsProvider = { ar.selectedSetOrEmpty() }
+                tracker = app.tracker,
+                prefs = prefs,
+                accountsProvider = { ar.selected.value }
             ).also { repo = it }
         }
 }

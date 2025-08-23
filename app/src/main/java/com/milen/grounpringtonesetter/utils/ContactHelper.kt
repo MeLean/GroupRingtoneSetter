@@ -1,6 +1,5 @@
 package com.milen.grounpringtonesetter.utils
 
-import android.accounts.Account
 import android.accounts.AccountManager
 import android.app.Application
 import android.content.ContentProviderOperation
@@ -15,7 +14,6 @@ import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.data.exceptions.NoContactsFoundException
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
-import com.milen.grounpringtonesetter.data.prefs.SelectedAccountsStore
 
 internal class ContactsHelper(
     private val appContext: Application,
@@ -385,9 +383,6 @@ internal class ContactsHelper(
         }
     }
 
-    fun getGoogleAccounts(): List<Account> =
-        AccountManager.get(appContext).accounts.toList()
-
     private fun triggerSyncForAllAccounts() {
         val accounts = AccountManager.get(appContext).accounts
 
@@ -538,11 +533,8 @@ internal class ContactsHelper(
         return null
     }
 
-    fun getAllLabelItemsForAccounts(selectedAccounts: Set<String>): List<LabelItem> {
-        if (selectedAccounts.isEmpty()) return getAllLabelItems()
-
-        val pairs =
-            SelectedAccountsStore.toTypeNamePairs(selectedAccounts)
+    fun getAllLabelItemsForAccounts(selectedAccounts: AccountId): List<LabelItem> {
+        val pairs = listOf(selectedAccounts.type to selectedAccounts.name)
         if (pairs.isEmpty()) return getAllLabelItems()
 
         val where = buildString {

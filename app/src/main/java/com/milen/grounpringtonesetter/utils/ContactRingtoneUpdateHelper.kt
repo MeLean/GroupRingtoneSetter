@@ -12,6 +12,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import androidx.core.net.toUri
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,7 +29,7 @@ internal class ContactRingtoneUpdateHelper(
      * Stores a mapping from URI string to filename for display purposes.
      */
     suspend fun scanAndUpdate(context: Context, ringtoneStr: String, contactId: Long) {
-        val sourceUri = Uri.parse(ringtoneStr)
+        val sourceUri = ringtoneStr.toUri()
 
         // Validate the input URI string
         if (ringtoneStr.isBlank() || sourceUri == Uri.EMPTY) {

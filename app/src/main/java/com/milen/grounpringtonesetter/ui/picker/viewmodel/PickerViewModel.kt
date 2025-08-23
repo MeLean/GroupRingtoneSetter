@@ -3,16 +3,12 @@ package com.milen.grounpringtonesetter.ui.picker.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.milen.grounpringtonesetter.R
-import com.milen.grounpringtonesetter.actions.GroupActions
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
-import com.milen.grounpringtonesetter.data.accounts.AccountRepository
-import com.milen.grounpringtonesetter.data.cache.ContactsSnapshotStore
-import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.ui.picker.PickerEvent
 import com.milen.grounpringtonesetter.ui.picker.PickerScreenState
 import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
-import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
 import kotlinx.coroutines.channels.Channel
@@ -23,12 +19,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 internal class PickerViewModel(
-    private val contactsHelper: ContactsHelper,
-    private val actions: GroupActions,
     private val tracker: Tracker,
-    private val encryptedPrefs: EncryptedPreferencesHelper,
-    private val contactsStore: ContactsSnapshotStore = ContactsSnapshotStore,
-    private val accountRepo: AccountRepository,
+    private val contactsRepo: ContactsRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PickerScreenState(titleId = R.string.loading))
@@ -36,29 +28,6 @@ internal class PickerViewModel(
 
     private val _events = Channel<PickerEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
-
-    private fun accountsKey(): String = accountRepo.cacheKeyOrAll()
-
-    /** Read fresh items from provider and persist snapshot; show Done dialog afterwards. */
-    private fun rebuildSnapshotFromProviderThenNotify() {
-        _state.update { it.copy(isLoading = true) }
-        launchOnIoResultInMain(
-            work = {
-                val fresh: List<LabelItem> = contactsHelper.getAllLabelItems()
-                contactsStore.write(
-                    prefs = encryptedPrefs,
-                    accountsKey = accountsKey(),
-                    items = fresh
-                )
-                true
-            },
-            onError = ::handleError,
-            onSuccess = {
-                _state.update { it.copy(isLoading = false) }
-                viewModelScope.launch { _events.send(PickerEvent.DoneDialog) }
-            }
-        )
-    }
 
     fun startRename(group: LabelItem) {
         tracker.trackEvent("Picker_startRename")
@@ -73,18 +42,18 @@ internal class PickerViewModel(
 
     fun startManageContacts(group: LabelItem) {
         tracker.trackEvent("Picker_startManageContacts")
-        _state.update { it.copy(isLoading = true) }
+        showLoading()
         launchOnIoResultInMain(
-            work = { contactsHelper.getAllPhoneContacts() },
+            work = { contactsRepo.getAllPhoneContacts() },
             onError = ::handleError,
             onSuccess = { all ->
                 _state.update {
                     PickerScreenState(
-                        isLoading = false,
+                        isLoading = false, // hide loading
                         titleId = R.string.manage_contacts_group_name,
                         pikerResultData = PickerResultData.ManageGroupContacts(
                             group = group,
-                            selectedContacts = group.contacts, // initial selection only
+                            selectedContacts = group.contacts,
                             allContacts = all
                         )
                     )
@@ -110,21 +79,20 @@ internal class PickerViewModel(
             _events.trySend(PickerEvent.ShowErrorById(R.string.enter_group_name))
             return
         }
-        _state.update { it.copy(isLoading = true) }
+        showLoading()
         launchOnIoResultInMain(
-            work = { actions.renameGroup(group.id, newName) },
+            work = { contactsRepo.renameGroup(group.id, newName) },
             onError = ::handleError,
             onSuccess = {
                 tracker.trackEvent("Picker_rename_success")
-                rebuildSnapshotFromProviderThenNotify()
+                closeScreen()
             }
         )
     }
 
     fun confirmManageContacts(group: LabelItem, newSelected: List<Contact>) {
-        // ✅ Update VM state with the user's latest selection BEFORE loading → avoids UI resetting
         _state.update { st ->
-            val updatedData =
+            val updatedData: PickerResultData? =
                 (st.pikerResultData as? PickerResultData.ManageGroupContacts)?.let { mg ->
                     if (mg.group.id == group.id) mg.copy(selectedContacts = newSelected) else mg
                 } ?: st.pikerResultData
@@ -132,11 +100,11 @@ internal class PickerViewModel(
         }
 
         launchOnIoResultInMain(
-            work = { actions.updateGroupMembers(group.id, newSelected, group.contacts) },
+            work = { contactsRepo.updateGroupMembers(group.id, newSelected, group.contacts) },
             onError = ::handleError,
             onSuccess = {
                 tracker.trackEvent("Picker_manageContacts_success")
-                rebuildSnapshotFromProviderThenNotify()
+                closeScreen()
             }
         )
     }
@@ -147,25 +115,25 @@ internal class PickerViewModel(
             _events.trySend(PickerEvent.ShowErrorById(R.string.enter_group_name))
             return
         }
-        _state.update { it.copy(isLoading = true) }
+        showLoading()
         launchOnIoResultInMain(
-            work = { actions.createGroup(name) },
+            work = { contactsRepo.createGroup(name) },
             onError = ::handleError,
             onSuccess = {
                 tracker.trackEvent("Picker_createGroup_success")
-                rebuildSnapshotFromProviderThenNotify()
+                closeScreen()
             }
         )
     }
 
     fun resetGroupRingtones() {
-        _state.update { it.copy(isLoading = true) }
+        showLoading()
         launchOnIoResultInMain(
-            work = { actions.clearAllRingtones() },
+            work = { contactsRepo.clearAllRingtones() },
             onError = ::handleError,
             onSuccess = {
                 tracker.trackEvent("Picker_resetAllRingtones_success")
-                rebuildSnapshotFromProviderThenNotify()
+                closeScreen()
             }
         )
     }
@@ -174,9 +142,22 @@ internal class PickerViewModel(
         viewModelScope.launch { _events.send(PickerEvent.Close) }
     }
 
+    private fun showLoading() {
+        _state.update { it.copy(isLoading = true) }
+    }
+
+    private fun hideLoading() {
+        _state.update { it.copy(isLoading = false) }
+    }
+
     private fun handleError(error: Throwable) {
         tracker.trackError(error)
-        _state.update { it.copy(isLoading = false) }
+        hideLoading()
         _events.trySend(PickerEvent.ShowErrorText(error.localizedMessage))
+    }
+
+    private fun closeScreen() {
+        hideLoading()
+        _events.trySend(PickerEvent.Close)
     }
 }

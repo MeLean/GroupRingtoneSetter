@@ -12,7 +12,7 @@ import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
-import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
+import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
@@ -32,7 +32,7 @@ import com.milen.grounpringtonesetter.utils.parcelableOrThrow
 
 internal class PickerScreenFragment : Fragment() {
     private lateinit var binding: FragmentPickerScreenBinding
-    private lateinit var dialogShower: DialogShower
+    private lateinit var dialogHandler: DialogHandler
 
     private val viewModel: PickerViewModel by activityViewModels {
         PickerViewModelFactory.provideFactory(requireActivity())
@@ -102,9 +102,9 @@ internal class PickerScreenFragment : Fragment() {
             when (event) {
                 is PickerEvent.Close -> findNavController().popBackStack()
                 is PickerEvent.DoneDialog -> showDoneDialog()
-                is PickerEvent.ShowErrorById -> dialogShower.showErrorById(event.strRes)
-                is PickerEvent.ShowErrorText -> dialogShower.showError(event.message)
-                is PickerEvent.ShowInfoText -> dialogShower.showInfo(event.strRes)
+                is PickerEvent.ShowErrorById -> dialogHandler.showErrorById(event.strRes)
+                is PickerEvent.ShowErrorText -> dialogHandler.showError(event.message)
+                is PickerEvent.ShowInfoText -> dialogHandler.showInfo(event.strRes)
             }
         }
 
@@ -113,7 +113,7 @@ internal class PickerScreenFragment : Fragment() {
             binding.adBannerPicker.manageVisibility(st)
         }
 
-        dialogShower = DialogShower(requireActivity())
+        dialogHandler = DialogHandler(requireActivity())
     }
 
     private fun FragmentPickerScreenBinding.manageResetButton() {

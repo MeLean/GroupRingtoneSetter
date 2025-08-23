@@ -54,6 +54,16 @@ internal class SearchContactView @JvmOverloads constructor(
     fun submitContacts(contacts: List<SelectableContact>) {
         this.contactsList = contacts
         this.filteredContactsList = contacts
-        contactsAdapter.submitList(filteredContactsList)
+        contactsAdapter.submitListWithCallback(filteredContactsList) { selectedContact ->
+            contactsList.updateCheckedState(selectedContact)
+            filteredContactsList.updateCheckedState(selectedContact)
+        }
     }
 }
+
+private fun List<SelectableContact>.updateCheckedState(selectedContact: SelectableContact) =
+    map {
+        if (it.id == selectedContact.id) {
+            it.isChecked = selectedContact.isChecked
+        }
+    }

@@ -4,7 +4,7 @@ import android.app.Activity
 import androidx.annotation.StringRes
 import com.milen.grounpringtonesetter.R
 
-internal class DialogShower(private val activity: Activity) {
+internal class DialogHandler(private val activity: Activity) {
     fun showError(message: String?) {
         activity.showAlertDialog(
             titleResId = R.string.error,

@@ -13,7 +13,7 @@ import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
-import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
+import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
@@ -44,7 +44,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         HomeViewModelFactory.provideFactory(requireActivity())
     }
 
-    private lateinit var dialogShower: DialogShower
+    private lateinit var dialogHandler: DialogHandler
 
     private val permissions = mutableListOf(
         android.Manifest.permission.READ_CONTACTS,
@@ -93,7 +93,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             rwGroupItems.adapter = groupsAdapter
         }
 
-        dialogShower = DialogShower(requireActivity())
+        dialogHandler = DialogHandler(requireActivity())
 
         viewModel.state.collectStateIn(viewLifecycleOwner) { state ->
             handleLoading(state.loadingVisible)
@@ -171,9 +171,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                         PickerScreenFragment.argsForCreate()
                     )
 
-                is HomeEvent.ShowErrorById -> dialogShower.showErrorById(event.strRes)
-                is HomeEvent.ShowErrorText -> dialogShower.showError(event.message)
-                is HomeEvent.ShowInfoText -> dialogShower.showInfo(event.strRes)
+                is HomeEvent.ShowErrorById -> dialogHandler.showErrorById(event.strRes)
+                is HomeEvent.ShowErrorText -> dialogHandler.showError(event.message)
+                is HomeEvent.ShowInfoText -> dialogHandler.showInfo(event.strRes)
             }
         }
 
@@ -189,7 +189,6 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     override fun onResume() {
         super.onResume()
         changeMainTitle(getString(R.string.app_name))
-        viewModel.updateFromCachedContactsData()
     }
 
     private fun checkPermissions() {

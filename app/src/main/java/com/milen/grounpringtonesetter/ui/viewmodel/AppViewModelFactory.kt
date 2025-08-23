@@ -4,7 +4,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
-import com.milen.grounpringtonesetter.customviews.dialog.DialogShower
+import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.data.repos.RepoGraph
 import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
@@ -15,7 +15,7 @@ internal object AppViewModelFactory {
         val app = activity.application as App
         val tracker = app.tracker
         val prefs = EncryptedPreferencesHelper(activity.application)
-        DialogShower(activity)
+        DialogHandler(activity)
         val contactsHelper = ContactsHelper(
             appContext = activity.application,
             preferenceHelper = prefs,
@@ -25,8 +25,8 @@ internal object AppViewModelFactory {
             ),
             tracker = tracker
         )
-        val repo = RepoGraph.contacts(
-            app = activity.application,
+        val repo = RepoGraph.contactsRepo(
+            app = app,
             helper = contactsHelper,
             prefs = prefs
         )

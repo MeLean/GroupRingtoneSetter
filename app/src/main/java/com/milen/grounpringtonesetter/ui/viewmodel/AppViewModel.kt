@@ -11,6 +11,7 @@ import android.provider.ContactsContract
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
+import com.milen.grounpringtonesetter.utils.launch
 
 internal class AppViewModel(
     private val app: Application,
@@ -20,7 +21,7 @@ internal class AppViewModel(
 
     private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
-            contactsRepo.invalidate()
+            update()
         }
     }
     
@@ -53,5 +54,11 @@ internal class AppViewModel(
         val r = ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CONTACTS)
         val w = ContextCompat.checkSelfPermission(ctx, Manifest.permission.WRITE_CONTACTS)
         return r == PackageManager.PERMISSION_GRANTED || w == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun update() {
+        launch {
+            contactsRepo.load()
+        }
     }
 }

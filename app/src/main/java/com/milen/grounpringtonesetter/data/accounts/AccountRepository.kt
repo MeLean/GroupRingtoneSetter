@@ -14,7 +14,7 @@ internal interface AccountRepository {
     val available: StateFlow<List<AccountId>>    // available accounts (empty until permission granted)
 
     fun refreshAvailable()                       // call ONLY after READ_CONTACTS granted
-    fun select(account: AccountId)
+    fun selectNewAccount(account: AccountId)
     fun clearSelection()
     fun cacheKeyOrAll(): String
 
@@ -51,7 +51,7 @@ internal class AccountRepositoryImpl(
         }
     }
 
-    override fun select(account: AccountId) {
+    override fun selectNewAccount(account: AccountId) {
         SelectedAccountsStore.write(prefs, setOf(account.raw))
         _selected.value = account
     }
@@ -67,6 +67,3 @@ internal class AccountRepositoryImpl(
     override fun getAccountsAvailable(): Set<AccountId> =
         resolver.getAccounts()
 }
-
-internal fun AccountRepository.selectedSetOrEmpty(): Set<String> =
-    selected.value?.raw?.let { setOf(it) } ?: emptySet()

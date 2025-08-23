@@ -15,15 +15,14 @@ import kotlinx.coroutines.sync.withLock
 
 internal interface ContactsRepository {
     val labelsFlow: StateFlow<List<LabelItem>>
+    val allContacts: StateFlow<List<Contact>?>
 
     suspend fun loadAccountLabels()
 
     suspend fun setGroupRingtone(group: LabelItem, uriStr: String, fileName: String)
     fun deleteGroup(groupId: Long)
 
-    fun refreshAllPhoneContacts(): List<Contact>
-
-    fun getAllCachedPhoneContacts(): List<Contact>
+    suspend fun refreshAllPhoneContacts()
 
     fun createGroup(name: String)
 
@@ -50,6 +49,10 @@ internal class ContactsRepositoryImpl(
     private val lock = Mutex()
     private val _labels = MutableStateFlow<List<LabelItem>>(emptyList())
     override val labelsFlow: StateFlow<List<LabelItem>> = _labels
+
+    private val _contacts = MutableStateFlow<List<Contact>?>(null)
+    override val allContacts: StateFlow<List<Contact>?> = _contacts
+
 
     override suspend fun loadAccountLabels() {
         return lock.withLock {
@@ -146,7 +149,7 @@ internal class ContactsRepositoryImpl(
     }
 
 
-    override fun refreshAllPhoneContacts(): List<Contact> {
+    override suspend fun refreshAllPhoneContacts() {
         val accountId = accountsProvider()
         tracker.trackEvent("getAllPhoneContacts: $accountId")
         val contacts = helper.getAllPhoneContacts(accountId)
@@ -157,20 +160,8 @@ internal class ContactsRepositoryImpl(
             contacts = contacts
         )
 
-        return contacts
+        _contacts.update { contacts }
     }
-
-    override fun getAllCachedPhoneContacts(): List<Contact> {
-        val accountId = accountsProvider()
-
-        val cachedContacts = contactsCacheStore.read(
-            prefs = prefs,
-            accountId = accountId,
-        )
-
-        return cachedContacts ?: refreshAllPhoneContacts()
-    }
-
 
     private fun updateGroupRingtone(
         groupId: Long,

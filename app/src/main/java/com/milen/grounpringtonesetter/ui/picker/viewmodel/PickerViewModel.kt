@@ -13,8 +13,11 @@ import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -23,8 +26,31 @@ internal class PickerViewModel(
     private val contactsRepo: ContactsRepository,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(PickerScreenState(titleId = R.string.loading))
-    val state: StateFlow<PickerScreenState> = _state
+    private val _state = MutableStateFlow(PickerScreenState())
+    val state: StateFlow<PickerScreenState> =
+        combine(
+            _state,
+            contactsRepo.allContacts
+        ) { base, allContacts ->
+            if (base.pikerResultData is PickerResultData.ManageGroupContacts) {
+                if (allContacts == null) {
+                    base.copy(isLoading = true)
+                } else {
+                    base.copy(
+                        isLoading = false,
+                        pikerResultData = base.pikerResultData.copy(
+                            allContacts = allContacts
+                        )
+                    )
+                }
+            } else {
+                base
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = _state.value
+        )
 
     private val _events = Channel<PickerEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
@@ -40,30 +66,14 @@ internal class PickerViewModel(
         }
     }
 
-    private var workingGroupId: Long? = null
-    private val workingSelectedIds = MutableStateFlow<Set<Long>>(emptySet())
-
-    // Expose a snapshot for the UI layer
-    fun currentWorkingSelectedIds(): Set<Long> = workingSelectedIds.value
-
-    // Compute selected Contact list from ids + provided 'all' list
-    fun workingSelectedContacts(all: List<Contact>): List<Contact> =
-        all.filter { it.id in workingSelectedIds.value }
-
     // Toggle from UI
-    fun toggleManageSelection(id: Long, checked: Boolean, all: List<Contact>) {
-        val next = workingSelectedIds.value.toMutableSet()
-        if (checked) next.add(id) else next.remove(id)
-        workingSelectedIds.value = next
+    fun updateManageSelection(selectedContacts: List<Contact>) {
+        val cur = _state.value.pikerResultData as? PickerResultData.ManageGroupContacts ?: return
 
-        // reflect change in ScreenState so UI rebinds with updated checks
         _state.update { st ->
-            val cur =
-                st.pikerResultData as? PickerResultData.ManageGroupContacts ?: return@update st
-            if (cur.group.id != workingGroupId) return@update st
             st.copy(
                 pikerResultData = cur.copy(
-                    selectedContacts = all.filter { it.id in next }
+                    selectedContacts = selectedContacts
                 )
             )
         }
@@ -71,34 +81,16 @@ internal class PickerViewModel(
 
     fun startManageContacts(group: LabelItem) {
         tracker.trackEvent("Picker_startManageContacts")
-        showLoading()
-        launchOnIoResultInMain(
-            work = { contactsRepo.getAllCachedPhoneContacts() },
-            onError = ::handleError,
-            onSuccess = { all ->
-                val firstForGroup =
-                    (workingGroupId != group.id) || workingSelectedIds.value.isEmpty()
-                workingGroupId = group.id
-                val initialIds: Set<Long> = if (firstForGroup) {
-                    group.contacts.map { it.id }.toSet()
-                } else {
-                    workingSelectedIds.value
-                }
-                workingSelectedIds.value = initialIds
-
-                _state.update {
-                    PickerScreenState(
-                        isLoading = false,
-                        titleId = R.string.manage_contacts_group_name,
-                        pikerResultData = PickerResultData.ManageGroupContacts(
-                            group = group,
-                            selectedContacts = all.filter { it.id in initialIds },
-                            allContacts = all
-                        )
-                    )
-                }
-            }
-        )
+        _state.update {
+            PickerScreenState(
+                isLoading = false,
+                titleId = R.string.manage_contacts_group_name,
+                pikerResultData = PickerResultData.ManageGroupContacts(
+                    group = group,
+                    selectedContacts = group.contacts
+                )
+            )
+        }
     }
 
     fun startCreateGroup() {
@@ -129,14 +121,10 @@ internal class PickerViewModel(
         )
     }
 
-    fun confirmManageContacts(group: LabelItem, newSelected: List<Contact>) {
-        _state.update { st ->
-            val updatedData: PickerResultData? =
-                (st.pikerResultData as? PickerResultData.ManageGroupContacts)?.let { mg ->
-                    if (mg.group.id == group.id) mg.copy(selectedContacts = newSelected) else mg
-                } ?: st.pikerResultData
-            st.copy(isLoading = true, pikerResultData = updatedData)
-        }
+    fun confirmManageContacts(group: LabelItem) {
+        val cur = _state.value.pikerResultData as? PickerResultData.ManageGroupContacts ?: return
+        val newSelected = cur.selectedContacts
+        showLoading()
 
         launchOnIoResultInMain(
             work = { contactsRepo.updateGroupMembers(group.id, newSelected, group.contacts) },
@@ -196,7 +184,8 @@ internal class PickerViewModel(
     }
 
     private fun closeScreen() {
-        hideLoading()
+        // reset state
+        _state.update { PickerScreenState(isLoading = false) }
         _events.trySend(PickerEvent.Close)
     }
 }

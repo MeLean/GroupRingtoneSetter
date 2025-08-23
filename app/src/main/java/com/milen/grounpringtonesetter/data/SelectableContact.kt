@@ -23,5 +23,13 @@ internal data class SelectableContact(
                     isChecked = isSelected
                 )
             }
+
+        fun SelectableContact.toContact(): Contact =
+            Contact(
+                id = id,
+                name = name,
+                phone = phone,
+                ringtoneUriStr = ringtoneUriString,
+            )
     }
 }

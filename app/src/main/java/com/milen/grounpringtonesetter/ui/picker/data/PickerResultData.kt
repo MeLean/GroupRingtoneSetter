@@ -14,7 +14,7 @@ internal sealed interface PickerResultData {
     data class ManageGroupContacts(
         val group: LabelItem,
         val selectedContacts: List<Contact> = emptyList(),
-        val allContacts: List<Contact>,
+        val allContacts: List<Contact> = emptyList(),
     ) : PickerResultData
 
     data object Canceled : PickerResultData

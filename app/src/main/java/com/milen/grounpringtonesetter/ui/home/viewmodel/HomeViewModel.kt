@@ -2,7 +2,6 @@ package com.milen.grounpringtonesetter.ui.home.viewmodel
 
 import android.app.Activity
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
@@ -21,6 +20,7 @@ import com.milen.grounpringtonesetter.utils.DispatcherProvider
 import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launch
 import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 internal class HomeViewModel(
     private val adHelper: AdLoadingHelper,
@@ -206,7 +207,6 @@ internal class HomeViewModel(
                 }
 
             hideLoading()
-            Log.d("TEST_IT", "Update contacts loading hiden")
         }
     }
 
@@ -217,7 +217,7 @@ internal class HomeViewModel(
         // If we already have a selection, just ensure data loading happens.
         if (accountRepo.selected.value != null) {
             updateGroupList()
-            launch(dispatchers.io) { contactsRepo.refreshAllPhoneContacts() }
+            refreshContactsSilently()
             return
         }
 
@@ -260,6 +260,20 @@ internal class HomeViewModel(
         }
     }
 
+    private var refreshJob: Job? = null
+    private fun refreshContactsSilently() {
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            try {
+                contactsRepo.refreshAllPhoneContacts() // suspend call
+            } catch (_: CancellationException) {
+                // ignore
+            } catch (e: Throwable) {
+                tracker.trackError(e)
+            }
+        }
+    }
+
     private fun showInterstitialAdIfNeededAndManageLoading() {
         when (state.value.entitlement) {
             EntitlementState.OWNED -> {
@@ -274,9 +288,8 @@ internal class HomeViewModel(
                 }
             }
         }
-        launch(dispatchers.io) {
-            contactsRepo.refreshAllPhoneContacts()
-        }
+
+        refreshContactsSilently()
     }
 
     private fun showDoneMessage() {

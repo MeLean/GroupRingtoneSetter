@@ -14,7 +14,6 @@ import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
-import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.FragmentPickerScreenBinding
@@ -57,16 +56,20 @@ internal class PickerScreenFragment : Fragment() {
         val mode = requireArguments().getString(ARG_MODE)?.let(PickerMode::valueOf)
             ?: error("Missing picker mode")
 
-        when (mode) {
-            PickerMode.RENAME -> {
-                val group = requireArguments().parcelableOrThrow<LabelItem>(ARG_GROUP)
-                viewModel.startRename(group)
+        if (savedInstanceState == null || viewModel.state.value.pikerResultData == null) {
+            when (mode) {
+                PickerMode.RENAME -> {
+                    val group = requireArguments().parcelableOrThrow<LabelItem>(ARG_GROUP)
+                    viewModel.startRename(group)
+                }
+
+                PickerMode.MANAGE -> {
+                    val group = requireArguments().parcelableOrThrow<LabelItem>(ARG_GROUP)
+                    viewModel.startManageContacts(group)
+                }
+
+                PickerMode.CREATE -> viewModel.startCreateGroup()
             }
-            PickerMode.MANAGE -> {
-                val group = requireArguments().parcelableOrThrow<LabelItem>(ARG_GROUP)
-                viewModel.startManageContacts(group)
-            }
-            PickerMode.CREATE -> viewModel.startCreateGroup()
         }
 
         viewModel.state.collectStateIn(viewLifecycleOwner) { ui ->
@@ -150,18 +153,15 @@ internal class PickerScreenFragment : Fragment() {
             civNameInput.isVisible = false
             scvContacts.isVisible = true
 
-            // 1) reflect current VM selection in the list
-            val selectedIds = viewModel.currentWorkingSelectedIds()
-            scvContacts.setOnCheckedChangeListener { id, checked ->
-                viewModel.toggleManageSelection(id, checked, data.allContacts)
+            scvContacts.setOnCheckedChangeListener { list ->
+                viewModel.updateManageSelection(list)
             }
 
-            // 2) build rows according to VM’s selection (survives rotation)
             scvContacts.submitContacts(
                 data.allContacts.map { contact ->
                     SelectableContact.from(
                         contact = contact,
-                        isSelected = (contact.id in selectedIds)
+                        isSelected = (contact in data.selectedContacts)
                     ).also {
                         noItemDisclaimer.isVisible = data.allContacts.isEmpty() && loading.not()
                     }
@@ -194,8 +194,7 @@ internal class PickerScreenFragment : Fragment() {
                 viewModel.confirmCreateGroup(name)
             }
             is PickerResultData.ManageGroupContacts -> {
-                val chosen: List<Contact> = viewModel.workingSelectedContacts(data.allContacts)
-                viewModel.confirmManageContacts(data.group, chosen)
+                viewModel.confirmManageContacts(data.group)
             }
             is PickerResultData.Canceled -> viewModel.close()
         }

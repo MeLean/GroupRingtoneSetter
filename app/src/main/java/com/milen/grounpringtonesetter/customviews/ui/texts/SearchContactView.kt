@@ -6,7 +6,9 @@ import android.view.LayoutInflater
 import android.widget.LinearLayout
 import android.widget.SearchView
 import androidx.core.view.isVisible
+import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.SelectableContact
+import com.milen.grounpringtonesetter.data.SelectableContact.Companion.toContact
 import com.milen.grounpringtonesetter.databinding.CustomSelectableContactsViewBinding
 import com.milen.grounpringtonesetter.ui.picker.ContactsAdapter
 
@@ -28,9 +30,9 @@ internal class SearchContactView @JvmOverloads constructor(
         LayoutInflater.from(context), this, true
     )
 
-    private var onCheckedChangeListener: ((Long, Boolean) -> Unit) = { _, _ -> }
+    private var onCheckedChangeListener: ((List<Contact>) -> Unit) = {}
 
-    fun setOnCheckedChangeListener(listener: (id: Long, checked: Boolean) -> Unit) {
+    fun setOnCheckedChangeListener(listener: (List<Contact>) -> Unit) {
         onCheckedChangeListener = listener
     }
 
@@ -78,10 +80,11 @@ internal class SearchContactView @JvmOverloads constructor(
         contactsAdapter.submitListWithCallback(
             filteredContacts
         ) { updated ->
-            // keep local UI instant by mirroring, but also forward to VM:
             allContacts = allContacts.map { if (it.id == updated.id) updated else it }
-            onCheckedChangeListener.invoke(updated.id, updated.isChecked)
+            val selected = allContacts.mapNotNull { if (it.isChecked) it.toContact() else null }
+            onCheckedChangeListener(selected)
         }
+
         binding.emptyState.isVisible = filteredContacts.isEmpty()
     }
 

@@ -17,19 +17,20 @@ internal class ContactsAdapter :
 
     private var onContactCheckedStateChanged: (SelectableContact) -> Unit = {}
 
+    init {
+        setHasStableIds(true)
+    }
+
+    override fun getItemId(position: Int): Long = getItem(position).id
+
     class ViewHolder(private val binding: ItemContactBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(
-            contact: SelectableContact,
-            onContactChecked: () -> Unit,
-            onContactCheckedStateChanged: (SelectableContact) -> Unit,
-        ): Unit =
+        fun bind(contact: SelectableContact, onChecked: (SelectableContact) -> Unit): Unit =
             binding.run {
                 ctvContactName.text = contact.name
                 ctvContactPhone.text = contact.phone
-                ctvRingTone.text = binding.root.context.getFileNameForUriStr(
-                    contact.ringtoneUriString
-                )
+                ctvRingTone.text =
+                    binding.root.context.getFileNameForUriStr(contact.ringtoneUriString)
 
                 checkbox.apply {
                     setOnCheckedChangeListener(null)
@@ -40,10 +41,9 @@ internal class ContactsAdapter :
                         context.getString(R.string.click_to_check)
                     }
                     setOnCheckedChangeListener { _, checked ->
-                        contact.isChecked = checked
-                        onContactCheckedStateChanged(contact)
-                        onContactChecked()
-
+                        // DO NOT mutate the original item; create an updated copy and emit it.
+                        val updated = contact.copy(isChecked = checked)
+                        onChecked(updated)
                     }
                 }
             }
@@ -61,10 +61,7 @@ internal class ContactsAdapter :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val contact = getItem(position)
-        holder.bind(
-            contact, ::onContactChecked,
-            onContactCheckedStateChanged = onContactCheckedStateChanged
-        )
+        holder.bind(contact) { updated -> onContactCheckedStateChanged(updated) }
     }
 
     fun submitListWithCallback(
@@ -72,30 +69,25 @@ internal class ContactsAdapter :
         onContactCheckedStateChanged: (SelectableContact) -> Unit,
     ) {
         this.onContactCheckedStateChanged = onContactCheckedStateChanged
-
+        // Always submit a NEW list instance (sorted) so DiffUtil can detect content changes.
         super.submitList(
-            list?.sortedWith(
-                compareByDescending<SelectableContact> { it.isChecked }
-                    .thenBy { it.name }
-            )
+            list
+                ?.map { it }
+                ?.sortedWith(compareByDescending<SelectableContact> { it.isChecked }.thenBy { it.name })
         )
-    }
-
-    private fun onContactChecked() {
-        submitList(currentList)
     }
 
     companion object DiffCallback : DiffUtil.ItemCallback<SelectableContact>() {
         override fun areItemsTheSame(
             oldItem: SelectableContact,
-            newItem: SelectableContact
+            newItem: SelectableContact,
         ): Boolean {
             return oldItem.id == newItem.id
         }
 
         override fun areContentsTheSame(
             oldItem: SelectableContact,
-            newItem: SelectableContact
+            newItem: SelectableContact,
         ): Boolean {
             return oldItem == newItem
         }

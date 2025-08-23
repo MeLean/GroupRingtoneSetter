@@ -27,12 +27,36 @@
             android:submitBackground="@android:color/transparent" />
     </androidx.cardview.widget.CardView>
 
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/contactsRecyclerView"
+    <!-- Content area with list + empty state overlay -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        tools:listitem="@layout/item_contact" />
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/contactsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_contact" />
+
+        <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+            android:id="@+id/emptyState"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@color/blur"
+            android:drawablePadding="12dp"
+            android:drawableTint="@color/purple_500"
+            android:gravity="center"
+            android:padding="24dp"
+            android:text="@string/items_not_found"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="24sp"
+            android:visibility="gone"
+            app:drawableTopCompat="@drawable/ic_no_items"
+            tools:visibility="visible" />
+    </FrameLayout>
+
 </LinearLayout>

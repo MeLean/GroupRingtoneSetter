@@ -40,6 +40,35 @@ internal class PickerViewModel(
         }
     }
 
+    private var workingGroupId: Long? = null
+    private val workingSelectedIds = MutableStateFlow<Set<Long>>(emptySet())
+
+    // Expose a snapshot for the UI layer
+    fun currentWorkingSelectedIds(): Set<Long> = workingSelectedIds.value
+
+    // Compute selected Contact list from ids + provided 'all' list
+    fun workingSelectedContacts(all: List<Contact>): List<Contact> =
+        all.filter { it.id in workingSelectedIds.value }
+
+    // Toggle from UI
+    fun toggleManageSelection(id: Long, checked: Boolean, all: List<Contact>) {
+        val next = workingSelectedIds.value.toMutableSet()
+        if (checked) next.add(id) else next.remove(id)
+        workingSelectedIds.value = next
+
+        // reflect change in ScreenState so UI rebinds with updated checks
+        _state.update { st ->
+            val cur =
+                st.pikerResultData as? PickerResultData.ManageGroupContacts ?: return@update st
+            if (cur.group.id != workingGroupId) return@update st
+            st.copy(
+                pikerResultData = cur.copy(
+                    selectedContacts = all.filter { it.id in next }
+                )
+            )
+        }
+    }
+
     fun startManageContacts(group: LabelItem) {
         tracker.trackEvent("Picker_startManageContacts")
         showLoading()
@@ -47,13 +76,23 @@ internal class PickerViewModel(
             work = { contactsRepo.getAllCachedPhoneContacts() },
             onError = ::handleError,
             onSuccess = { all ->
+                val firstForGroup =
+                    (workingGroupId != group.id) || workingSelectedIds.value.isEmpty()
+                workingGroupId = group.id
+                val initialIds: Set<Long> = if (firstForGroup) {
+                    group.contacts.map { it.id }.toSet()
+                } else {
+                    workingSelectedIds.value
+                }
+                workingSelectedIds.value = initialIds
+
                 _state.update {
                     PickerScreenState(
-                        isLoading = false, // hide loading
+                        isLoading = false,
                         titleId = R.string.manage_contacts_group_name,
                         pikerResultData = PickerResultData.ManageGroupContacts(
                             group = group,
-                            selectedContacts = group.contacts,
+                            selectedContacts = all.filter { it.id in initialIds },
                             allContacts = all
                         )
                     )

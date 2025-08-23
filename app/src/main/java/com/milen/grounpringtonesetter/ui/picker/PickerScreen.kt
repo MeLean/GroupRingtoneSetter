@@ -149,11 +149,19 @@ internal class PickerScreenFragment : Fragment() {
         binding.run {
             civNameInput.isVisible = false
             scvContacts.isVisible = true
+
+            // 1) reflect current VM selection in the list
+            val selectedIds = viewModel.currentWorkingSelectedIds()
+            scvContacts.setOnCheckedChangeListener { id, checked ->
+                viewModel.toggleManageSelection(id, checked, data.allContacts)
+            }
+
+            // 2) build rows according to VM’s selection (survives rotation)
             scvContacts.submitContacts(
                 data.allContacts.map { contact ->
                     SelectableContact.from(
                         contact = contact,
-                        isSelected = data.selectedContacts.hasContact(contact)
+                        isSelected = (contact.id in selectedIds)
                     ).also {
                         noItemDisclaimer.isVisible = data.allContacts.isEmpty() && loading.not()
                     }
@@ -161,7 +169,6 @@ internal class PickerScreenFragment : Fragment() {
             )
         }
     }
-
     private fun handleSetName(data: PickerResultData.ManageGroups) {
         binding.run {
             scvContacts.isVisible = false
@@ -187,7 +194,7 @@ internal class PickerScreenFragment : Fragment() {
                 viewModel.confirmCreateGroup(name)
             }
             is PickerResultData.ManageGroupContacts -> {
-                val chosen: List<Contact> = binding.scvContacts.selectedContacts
+                val chosen: List<Contact> = viewModel.workingSelectedContacts(data.allContacts)
                 viewModel.confirmManageContacts(data.group, chosen)
             }
             is PickerResultData.Canceled -> viewModel.close()
@@ -224,6 +231,3 @@ internal class PickerScreenFragment : Fragment() {
         )
     }
 }
-
-private fun List<Contact>.hasContact(contact: Contact): Boolean =
-    any { it.id == contact.id && it.phone == contact.phone && it.name == contact.name }

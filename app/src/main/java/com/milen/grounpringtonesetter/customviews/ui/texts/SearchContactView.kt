@@ -1,16 +1,12 @@
 package com.milen.grounpringtonesetter.customviews.ui.texts
 
 import android.content.Context
-import android.os.Parcel
-import android.os.Parcelable
 import android.util.AttributeSet
-import android.view.AbsSavedState
 import android.view.LayoutInflater
 import android.widget.LinearLayout
 import android.widget.SearchView
-import com.milen.grounpringtonesetter.data.Contact
+import androidx.core.view.isVisible
 import com.milen.grounpringtonesetter.data.SelectableContact
-import com.milen.grounpringtonesetter.data.SelectableContact.Companion.toContact
 import com.milen.grounpringtonesetter.databinding.CustomSelectableContactsViewBinding
 import com.milen.grounpringtonesetter.ui.picker.ContactsAdapter
 
@@ -18,141 +14,83 @@ internal class SearchContactView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
 ) : LinearLayout(context, attrs, defStyleAttr) {
 
-    private var contactsList: List<SelectableContact> = emptyList()
-    private var filteredContactsList: List<SelectableContact> = emptyList()
-    private val contactsAdapter: ContactsAdapter = ContactsAdapter()
+    private var allContacts: List<SelectableContact> = emptyList()
+    private var filteredContacts: List<SelectableContact> = emptyList()
 
-    // restored state placeholders (applied when we have data)
-    private var restoredQuery: String? = null
+    private var currentQuery: String = ""
+    private val selectedIds: MutableSet<Long> = linkedSetOf()
+
+    // only we restore checked IDs; SearchView restores its own query
     private var restoredCheckedIds: Set<Long>? = null
 
+    private val contactsAdapter = ContactsAdapter()
     private val binding = CustomSelectableContactsViewBinding.inflate(
         LayoutInflater.from(context), this, true
     )
 
-    val selectedContacts: List<Contact>
-        get() = contactsList.filter { it.isChecked }.map { it.toContact() }
+    private var onCheckedChangeListener: ((Long, Boolean) -> Unit) = { _, _ -> }
+
+    fun setOnCheckedChangeListener(listener: (id: Long, checked: Boolean) -> Unit) {
+        onCheckedChangeListener = listener
+    }
 
     init {
         orientation = VERTICAL
-        isSaveEnabled = true // ensure View state is saved/restored by framework
+        isSaveEnabled = true
+        binding.searchView.isSaveEnabled = true   // ensure child saves its own state
 
         with(binding) {
             contactsRecyclerView.adapter = contactsAdapter
+            emptyState.isVisible = false
 
-            searchView.setOnQueryTextListener(
-                object : SearchView.OnQueryTextListener {
-                    override fun onQueryTextSubmit(query: String?): Boolean = true
-
-                    override fun onQueryTextChange(newText: String?): Boolean {
-                        filteredContactsList = if (newText.isNullOrEmpty()) {
-                            contactsList
-                        } else {
-                            contactsList.filter {
-                                it.toString().contains(newText, ignoreCase = true)
-                            }
-                        }
-                        contactsAdapter.submitList(filteredContactsList)
-                        return true
-                    }
+            searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+                override fun onQueryTextSubmit(query: String?) = true
+                override fun onQueryTextChange(newText: String?): Boolean {
+                    currentQuery = newText.orEmpty()
+                    applyFilterAndSubmit()
+                    return true
                 }
-            )
+            })
         }
     }
 
     fun submitContacts(contacts: List<SelectableContact>) {
-        this.contactsList = contacts
-        this.filteredContactsList = contacts
-        applyRestoredStateIfPossible() // <- in case restore happened before data arrived
-
-        contactsAdapter.submitListWithCallback(filteredContactsList) { selectedContact ->
-            contactsList.updateCheckedState(selectedContact)
-            filteredContactsList.updateCheckedState(selectedContact)
-        }
-    }
-
-    // ---- state saving/restoring ----
-    override fun onSaveInstanceState(): Parcelable {
-        val superState = super.onSaveInstanceState()
-        val query = binding.searchView.query?.toString().orEmpty()
-        val checkedIds = contactsList.asSequence()
-            .filter { it.isChecked }
-            .map { it.id }
-            .toList()
-        return SavedState(superState, query, checkedIds)
-    }
-
-    override fun onRestoreInstanceState(state: Parcelable?) {
-        if (state is SavedState) {
-            super.onRestoreInstanceState(state.superState)
-            restoredQuery = state.query
-            restoredCheckedIds = state.checkedIds.toSet()
-            applyRestoredStateIfPossible()
+        // apply restored checks (if any) or derive from incoming list
+        if (restoredCheckedIds != null) {
+            selectedIds.clear()
+            selectedIds.addAll(restoredCheckedIds!!)
+            restoredCheckedIds = null
         } else {
-            super.onRestoreInstanceState(state)
+            selectedIds.clear()
+            selectedIds.addAll(contacts.filter { it.isChecked }.map { it.id })
         }
+
+        // never mutate items: rebuild with copies reflecting selection
+        allContacts = contacts.map { it.copy(isChecked = it.id in selectedIds) }
+
+        // use whatever text SearchView currently shows (including restored text)
+        currentQuery = binding.searchView.query?.toString().orEmpty()
+        applyFilterAndSubmit()
     }
 
-    private fun applyRestoredStateIfPossible() {
-        // Restore checks first (both lists share the same element instances)
-        restoredCheckedIds?.let { ids ->
-            if (contactsList.isNotEmpty()) {
-                contactsList.forEach { it.isChecked = it.id in ids }
-                // Don't clear after apply; let next submitContacts also apply if needed
-            }
+    private fun applyFilterAndSubmit() {
+        filteredContacts = filter(allContacts, currentQuery)
+        contactsAdapter.submitListWithCallback(
+            filteredContacts
+        ) { updated ->
+            // keep local UI instant by mirroring, but also forward to VM:
+            allContacts = allContacts.map { if (it.id == updated.id) updated else it }
+            onCheckedChangeListener.invoke(updated.id, updated.isChecked)
         }
-        // Restore query (this triggers filtering via the listener)
-        restoredQuery?.let { q ->
-            binding.searchView.setQuery(q, false) // updates text, doesn't submit search
-        }
+        binding.emptyState.isVisible = filteredContacts.isEmpty()
     }
 
-    // Parcelable holder for our view state
-    private class SavedState : AbsSavedState {
-        val query: String
-        val checkedIds: List<Long>
-
-        constructor(superState: Parcelable?, query: String, checkedIds: List<Long>) : super(
-            superState
-        ) {
-            this.query = query
-            this.checkedIds = checkedIds
-        }
-
-        constructor(src: Parcel, loader: ClassLoader?) : super(src, loader) {
-            query = src.readString() ?: ""
-            val size = src.readInt()
-            val list = ArrayList<Long>(size)
-            repeat(size) { list.add(src.readLong()) }
-            checkedIds = list
-        }
-
-        override fun writeToParcel(out: Parcel, flags: Int) {
-            super.writeToParcel(out, flags)
-            out.writeString(query)
-            out.writeInt(checkedIds.size)
-            checkedIds.forEach { out.writeLong(it) }
-        }
-
-        companion object {
-            @JvmField
-            @Suppress("ParcelCreator")
-            val CREATOR: Parcelable.ClassLoaderCreator<SavedState> =
-                object : Parcelable.ClassLoaderCreator<SavedState> {
-                    override fun createFromParcel(
-                        source: Parcel,
-                        loader: ClassLoader?,
-                    ): SavedState =
-                        SavedState(source, loader)
-
-                    override fun createFromParcel(source: Parcel): SavedState =
-                        SavedState(source, null)
-
-                    override fun newArray(size: Int): Array<SavedState?> = arrayOfNulls(size)
-                }
+    private fun filter(source: List<SelectableContact>, q: String): List<SelectableContact> {
+        if (q.isBlank()) return source
+        val needle = q.trim()
+        return source.filter { c ->
+            c.name.contains(needle, ignoreCase = true) ||
+                    (c.phone?.contains(needle, ignoreCase = true) ?: false)
         }
     }
 }
-
-private fun List<SelectableContact>.updateCheckedState(selectedContact: SelectableContact) =
-    map { if (it.id == selectedContact.id) it.isChecked = selectedContact.isChecked }

@@ -83,7 +83,6 @@ internal class PickerScreenFragment : Fragment() {
                 }
 
                 ui.pikerResultData?.run {
-                    crbResetRingtones.isVisible = false
                     when (this) {
                         is PickerResultData.ManageGroups -> handleSetName(this).also { manageResetButton() }
                         is PickerResultData.GroupNameChange -> handleChangeName(this)

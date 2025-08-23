@@ -1,13 +1,16 @@
 package com.milen.grounpringtonesetter.ui.picker
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.net.toUri
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.ItemContactBinding
+import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 
 internal class ContactsAdapter :
     ListAdapter<SelectableContact, ContactsAdapter.ViewHolder>(DiffCallback) {
@@ -24,6 +27,10 @@ internal class ContactsAdapter :
             binding.run {
                 ctvContactName.text = contact.name
                 ctvContactPhone.text = contact.phone
+                ctvRingTone.text = binding.root.context.getFileNameForUriStr(
+                    contact.ringtoneUriString
+                )
+
                 checkbox.apply {
                     setOnCheckedChangeListener(null)
                     isChecked = contact.isChecked
@@ -94,3 +101,10 @@ internal class ContactsAdapter :
         }
     }
 }
+
+private fun Context?.getFileNameForUriStr(ringtoneUriString: String?): String =
+    this?.let { context ->
+        ringtoneUriString?.toUri()?.getFileNameOrEmpty(context)?.let { ringtoneName ->
+            "${context.getString(R.string.ringtone_lable)}:\u00A0$ringtoneName"
+        }
+    } ?: ""

@@ -14,7 +14,6 @@ import android.text.style.ClickableSpan
 import android.util.TypedValue
 import android.view.View
 import android.widget.TextView
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
@@ -27,8 +26,6 @@ import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.showCustomViewAlertDialog
 import com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
 import com.milen.grounpringtonesetter.databinding.ActivityMainBinding
-import com.milen.grounpringtonesetter.ui.viewmodel.AppViewModel
-import com.milen.grounpringtonesetter.ui.viewmodel.AppViewModelFactory
 import com.milen.grounpringtonesetter.utils.applyNavAndImePadding
 import com.milen.grounpringtonesetter.utils.applyStatusBarPadding
 
@@ -37,10 +34,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var navController: NavController
     private lateinit var binding: ActivityMainBinding
-
-    private val viewModel: AppViewModel by viewModels {
-        AppViewModelFactory.provideFactory(this)
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,8 +60,6 @@ class MainActivity : AppCompatActivity() {
         navController.setGraph(R.navigation.nav_graph)
 
         setUpToolbar()
-
-        viewModel.start()
     }
 
     private fun setUpToolbar() {
@@ -116,7 +107,7 @@ private fun Context.dp(v: Int): Int = (v * resources.displayMetrics.density).toI
 
 private fun Activity.buildSpannableHiperLink(
     linkLabel: String = getString(R.string.click_here),
-    base: String = getString(R.string.mysongplease_promo, linkLabel),
+    base: String = getString(R.string.my_song_please_promo_text, linkLabel),
     uriStr: String = getString(R.string.my_song_please_url),
 ): CharSequence {
     val span = SpannableString(base)

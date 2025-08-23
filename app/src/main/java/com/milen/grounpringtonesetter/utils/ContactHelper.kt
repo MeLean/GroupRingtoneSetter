@@ -22,44 +22,109 @@ internal class ContactsHelper(
     private val tracker: Tracker,
 ) {
 
-    fun getAllPhoneContacts(): List<Contact> {
-        tracker.trackEvent("getAllPhoneContacts called")
-        val contacts = mutableListOf<Contact>()
-        val uri = ContactsContract.Contacts.CONTENT_URI
-        val projection = arrayOf(
-            ContactsContract.Contacts._ID, // Using the appropriate Contacts _ID
+    fun getAllPhoneContacts(accountId: AccountId?): List<Contact> {
+        tracker.trackEvent(
+            "getAllPhoneContacts called",
+            mapOf("account" to (accountId?.label ?: "ALL"))
+        )
+
+        val cr = appContext.contentResolver
+        val contactsProjection = arrayOf(
+            ContactsContract.Contacts._ID,
             ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
             ContactsContract.Contacts.CUSTOM_RINGTONE
         )
 
-        appContext.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-            val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
-            val nameIndex =
-                cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
-            val ringtoneIndex =
-                cursor.getColumnIndexOrThrow(ContactsContract.Contacts.CUSTOM_RINGTONE)
+        fun queryContacts(selection: String?, args: Array<String>?): MutableList<Contact> {
+            val out = mutableListOf<Contact>()
+            cr.query(
+                ContactsContract.Contacts.CONTENT_URI,
+                contactsProjection,
+                selection,
+                args,
+                null
+            )
+                ?.use { cursor ->
+                    val idIdx = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                    val nameIdx =
+                        cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                    val toneIdx =
+                        cursor.getColumnIndexOrThrow(ContactsContract.Contacts.CUSTOM_RINGTONE)
 
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(idIndex)
-                val name = cursor.getString(nameIndex).orEmpty()
-                val phone = appContext.getPrimaryPhoneNumberForContact(id) // Fetch phone number
-                val ringtoneUriStr = cursor.getString(ringtoneIndex)
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getLong(idIdx)
+                        val name = cursor.getString(nameIdx).orEmpty()
+                        val phone = appContext.getPrimaryPhoneNumberForContact(id)
+                        val ringtoneUriStr = cursor.getString(toneIdx)
+                        out.add(
+                            Contact(
+                                id = id,
+                                name = name,
+                                phone = phone,
+                                ringtoneUriStr = ringtoneUriStr
+                            )
+                        )
+                    }
+                } ?: throw NoContactsFoundException()
+            return out
+        }
 
-                contacts.add(
-                    Contact(
-                        id = id,
-                        name = name,
-                        phone = phone,
-                        ringtoneUriStr = ringtoneUriStr
-                    )
+        // If no account was provided: track non-fatal and return ALL contacts (your original behavior)
+        if (accountId == null) {
+            tracker.trackEvent("getAllPhoneContacts accountId null", mapOf("non_fatal" to "true"))
+            return queryContacts(null, null).also {
+                tracker.trackEvent(
+                    "getAllPhoneContacts loaded",
+                    mapOf("count" to it.size.toString(), "account" to "ALL")
                 )
             }
-        } ?: throw NoContactsFoundException()
+        }
 
-        return contacts.also {
+        // 1) Find contact IDs that belong to the given account (RawContacts -> CONTACT_ID)
+        val rawSel = "${ContactsContract.RawContacts.ACCOUNT_NAME}=? AND " +
+                "${ContactsContract.RawContacts.ACCOUNT_TYPE}=? AND " +
+                "${ContactsContract.RawContacts.DELETED}=0"
+        val rawArgs = arrayOf(accountId.name, accountId.type)
+
+        val contactIds = LinkedHashSet<Long>() // stable order, dedup
+        cr.query(
+            ContactsContract.RawContacts.CONTENT_URI,
+            arrayOf(ContactsContract.RawContacts.CONTACT_ID),
+            rawSel,
+            rawArgs,
+            null
+        )?.use { c ->
+            val idx = c.getColumnIndexOrThrow(ContactsContract.RawContacts.CONTACT_ID)
+            while (c.moveToNext()) contactIds.add(c.getLong(idx))
+        }
+
+        if (contactIds.isEmpty()) {
             tracker.trackEvent(
                 "getAllPhoneContacts loaded",
-                mapOf("count" to it.size.toString())
+                mapOf("count" to "0", "account" to accountId.label)
+            )
+            return emptyList()
+        }
+
+        // 2) Query Contacts for those IDs (batched to avoid SQLite arg limits ~999)
+        val results = mutableListOf<Contact>()
+        val idsList = contactIds.toList()
+        val batchSize = 900
+        var start = 0
+        while (start < idsList.size) {
+            val end = minOf(start + batchSize, idsList.size)
+            val batch = idsList.subList(start, end)
+            val placeholders = batch.joinToString(",") { "?" }
+            val sel = "${ContactsContract.Contacts._ID} IN ($placeholders)"
+            val args = batch.map { it.toString() }.toTypedArray()
+            results += queryContacts(sel, args)
+            start = end
+        }
+
+        return results.also {
+            tracker.trackEvent(
+                "getAllPhoneContacts loaded",
+                mapOf("count" to it.size.toString(), "account" to accountId.label)
             )
         }
     }

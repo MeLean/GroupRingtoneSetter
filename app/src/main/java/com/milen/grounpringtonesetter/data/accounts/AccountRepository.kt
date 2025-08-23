@@ -13,7 +13,7 @@ internal interface AccountRepository {
     val selected: StateFlow<AccountId?>          // currently selected single account or null
     val available: StateFlow<List<AccountId>>    // available accounts (empty until permission granted)
 
-    fun refreshAvailable()                       // call ONLY after READ_CONTACTS granted
+    fun refreshAvailable()
     fun selectNewAccount(account: AccountId)
     fun clearSelection()
     fun cacheKeyOrAll(): String

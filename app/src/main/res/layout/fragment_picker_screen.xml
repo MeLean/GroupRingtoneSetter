@@ -24,6 +24,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         app:buttonLabel="@string/reset_all_ringtones"
+        android:visibility="gone"
         app:layout_constraintEnd_toEndOf="@+id/civNameInput"
         app:layout_constraintTop_toBottomOf="@+id/civNameInput" />
 

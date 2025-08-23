@@ -46,5 +46,6 @@
     <string name="pick_account_contacts">Выберите аккаунты, чьи контакты будет использовать приложение</string>
     <string name="pick_account_btn_label">Выбрать аккаунт</string>
     <string name="click_here">нажмите здесь</string>
-    <string name="mysongplease_promo">Получите рингтон, сделанный специально для вас или вашего близкого — %1$s, чтобы попробовать наше музыкальное приложение.</string>
+    <string name="my_song_please_promo_text">Получите рингтон, сделанный специально для вас или вашего близкого — %1$s, чтобы попробовать наше музыкальное приложение.</string>
+    <string name="ringtone_lable">мелодия звонка</string>
 </resources>

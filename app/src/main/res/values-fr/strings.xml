@@ -46,5 +46,6 @@
     <string name="pick_account_contacts">Sélectionnez les comptes dont l’application utilisera les contacts</string>
     <string name="pick_account_btn_label">Choisir un compte</string>
     <string name="click_here">cliquez ici</string>
-    <string name="mysongplease_promo">Obtenez une sonnerie faite spécialement pour vous ou pour un proche — %1$s pour essayer notre application musicale.</string>
+    <string name="my_song_please_promo_text">Obtenez une sonnerie faite spécialement pour vous ou pour un proche — %1$s pour essayer notre application musicale.</string>
+    <string name="ringtone_lable">sonnerie</string>
 </resources>

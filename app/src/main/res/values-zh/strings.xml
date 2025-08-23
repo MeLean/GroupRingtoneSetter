@@ -46,5 +46,6 @@
     <string name="pick_account_contacts">选择应用将使用其联系人的账户</string>
     <string name="pick_account_btn_label">选择账户</string>
     <string name="click_here">点击这里</string>
-    <string name="mysongplease_promo">为你或你所爱的人定制专属铃声 — %1$s 试用我们的音乐应用。</string>
+    <string name="my_song_please_promo_text">为你或你所爱的人定制专属铃声 — %1$s 试用我们的音乐应用。</string>
+    <string name="ringtone_lable">铃声</string>
 </resources>

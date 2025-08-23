@@ -106,17 +106,16 @@ internal class HomeViewModel(
     fun onAccountsSelected(selected: AccountId?) {
         tracker.trackEvent("onAccountsSelected", mapOf("account" to "$selected"))
         selected?.let {
-            launch {
-                showLoading()
-                runCatching {
-                    accountRepo.selectNewAccount(selected)
-                    contactsRepo.load()
-                }.onFailure { error ->
-                    handleError(error)
-                }
-                hideLoading()
-            }
-        } ?: _state.update { it.copy(isLoading = false) }
+            showLoading()
+            launchOnIoResultInMain(
+                work = { accountRepo.selectNewAccount(selected) },
+                onError = ::handleError,
+                onSuccess = { updateGroupList() }
+            )
+        } ?: run {
+            tracker.trackError(RuntimeException("Account selected with null"))
+            _events.trySend(HomeEvent.ShowErrorById(R.string.something_went_wrong))
+        }
     }
 
     fun onGroupDeleted(labelItem: LabelItem) {
@@ -197,7 +196,7 @@ internal class HomeViewModel(
         launch {
             showLoading()
 
-            runCatching { contactsRepo.load() }
+            runCatching { contactsRepo.loadAccountLabels() }
                 .onFailure { error ->
                     handleError(error)
                 }

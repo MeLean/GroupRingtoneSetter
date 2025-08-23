@@ -7,19 +7,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 internal fun <T> ViewModel.launchOnIoResultInMain(
-    work: suspend CoroutineScope.() -> T,
+    work: suspend () -> T,
     onError: (Throwable) -> Unit = {},
     onSuccess: (T) -> Unit = {},
-) {
-    launch {
-        try {
-            val data = withContext(Dispatchers.IO) { work() }
-            withContext(Dispatchers.Main) { onSuccess(data) }
-        } catch (e: Throwable) {
-            onError(e)
-        }
+    onFinally: () -> Unit = {},
+    ioDispatcher: kotlin.coroutines.CoroutineContext = Dispatchers.IO,
+): Job = viewModelScope.launch {
+    try {
+        val data = withContext(ioDispatcher) { work() }
+        onSuccess(data)
+    } catch (e: Throwable) {
+        if (e is CancellationException) throw e
+        onError(e)
+    } finally {
+        onFinally()
     }
 }
 

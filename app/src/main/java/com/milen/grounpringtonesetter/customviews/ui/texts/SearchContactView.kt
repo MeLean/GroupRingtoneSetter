@@ -40,7 +40,9 @@ internal class SearchContactView @JvmOverloads constructor(
                         filteredContactsList = if (newText.isNullOrEmpty()) {
                             contactsList
                         } else {
-                            contactsList.filter { it.name.contains(newText, ignoreCase = true) }
+                            contactsList.filter {
+                                it.toString().contains(newText, ignoreCase = true)
+                            }
                         }
                         contactsAdapter.submitList(filteredContactsList)
                         return true

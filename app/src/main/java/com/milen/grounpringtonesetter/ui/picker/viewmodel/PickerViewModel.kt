@@ -44,7 +44,7 @@ internal class PickerViewModel(
         tracker.trackEvent("Picker_startManageContacts")
         showLoading()
         launchOnIoResultInMain(
-            work = { contactsRepo.getAllPhoneContacts() },
+            work = { contactsRepo.getAllCachedPhoneContacts() },
             onError = ::handleError,
             onSuccess = { all ->
                 _state.update {

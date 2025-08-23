@@ -46,5 +46,6 @@
     <string name="pick_account_contacts">Select the accounts whose contacts the app will use</string>
     <string name="pick_account_btn_label">Pick up account</string>
     <string name="click_here">click here</string>
-    <string name="mysongplease_promo">Get a ringtone made just for you or your loved one — %1$s to try our music app.</string>
+    <string name="my_song_please_promo_text">Get a ringtone made just for you or your loved one — %1$s to try our music app.</string>
+    <string name="ringtone_lable">ringtone</string>
 </resources>

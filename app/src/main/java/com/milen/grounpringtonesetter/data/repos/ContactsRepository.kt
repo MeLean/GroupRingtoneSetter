@@ -3,6 +3,7 @@ package com.milen.grounpringtonesetter.data.repos
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
+import com.milen.grounpringtonesetter.data.prefs.ContactsCacheStore
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.Tracker
@@ -15,12 +16,14 @@ import kotlinx.coroutines.sync.withLock
 internal interface ContactsRepository {
     val labelsFlow: StateFlow<List<LabelItem>>
 
-    suspend fun load()
+    suspend fun loadAccountLabels()
 
     suspend fun setGroupRingtone(group: LabelItem, uriStr: String, fileName: String)
     fun deleteGroup(groupId: Long)
 
-    fun getAllPhoneContacts(): List<Contact>
+    fun refreshAllPhoneContacts(): List<Contact>
+
+    fun getAllCachedPhoneContacts(): List<Contact>
 
     fun createGroup(name: String)
 
@@ -41,13 +44,14 @@ internal class ContactsRepositoryImpl(
     private val tracker: Tracker,
     private val prefs: EncryptedPreferencesHelper,
     private val accountsProvider: () -> AccountId?,
+    private val contactsCacheStore: ContactsCacheStore = ContactsCacheStore,
 ) : ContactsRepository {
 
     private val lock = Mutex()
     private val _labels = MutableStateFlow<List<LabelItem>>(emptyList())
     override val labelsFlow: StateFlow<List<LabelItem>> = _labels
 
-    override suspend fun load() {
+    override suspend fun loadAccountLabels() {
         return lock.withLock {
             val selected = accountsProvider()
             val fresh = if (selected == null) {
@@ -111,22 +115,28 @@ internal class ContactsRepositoryImpl(
         newSelected: List<Contact>,
         oldSelected: List<Contact>,
     ) {
-        helper.addAllContactsToLabel(groupId, newSelected)
-        val excluded = oldSelected.filterNot { o -> newSelected.any { it.id == o.id } }
-        helper.removeAllContactsFromLabel(groupId, excluded)
-        tracker.trackEvent("update_group_members")
+        val oldIds =
+            HashSet<Long>(oldSelected.size).apply { oldSelected.forEach { add(it.id) } }
+        val newIds =
+            HashSet<Long>(newSelected.size).apply { newSelected.forEach { add(it.id) } }
 
-        val updated = _labels.value.map { label ->
-            if (label.id == groupId) {
-                label.copy(contacts = newSelected)
-            } else {
-                label
+        val toAdd =
+            if (newSelected.isEmpty()) emptyList() else newSelected.filter { it.id !in oldIds }
+        val toRemove =
+            if (oldSelected.isEmpty()) emptyList() else oldSelected.filter { it.id !in newIds }
+
+        if (toAdd.isNotEmpty()) helper.addAllContactsToLabel(groupId, toAdd)
+        if (toRemove.isNotEmpty()) helper.removeAllContactsFromLabel(groupId, toRemove)
+
+        tracker.trackEvent("update_group_members")
+        _labels.update { labels ->
+            labels.map { label ->
+                if (label.id == groupId) {
+                    label.copy(contacts = newSelected.distinctBy { it.id })
+                } else label
             }
         }
-
-        _labels.update { updated }
     }
-
     override fun clearAllRingtones() {
         helper.clearAllRingtoneUris()
         tracker.trackEvent("clear_all_ringtones")
@@ -136,8 +146,30 @@ internal class ContactsRepositoryImpl(
     }
 
 
-    override fun getAllPhoneContacts(): List<Contact> =
-        helper.getAllPhoneContacts() // TODO GET CONTACTS ONLY FOR THE CURREND ACCOUNT accountprovider
+    override fun refreshAllPhoneContacts(): List<Contact> {
+        val accountId = accountsProvider()
+        tracker.trackEvent("getAllPhoneContacts: $accountId")
+        val contacts = helper.getAllPhoneContacts(accountId)
+
+        contactsCacheStore.write(
+            prefs = prefs,
+            accountId = accountId,
+            contacts = contacts
+        )
+
+        return contacts
+    }
+
+    override fun getAllCachedPhoneContacts(): List<Contact> {
+        val accountId = accountsProvider()
+
+        val cachedContacts = contactsCacheStore.read(
+            prefs = prefs,
+            accountId = accountId,
+        )
+
+        return cachedContacts ?: refreshAllPhoneContacts()
+    }
 
 
     private fun updateGroupRingtone(

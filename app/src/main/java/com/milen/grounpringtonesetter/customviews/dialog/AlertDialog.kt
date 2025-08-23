@@ -2,8 +2,12 @@ package com.milen.grounpringtonesetter.customviews.dialog
 
 import android.app.Activity
 import android.view.View
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import com.milen.grounpringtonesetter.R
 
 internal data class ButtonData(
@@ -17,27 +21,27 @@ internal fun Activity.showAlertDialog(
     cancelButtonData: ButtonData? = null,
     confirmButtonData: ButtonData,
 ) {
-    val dialog = AlertDialog.Builder(this, R.style.AlertDialogCustom)
-        .setTitle(titleResId)
-        .setMessage(message)
-        .setPositiveButton(confirmButtonData.textId) { d, _ ->
-            d.dismiss(); confirmButtonData.onClick()
-        }
-        .apply {
-            cancelButtonData?.let {
-                setNegativeButton(it.textId) { d, _ -> d.dismiss(); it.onClick() }
+    showDialogSafe {
+        setTitle(titleResId)
+        setMessage(message)
+        setPositiveButton(confirmButtonData.textId) { d, _ ->
+            try {
+                confirmButtonData.onClick()
+            } finally {
+                d.dismiss()
             }
         }
-        .create()
-
-    dialog.show()
-    val lp = dialog.window?.attributes
-    lp?.let {
-        dialog.window?.attributes = it
+        cancelButtonData?.let { data ->
+            setNegativeButton(data.textId) { d, _ ->
+                try {
+                    data.onClick()
+                } finally {
+                    d.dismiss()
+                }
+            }
+        }
     }
-    if (isFinishing || isDestroyed) return
 }
-
 
 internal fun Activity.showCustomViewAlertDialog(
     @StringRes titleResId: Int,
@@ -45,23 +49,69 @@ internal fun Activity.showCustomViewAlertDialog(
     cancelButtonData: ButtonData? = null,
     confirmButtonData: ButtonData,
 ) {
-    val dialog = AlertDialog.Builder(this, R.style.AlertDialogCustom)
-        .setTitle(titleResId)
-        .setView(customView)
-        .setPositiveButton(confirmButtonData.textId) { d, _ ->
-            d.dismiss(); confirmButtonData.onClick()
-        }
-        .apply {
-            cancelButtonData?.let {
-                setNegativeButton(it.textId) { d, _ -> d.dismiss(); it.onClick() }
+    showDialogSafe {
+        setTitle(titleResId)
+        setView(customView)
+        setPositiveButton(confirmButtonData.textId) { d, _ ->
+            try {
+                confirmButtonData.onClick()
+            } finally {
+                d.dismiss()
             }
         }
+        cancelButtonData?.let { data ->
+            setNegativeButton(data.textId) { d, _ ->
+                try {
+                    data.onClick()
+                } finally {
+                    d.dismiss()
+                }
+            }
+        }
+    }
+}
+
+/** Shared, lifecycle-safe dialog runner to avoid BadTokenException + window leaks. */
+private fun Activity.showDialogSafe(
+    build: AlertDialog.Builder.() -> Unit,
+): AlertDialog? {
+    if (isFinishing || isDestroyed) return null
+
+    val dialog = AlertDialog.Builder(this, R.style.AlertDialogCustom)
+        .apply(build)
         .create()
 
-    dialog.show()
-    val lp = dialog.window?.attributes
-    lp?.let {
-        dialog.window?.attributes = it
+    if (isFinishing || isDestroyed) return null
+
+    if (this is ComponentActivity) {
+        val act = this
+        val observer = object : DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                try {
+                    if (dialog.isShowing) dialog.dismiss()
+                } catch (_: Throwable) {
+                }
+                act.lifecycle.removeObserver(this)
+            }
+        }
+        act.lifecycle.addObserver(observer)
+        dialog.setOnDismissListener { act.lifecycle.removeObserver(observer) }
     }
-    if (isFinishing || isDestroyed) return
+
+    dialog.setOnShowListener {
+        if (isFinishing || isDestroyed) {
+            try {
+                dialog.dismiss()
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
+    return try {
+        dialog.show()
+        dialog.window?.let { win -> win.attributes = win.attributes }
+        dialog
+    } catch (_: WindowManager.BadTokenException) {
+        null
+    }
 }

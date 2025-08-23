@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 internal class ContactRingtoneUpdateHelper(
     private val tracker: Tracker,
     private val preferenceHelper: EncryptedPreferencesHelper,
+    private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider,
 ) {
 
     /**
@@ -38,7 +39,7 @@ internal class ContactRingtoneUpdateHelper(
         }
 
         // Try to find existing file or copy it to public MediaStore
-        val copiedUri = withContext(Dispatchers.IO) {
+        val copiedUri = withContext(dispatcherProvider.io) {
             copyRingtoneToScopedMedia(context, sourceUri)
         }
 

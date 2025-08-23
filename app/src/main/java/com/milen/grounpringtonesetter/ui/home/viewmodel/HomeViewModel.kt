@@ -2,6 +2,7 @@ package com.milen.grounpringtonesetter.ui.home.viewmodel
 
 import android.app.Activity
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
@@ -15,6 +16,8 @@ import com.milen.grounpringtonesetter.data.accounts.AccountRepository
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
+import com.milen.grounpringtonesetter.utils.DefaultDispatcherProvider
+import com.milen.grounpringtonesetter.utils.DispatcherProvider
 import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launch
 import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
@@ -35,6 +38,7 @@ internal class HomeViewModel(
     private val billing: BillingEntitlementManager,
     private val contactsRepo: ContactsRepository,
     private val accountRepo: AccountRepository,
+    private val dispatchers: DispatcherProvider = DefaultDispatcherProvider,
 ) : ViewModel() {
 
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
@@ -202,6 +206,7 @@ internal class HomeViewModel(
                 }
 
             hideLoading()
+            Log.d("TEST_IT", "Update contacts loading hiden")
         }
     }
 
@@ -212,6 +217,7 @@ internal class HomeViewModel(
         // If we already have a selection, just ensure data loading happens.
         if (accountRepo.selected.value != null) {
             updateGroupList()
+            launch(dispatchers.io) { contactsRepo.refreshAllPhoneContacts() }
             return
         }
 
@@ -267,6 +273,9 @@ internal class HomeViewModel(
                     showInterstitialAd()
                 }
             }
+        }
+        launch(dispatchers.io) {
+            contactsRepo.refreshAllPhoneContacts()
         }
     }
 

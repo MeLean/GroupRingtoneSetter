@@ -27,7 +27,7 @@ internal interface ContactsRepository {
     suspend fun renameGroup(groupId: Long, newName: String)
     suspend fun deleteGroup(groupId: Long)
 
-    fun updateGroupMembers(
+    suspend fun updateGroupMembers(
         groupId: Long,
         newSelected: List<Contact>,
         oldSelected: List<Contact>,
@@ -112,7 +112,7 @@ internal class ContactsRepositoryImpl(
         _labels.update { updated }
     }
 
-    override fun updateGroupMembers(
+    override suspend fun updateGroupMembers(
         groupId: Long,
         newSelected: List<Contact>,
         oldSelected: List<Contact>,
@@ -139,6 +139,7 @@ internal class ContactsRepositoryImpl(
             }
         }
     }
+
     override fun clearAllRingtones() {
         helper.clearAllRingtoneUris()
         tracker.trackEvent("clear_all_ringtones")

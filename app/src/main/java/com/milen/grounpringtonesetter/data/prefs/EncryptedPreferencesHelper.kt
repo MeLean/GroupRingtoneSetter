@@ -16,4 +16,11 @@ internal class EncryptedPreferencesHelper private constructor(
     fun getString(key: String, defaultValue: String? = null): String? {
         return secure.getString(key, defaultValue)
     }
+
+    suspend fun saveStringAsync(key: String, value: String) = secure.putStringAsync(key, value)
+    
+    suspend fun getStringAsync(key: String, defaultValue: String? = null): String? =
+        secure.getStringAsync(key, defaultValue)
+
+    suspend fun removeAsync(key: String) = secure.removeAsync(key)
 }

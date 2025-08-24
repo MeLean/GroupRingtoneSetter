@@ -3,7 +3,6 @@ package com.milen.grounpringtonesetter.data.repos
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
-import com.milen.grounpringtonesetter.data.prefs.ContactsCacheStore
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
@@ -44,7 +43,6 @@ internal class ContactsRepositoryImpl(
     private val tracker: Tracker,
     private val prefs: EncryptedPreferencesHelper,
     private val accountsProvider: () -> AccountId?,
-    private val contactsCacheStore: ContactsCacheStore = ContactsCacheStore,
 ) : ContactsRepository {
 
     private val lock = Mutex()
@@ -161,13 +159,6 @@ internal class ContactsRepositoryImpl(
         val accountId = accountsProvider()
         tracker.trackEvent("getAllPhoneContacts: $accountId")
         val contacts = helper.getAllPhoneContacts(accountId)
-
-        contactsCacheStore.write(
-            prefs = prefs,
-            accountId = accountId,
-            contacts = contacts
-        )
-
         _contacts.update { contacts }
     }
 

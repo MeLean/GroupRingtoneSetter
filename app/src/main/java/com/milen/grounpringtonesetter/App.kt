@@ -2,9 +2,9 @@ package com.milen.grounpringtonesetter
 
 import android.app.Application
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
+import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
@@ -33,7 +33,7 @@ class App : Application() {
 
 
         billingManager = BillingEntitlementManager(this)
-        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+        CoroutineScope(SupervisorJob() + DispatchersProvider.io).launch {
             runCatching {
                 billingManager.start()
             }.onFailure {

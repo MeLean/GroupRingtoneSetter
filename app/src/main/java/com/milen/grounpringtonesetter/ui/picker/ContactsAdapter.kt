@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.ItemContactBinding
+import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,7 @@ internal class ContactsAdapter :
     private val inFlight = Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
 
     // Background scope for resolving labels
-    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val ioScope = CoroutineScope(SupervisorJob() + DispatchersProvider.io)
 
     init {
         setHasStableIds(true)
@@ -80,7 +81,7 @@ internal class ContactsAdapter :
             ioScope.launch {
                 try {
                     val ctx = root.context.applicationContext
-                    val name = withContext(Dispatchers.IO) {
+                    val name = withContext(DispatchersProvider.io) {
                         runCatching { uri.toUri().getFileNameOrEmpty(ctx) }
                             .getOrNull()
                             ?.takeIf { it.isNotBlank() }

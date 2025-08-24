@@ -2,8 +2,9 @@ package com.milen.grounpringtonesetter.data.accounts
 
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.data.prefs.SelectedAccountsStore
+import com.milen.grounpringtonesetter.utils.DispatcherProvider
+import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,7 +25,8 @@ internal interface AccountRepository {
 internal class AccountRepositoryImpl(
     private val prefs: EncryptedPreferencesHelper,
     private val resolver: AccountsResolver,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val dispatchers: DispatcherProvider = DispatchersProvider,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + dispatchers.default),
 ) : AccountRepository {
 
     private val _selected = MutableStateFlow(initialSelection())
@@ -32,9 +34,6 @@ internal class AccountRepositoryImpl(
 
     private val _available = MutableStateFlow<List<AccountId>>(emptyList())
     override val available: StateFlow<List<AccountId>> = _available
-
-    // IMPORTANT: No init{ refreshAvailable() } here.
-    // We should not touch Contacts provider before READ_CONTACTS is granted.
 
     private fun initialSelection(): AccountId? {
         val first = SelectedAccountsStore.read(prefs).firstOrNull() ?: return null
@@ -52,13 +51,23 @@ internal class AccountRepositoryImpl(
     }
 
     override fun selectNewAccount(account: AccountId) {
-        SelectedAccountsStore.write(prefs, setOf(account.raw))
         _selected.value = account
+        scope.launch {
+            try {
+                SelectedAccountsStore.writeAsync(prefs, setOf(account.raw))
+            } catch (_: Throwable) {
+            }
+        }
     }
 
     override fun clearSelection() {
-        SelectedAccountsStore.write(prefs, emptySet())
         _selected.value = null
+        scope.launch {
+            try {
+                SelectedAccountsStore.clearAsync(prefs)
+            } catch (_: Throwable) {
+            }
+        }
     }
 
     override fun cacheKeyOrAll(): String =

@@ -8,19 +8,6 @@ internal object SelectedAccountsStore {
         val raw = prefs.getString(KEY_SELECTED_ACCOUNTS) ?: return emptySet()
         return raw.split("|").filter { it.isNotBlank() }.toSet()
     }
-
-    fun write(prefs: EncryptedPreferencesHelper, accounts: Set<String>) {
-        val normalized = accounts.map { it.trim() }.filter { it.isNotEmpty() }.sorted()
-        prefs.saveString(KEY_SELECTED_ACCOUNTS, normalized.joinToString("|"))
-    }
-
-    fun clear(prefs: EncryptedPreferencesHelper) {
-        prefs.saveString(KEY_SELECTED_ACCOUNTS, "")
-    }
-
-    fun hasSelection(prefs: EncryptedPreferencesHelper): Boolean =
-        read(prefs).isNotEmpty()
-
     /**
      * Stable key for snapshot/cache bucketing.
      * If nothing selected yet, we fall back to "ALL" to preserve current behavior.
@@ -30,9 +17,12 @@ internal object SelectedAccountsStore {
         return if (set.isEmpty()) "ALL" else set.sorted().joinToString("|")
     }
 
-    fun toTypeNamePairs(accounts: Set<String>): List<Pair<String, String>> =
-        accounts.mapNotNull { raw ->
-            val i = raw.indexOf(':')
-            if (i > 0 && i < raw.length - 1) raw.substring(0, i) to raw.substring(i + 1) else null
-        }
+    suspend fun writeAsync(prefs: EncryptedPreferencesHelper, accounts: Set<String>) {
+        val normalized = accounts.map { it.trim() }.filter { it.isNotEmpty() }.sorted()
+        prefs.saveStringAsync(KEY_SELECTED_ACCOUNTS, normalized.joinToString("|"))
+    }
+
+    suspend fun clearAsync(prefs: EncryptedPreferencesHelper) {
+        prefs.removeAsync(KEY_SELECTED_ACCOUNTS)
+    }
 }

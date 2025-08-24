@@ -50,7 +50,7 @@ internal class ContactRingtoneUpdateHelper(
             getNormalizedFileName(context, sourceUri) // keep same behavior as before
         }
         withContext(dispatcherProvider.io) {
-            preferenceHelper.saveString(uriToSet, fileName) // TODO Step 7: migrate to suspend API
+            preferenceHelper.saveString(uriToSet, fileName)
         }
 
         // 4) Try to set the contact's custom ringtone

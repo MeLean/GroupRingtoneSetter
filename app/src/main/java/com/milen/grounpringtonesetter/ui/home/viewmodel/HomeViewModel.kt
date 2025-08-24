@@ -17,9 +17,9 @@ import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
 import com.milen.grounpringtonesetter.utils.DefaultDispatcherProvider
 import com.milen.grounpringtonesetter.utils.DispatcherProvider
+import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launch
-import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class HomeViewModel(
@@ -112,11 +113,19 @@ internal class HomeViewModel(
         tracker.trackEvent("onAccountsSelected", mapOf("account" to "$selected"))
         selected?.let {
             showLoading()
-            launchOnIoResultInMain(
-                work = { accountRepo.selectNewAccount(selected) },
-                onError = ::handleError,
-                onSuccess = { updateGroupList() }
-            )
+            viewModelScope.launch {
+                val result = runCatching {
+                    withContext(DispatchersProvider.io) {
+                        accountRepo.selectNewAccount(selected)
+                    }
+                }
+                result.onSuccess {
+                    updateGroupList()
+                }.onFailure { e ->
+                    if (e is CancellationException) throw e
+                    handleError(e)
+                }
+            }
         } ?: run {
             tracker.trackError(RuntimeException("Account selected with null"))
             _events.trySend(HomeEvent.ShowErrorById(R.string.something_went_wrong))
@@ -124,11 +133,19 @@ internal class HomeViewModel(
     }
 
     fun onGroupDeleted(labelItem: LabelItem) {
-        launchOnIoResultInMain(
-            work = { contactsRepo.deleteGroup(labelItem.id) },
-            onError = ::handleError,
-            onSuccess = { showDoneMessage() }
-        )
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(DispatchersProvider.io) {
+                    contactsRepo.deleteGroup(labelItem.id)
+                }
+            }
+            result.onSuccess {
+                showDoneMessage()
+            }.onFailure { e ->
+                if (e is CancellationException) throw e
+                handleError(e)
+            }
+        }
     }
 
     fun onRingtoneChosen(uri: Uri, fileName: String) {
@@ -143,20 +160,24 @@ internal class HomeViewModel(
 
         showLoading()
 
-        launchOnIoResultInMain(
-            work = {
-                contactsRepo.setGroupRingtone(
-                    group = group,
-                    uriStr = uri.toString(),
-                    fileName = fileName,
-                )
-            },
-            onError = ::handleError,
-            onSuccess = {
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(DispatchersProvider.io) {
+                    contactsRepo.setGroupRingtone(
+                        group = group,
+                        uriStr = uri.toString(),
+                        fileName = fileName
+                    )
+                }
+            }
+            result.onSuccess {
                 _selectingGroup = null
                 showInterstitialAdIfNeededAndManageLoading()
+            }.onFailure { e ->
+                if (e is CancellationException) throw e
+                handleError(e)
             }
-        )
+        }
     }
 
     fun setUpGroupNameEditing(group: LabelItem) {

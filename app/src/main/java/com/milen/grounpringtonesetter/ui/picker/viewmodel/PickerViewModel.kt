@@ -9,8 +9,8 @@ import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.ui.picker.PickerEvent
 import com.milen.grounpringtonesetter.ui.picker.PickerScreenState
 import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
+import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
-import com.milen.grounpringtonesetter.utils.launchOnIoResultInMain
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 internal class PickerViewModel(
     private val tracker: Tracker,
@@ -111,14 +113,20 @@ internal class PickerViewModel(
             return
         }
         showLoading()
-        launchOnIoResultInMain(
-            work = { contactsRepo.renameGroup(group.id, newName) },
-            onError = ::handleError,
-            onSuccess = {
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(DispatchersProvider.io) {
+                    contactsRepo.renameGroup(group.id, newName)
+                }
+            }
+            result.onSuccess {
                 tracker.trackEvent("Picker_rename_success")
                 closeScreen()
+            }.onFailure { e ->
+                if (e is CancellationException) throw e
+                handleError(e)
             }
-        )
+        }
     }
 
     fun confirmManageContacts(group: LabelItem) {
@@ -126,14 +134,20 @@ internal class PickerViewModel(
         val newSelected = cur.selectedContacts
         showLoading()
 
-        launchOnIoResultInMain(
-            work = { contactsRepo.updateGroupMembers(group.id, newSelected, group.contacts) },
-            onError = ::handleError,
-            onSuccess = {
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(DispatchersProvider.io) {
+                    contactsRepo.updateGroupMembers(group.id, newSelected, group.contacts)
+                }
+            }
+            result.onSuccess {
                 tracker.trackEvent("Picker_manageContacts_success")
                 closeScreen()
+            }.onFailure { e ->
+                if (e is CancellationException) throw e
+                handleError(e)
             }
-        )
+        }
     }
 
     fun confirmCreateGroup(nameRaw: String) {
@@ -143,26 +157,39 @@ internal class PickerViewModel(
             return
         }
         showLoading()
-        launchOnIoResultInMain(
-            work = { contactsRepo.createGroup(name) },
-            onError = ::handleError,
-            onSuccess = {
+
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(DispatchersProvider.io) {
+                    contactsRepo.createGroup(name)
+                }
+            }
+            result.onSuccess {
                 tracker.trackEvent("Picker_createGroup_success")
                 closeScreen()
+            }.onFailure { e ->
+                if (e is CancellationException) throw e
+                handleError(e)
             }
-        )
+        }
     }
 
     fun resetGroupRingtones() {
         showLoading()
-        launchOnIoResultInMain(
-            work = { contactsRepo.clearAllRingtones() },
-            onError = ::handleError,
-            onSuccess = {
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(DispatchersProvider.io) {
+                    contactsRepo.clearAllRingtones()
+                }
+            }
+            result.onSuccess {
                 tracker.trackEvent("Picker_resetAllRingtones_success")
                 closeScreen()
+            }.onFailure { e ->
+                if (e is CancellationException) throw e
+                handleError(e)
             }
-        )
+        }
     }
 
     fun close() {

@@ -10,6 +10,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
+@Deprecated(
+    message = "Use viewModelScope.launch{ runCatching{ withContext(DispatchersProvider.io){/* heavy work */} }.onSuccess{ /* UI */ }.onFailure{ /* errors */ } }",
+    replaceWith = ReplaceWith("viewModelScope.launch{ /* runCatching + withContext(DispatchersProvider.io) */ }")
+)
 internal fun <T> ViewModel.launchOnIoResultInMain(
     work: suspend () -> T,
     onError: (Throwable) -> Unit = {},

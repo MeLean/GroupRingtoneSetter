@@ -11,9 +11,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import kotlinx.coroutines.Dispatchers
+import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -21,18 +22,20 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-// DataStore instance (file will be secure_prefs.preferences_pb)
+// DataStore instance (file: secure_prefs.preferences_pb)
 private val Application.secureDataStore by preferencesDataStore(name = "secure_prefs")
 
 /**
- * Migrates once from EncryptedSharedPreferences to DataStore(with manual AES-GCM encryption),
- * keeps the SAME keys to avoid data loss, and then uses only the new path.
- * Public API mirrors the old helper.
+ * Migrates once from EncryptedSharedPreferences to DataStore (manual AES-GCM),
+ * keeps the SAME keys to avoid data loss, then uses only the new path.
+ * Public sync API remains for early app init; new suspend API is preferred elsewhere.
  */
-internal class SecurePreferences(private val app: Application) {
+internal class SecurePreferences(
+    private val app: Application,
+    private val dispatcherProvider: DispatchersProvider = DispatchersProvider,
+) {
 
-    // --- LEGACY (read-only) ----
-    // Kept only for migration. Same file name and schemes as before.
+    // --- LEGACY (read-only, for one-time migration) ---
     @Suppress("DEPRECATION")
     private val legacyPrefs: SharedPreferences by lazy {
         val masterKey = MasterKey.Builder(app)
@@ -41,7 +44,7 @@ internal class SecurePreferences(private val app: Application) {
 
         EncryptedSharedPreferences.create(
             app,
-            "encrypted_prefs", // your original file name
+            "encrypted_prefs",
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
@@ -99,12 +102,15 @@ internal class SecurePreferences(private val app: Application) {
     // --- MIGRATION FLAG ---
     private val migrated = booleanPreferencesKey("__secure_prefs_migrated_v1")
 
-    // Helpers for typed keys (keeps your original key names)
     private fun sKey(name: String) = stringPreferencesKey(name)
 
-    /** Call once at app start (e.g., in Application.onCreate()). */
-    fun initMigration() {
-        runBlocking(Dispatchers.IO) {
+    // -------------------------
+    // INIT MIGRATION
+    // -------------------------
+
+    /** Suspend variant (preferred): run at startup from a coroutine. */
+    suspend fun initMigrationAsync() {
+        withContext(dispatcherProvider.io) {
             val already = app.secureDataStore.data.first()[migrated] == true
             if (!already) {
                 val all = legacyPrefs.all
@@ -114,7 +120,7 @@ internal class SecurePreferences(private val app: Application) {
                             val enc = encryptToBase64(v.encodeToByteArray())
                             ds[sKey(k)] = enc
                         }
-                        // If you used other types before, handle them here (encode to String, then encrypt)
+                        // If you had other types, encode them to String and encrypt similarly.
                     }
                     ds[migrated] = true
                 }
@@ -123,30 +129,74 @@ internal class SecurePreferences(private val app: Application) {
         }
     }
 
-    // --- PUBLIC API (same as before) ---
+    /** Sync wrapper (kept for convenience in early app init if needed). */
+    fun initMigration() {
+        runBlocking { initMigrationAsync() }
+    }
+
+    // -------------------------
+    // PUBLIC SYNC API (unchanged signatures)
+    // These delegate to the suspend API internally.
+    // -------------------------
+
     fun saveString(key: String, value: String) {
-        runBlocking(Dispatchers.IO) {
+        runBlocking { putStringAsync(key, value) }
+    }
+
+    fun getString(key: String, defaultValue: String? = null): String? {
+        return runBlocking { getStringAsync(key, defaultValue) }
+    }
+
+    fun remove(key: String) {
+        runBlocking { removeAsync(key) }
+    }
+
+    // -------------------------
+    // NEW SUSPEND API (use these from coroutines)
+    // -------------------------
+
+    suspend fun putStringAsync(key: String, value: String) {
+        withContext(dispatcherProvider.io) {
             val enc = encryptToBase64(value.encodeToByteArray())
             app.secureDataStore.edit { it[sKey(key)] = enc }
         }
     }
 
-    fun getString(key: String, defaultValue: String? = null): String? {
-        return runBlocking(Dispatchers.IO) {
+    suspend fun getStringAsync(key: String, defaultValue: String? = null): String? {
+        return withContext(dispatcherProvider.io) {
             val enc = app.secureDataStore.data.first()[sKey(key)]
             if (enc != null) {
                 decryptFromBase64(enc)?.decodeToString() ?: defaultValue
             } else {
-                // Fallback to legacy in case migration missed a key
                 @Suppress("DEPRECATION")
                 legacyPrefs.getString(key, defaultValue)
             }
         }
     }
 
-    fun remove(key: String) {
-        runBlocking(Dispatchers.IO) {
+    suspend fun removeAsync(key: String) {
+        withContext(dispatcherProvider.io) {
             app.secureDataStore.edit { it.remove(sKey(key)) }
+        }
+    }
+
+    // Optional: batch editor to minimize multiple writes
+    suspend fun editAsync(block: suspend (EditScope) -> Unit) {
+        withContext(dispatcherProvider.io) {
+            app.secureDataStore.edit { ds ->
+                block(EditScope(ds))
+            }
+        }
+    }
+
+    // Helper scope so callers don’t touch DataStore API directly in batch mode
+    class EditScope internal constructor(private val ds: androidx.datastore.preferences.core.MutablePreferences) {
+        operator fun set(key: String, value: String) {
+            ds[stringPreferencesKey(key)] = value
+        }
+
+        fun remove(key: String) {
+            ds.remove(stringPreferencesKey(key))
         }
     }
 }

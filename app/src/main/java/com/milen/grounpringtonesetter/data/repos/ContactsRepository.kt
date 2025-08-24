@@ -20,13 +20,12 @@ internal interface ContactsRepository {
     suspend fun loadAccountLabels()
 
     suspend fun setGroupRingtone(group: LabelItem, uriStr: String, fileName: String)
-    fun deleteGroup(groupId: Long)
 
     suspend fun refreshAllPhoneContacts()
 
-    fun createGroup(name: String)
-
-    fun renameGroup(labelId: Long, newName: String)
+    suspend fun createGroup(name: String)
+    suspend fun renameGroup(groupId: Long, newName: String)
+    suspend fun deleteGroup(groupId: Long)
 
     fun updateGroupMembers(
         groupId: Long,
@@ -85,7 +84,7 @@ internal class ContactsRepositoryImpl(
         updateGroupRingtone(group.id, uriStr, fileName)
     }
 
-    override fun deleteGroup(groupId: Long) {
+    override suspend fun deleteGroup(groupId: Long) {
         tracker.trackEvent("delete_group: $groupId")
         helper.deleteLabel(groupId)
 
@@ -93,7 +92,7 @@ internal class ContactsRepositoryImpl(
         _labels.update { updated }
     }
 
-    override fun createGroup(name: String) {
+    override suspend fun createGroup(name: String) {
         tracker.trackEvent("create_group")
         val result = helper.createLabel(name, accountsProvider())
         if (result == null) {
@@ -104,11 +103,11 @@ internal class ContactsRepositoryImpl(
         _labels.update { updated }
     }
 
-    override fun renameGroup(labelId: Long, newName: String) {
+    override suspend fun renameGroup(groupId: Long, newName: String) {
         tracker.trackEvent("rename_group")
-        helper.updateLabelName(labelId, newName)
+        helper.updateLabelName(groupId, newName)
         val updated = _labels.value.map { g ->
-            if (g.id == labelId) g.copy(groupName = newName) else g
+            if (g.id == groupId) g.copy(groupName = newName) else g
         }
         _labels.update { updated }
     }

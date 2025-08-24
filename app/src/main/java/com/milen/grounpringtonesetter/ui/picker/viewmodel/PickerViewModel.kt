@@ -177,17 +177,16 @@ internal class PickerViewModel(
     fun resetGroupRingtones() {
         showLoading()
         viewModelScope.launch {
-            val result = runCatching {
-                withContext(DispatchersProvider.io) {
-                    contactsRepo.clearAllRingtones()
-                }
-            }
-            result.onSuccess {
-                tracker.trackEvent("Picker_resetAllRingtones_success")
+            showLoading()
+            try {
+                contactsRepo.clearAllRingtones() // suspend; IO inside helper
                 closeScreen()
-            }.onFailure { e ->
-                if (e is CancellationException) throw e
-                handleError(e)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                handleError(t)
+            } finally {
+                hideLoading()
             }
         }
     }

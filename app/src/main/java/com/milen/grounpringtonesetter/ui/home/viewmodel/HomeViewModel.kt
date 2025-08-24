@@ -15,8 +15,6 @@ import com.milen.grounpringtonesetter.data.accounts.AccountRepository
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
-import com.milen.grounpringtonesetter.utils.DefaultDispatcherProvider
-import com.milen.grounpringtonesetter.utils.DispatcherProvider
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launch
@@ -40,7 +38,6 @@ internal class HomeViewModel(
     private val billing: BillingEntitlementManager,
     private val contactsRepo: ContactsRepository,
     private val accountRepo: AccountRepository,
-    private val dispatchers: DispatcherProvider = DefaultDispatcherProvider,
 ) : ViewModel() {
 
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
@@ -159,23 +156,22 @@ internal class HomeViewModel(
         }
 
         showLoading()
-
         viewModelScope.launch {
-            val result = runCatching {
-                withContext(DispatchersProvider.io) {
-                    contactsRepo.setGroupRingtone(
-                        group = group,
-                        uriStr = uri.toString(),
-                        fileName = fileName
-                    )
-                }
-            }
-            result.onSuccess {
+            showLoading()
+            try {
+                contactsRepo.setGroupRingtone(
+                    group = group,
+                    uriStr = uri.toString(),
+                    fileName = fileName
+                )
                 _selectingGroup = null
                 showInterstitialAdIfNeededAndManageLoading()
-            }.onFailure { e ->
-                if (e is CancellationException) throw e
-                handleError(e)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                handleError(t)
+            } finally {
+                hideLoading()
             }
         }
     }
@@ -283,7 +279,7 @@ internal class HomeViewModel(
 
     private var refreshJob: Job? = null
     private fun refreshContactsSilently() {
-        if (refreshJob?.isActive == true) return
+        refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             try {
                 contactsRepo.refreshAllPhoneContacts() // suspend call

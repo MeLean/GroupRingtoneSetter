@@ -14,8 +14,9 @@ import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.core.net.toUri
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 internal class ContactRingtoneUpdateHelper(
     private val tracker: Tracker,
@@ -32,27 +33,32 @@ internal class ContactRingtoneUpdateHelper(
     suspend fun scanAndUpdate(context: Context, ringtoneStr: String, contactId: Long) {
         val sourceUri = ringtoneStr.toUri()
 
-        // Validate the input URI string
+        // 0) Validate input (cheap, stays on caller thread)
         if (ringtoneStr.isBlank() || sourceUri == Uri.EMPTY) {
             tracker.trackError(IllegalArgumentException("Invalid ringtone URI: $ringtoneStr"))
             return
         }
 
-        // Try to find existing file or copy it to public MediaStore
-        val copiedUri = withContext(dispatcherProvider.io) {
-            copyRingtoneToScopedMedia(context, sourceUri)
+        // 1) Resolve/copy into MediaStore if needed (already suspend + IO)
+        val copiedUri = copyRingtoneToScopedMedia(context, sourceUri)
+
+        // 2) Decide the final URI to set
+        val uriToSet = (copiedUri ?: sourceUri).toString()
+
+        // 3) Store filename for the used URI (until Step 7, wrap sync prefs + any resolver work in IO)
+        val fileName = withContext(dispatcherProvider.io) {
+            getNormalizedFileName(context, sourceUri) // keep same behavior as before
+        }
+        withContext(dispatcherProvider.io) {
+            preferenceHelper.saveString(uriToSet, fileName) // TODO Step 7: migrate to suspend API
         }
 
-        // If copying failed, use the picked source URI as a fallback
-        val uriToSet = copiedUri?.toString() ?: sourceUri.toString()
-
-        // Store filename for the used URI so we can display it later
-        val fileName = getNormalizedFileName(context, sourceUri)
-        preferenceHelper.saveString(uriToSet, fileName)
-
-        // Try to set the URI as the contact's custom ringtone
+        // 4) Try to set the contact's custom ringtone
         val updateSuccess = try {
-            tryUpdateCustomRingtone(context, contactId, uriToSet)
+            // If tryUpdateCustomRingtone is already suspend+IO, call it directly and remove withContext.
+            withContext(dispatcherProvider.io) {
+                tryUpdateCustomRingtone(context, contactId, uriToSet)
+            }
         } catch (e: Exception) {
             tracker.trackError(
                 RuntimeException(
@@ -63,12 +69,16 @@ internal class ContactRingtoneUpdateHelper(
             false
         }
 
-        // Log failure or verify it was successfully set
+        // 5) Verify or log failure
         if (!updateSuccess) {
             tracker.trackError(RuntimeException("Failed to update CUSTOM_RINGTONE in scanAndUpdate for: $uriToSet"))
+            return
         } else {
             try {
-                verifyCustomRingtoneSet(context, contactId, uriToSet)
+                // If verifyCustomRingtoneSet is already suspend+IO, call it directly and remove withContext.
+                withContext(dispatcherProvider.io) {
+                    verifyCustomRingtoneSet(context, contactId, uriToSet)
+                }
             } catch (e: Exception) {
                 tracker.trackError(
                     RuntimeException(
@@ -77,8 +87,7 @@ internal class ContactRingtoneUpdateHelper(
                     )
                 )
             }
-
-            // Optionally persist URI permission if fallback was used
+            // 6) Persist URI permission when we used the original (non-copied) source
             if (copiedUri == null) {
                 tryPersistUriPermission(context, sourceUri)
             }
@@ -90,24 +99,15 @@ internal class ContactRingtoneUpdateHelper(
      * If not found, copies the ringtone to the public MediaStore ringtones folder.
      */
     private suspend fun copyRingtoneToScopedMedia(context: Context, uri: Uri): Uri? =
-        withContext(Dispatchers.IO) {
+        withContext(dispatcherProvider.io) {
+            val resolver = context.contentResolver
             try {
                 val fileName = getNormalizedFileName(context, uri)
 
-                // If already in MediaStore, reuse
+                // Reuse if already present in MediaStore
                 findExistingRingtoneUri(context, fileName)?.let { return@withContext it }
 
-                val src = try {
-                    context.contentResolver.openInputStream(uri)
-                } catch (_: Exception) {
-                    null
-                }
-                if (src == null) {
-                    tracker.trackError(RuntimeException("Source not readable for copy: $uri"))
-                    return@withContext null
-                }
-
-                val mime = context.contentResolver.getType(uri) ?: "audio/mpeg"
+                val mime = resolver.getType(uri) ?: "audio/mpeg"
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
                     put(MediaStore.MediaColumns.MIME_TYPE, mime)
@@ -123,32 +123,55 @@ internal class ContactRingtoneUpdateHelper(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
                 }
 
-                val dest = context.contentResolver.insert(collection, values) ?: run {
+                val dest = resolver.insert(collection, values) ?: run {
                     tracker.trackError(RuntimeException("Insert failed for $fileName"))
-                    src.close()
                     return@withContext null
                 }
 
                 try {
-                    context.contentResolver.openOutputStream(dest, "w")?.use { out ->
-                        src.use { input -> input.copyTo(out) }
+                    resolver.openInputStream(uri)?.use { input ->
+                        resolver.openOutputStream(dest, "w")?.use { out ->
+                            // Manual buffered copy with cooperative cancellation
+                            val buf = ByteArray(DEFAULT_BUFFER_SIZE)
+                            while (true) {
+                                coroutineContext.ensureActive() // cancel-friendly
+                                val read = input.read(buf)
+                                if (read < 0) break
+                                out.write(buf, 0, read)
+                            }
+                            out.flush()
+                        } ?: run {
+                            // No output stream → cleanup destination and abort
+                            resolver.delete(dest, null, null)
+                            tracker.trackError(RuntimeException("OpenOutputStream failed for $dest"))
+                            return@withContext null
+                        }
                     } ?: run {
-                        // No output → cleanup
-                        context.contentResolver.delete(dest, null, null)
-                        tracker.trackError(RuntimeException("OpenOutputStream failed for $dest"))
+                        // No input stream → cleanup destination and abort
+                        resolver.delete(dest, null, null)
+                        tracker.trackError(RuntimeException("Source not readable for copy: $uri"))
                         return@withContext null
                     }
                     return@withContext dest
-                } catch (t: Throwable) {
-                    // Copy failed → cleanup
+                } catch (e: CancellationException) {
+                    // On cancel, remove the partially written item and rethrow
                     try {
-                        context.contentResolver.delete(dest, null, null)
+                        resolver.delete(dest, null, null)
+                    } catch (_: Throwable) {
+                    }
+                    throw e
+                } catch (t: Throwable) {
+                    // On failure, remove the partially written item
+                    try {
+                        resolver.delete(dest, null, null)
                     } catch (_: Throwable) {
                     }
                     tracker.trackError(RuntimeException("Copy failed to $dest: ${t.message}", t))
                     return@withContext null
                 }
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
                 tracker.trackError(
                     RuntimeException(
                         "Failed to reuse or copy ringtone: ${e.message}",

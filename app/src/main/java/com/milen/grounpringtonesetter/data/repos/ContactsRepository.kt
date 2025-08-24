@@ -6,12 +6,14 @@ import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.data.prefs.ContactsCacheStore
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
+import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 internal interface ContactsRepository {
     val labelsFlow: StateFlow<List<LabelItem>>
@@ -33,7 +35,7 @@ internal interface ContactsRepository {
         oldSelected: List<Contact>,
     )
 
-    fun clearAllRingtones()
+    suspend fun clearAllRingtones()
 }
 
 
@@ -140,13 +142,19 @@ internal class ContactsRepositoryImpl(
         }
     }
 
-    override fun clearAllRingtones() {
-        helper.clearAllRingtoneUris()
-        tracker.trackEvent("clear_all_ringtones")
-        val updated =
-            _labels.value.map { g -> g.copy(ringtoneUriList = emptyList(), ringtoneFileName = "") }
-        _labels.update { updated }
-    }
+    override suspend fun clearAllRingtones() =
+        withContext(DispatchersProvider.io) {
+            helper.clearAllRingtoneUris()
+            tracker.trackEvent("clear_all_ringtones")
+            val updated =
+                _labels.value.map { g ->
+                    g.copy(
+                        ringtoneUriList = emptyList(),
+                        ringtoneFileName = ""
+                    )
+                }
+            _labels.update { updated }
+        }
 
 
     override suspend fun refreshAllPhoneContacts() {

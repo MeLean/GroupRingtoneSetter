@@ -157,11 +157,12 @@ internal class PickerScreenFragment : Fragment() {
                 viewModel.updateManageSelection(list)
             }
 
+            val selectedIds = data.selectedContacts.map { it.id }.toHashSet()
             scvContacts.submitContacts(
                 data.allContacts.map { contact ->
                     SelectableContact.from(
                         contact = contact,
-                        isSelected = (contact in data.selectedContacts)
+                        isSelected = (contact.id in selectedIds)
                     ).also {
                         noItemDisclaimer.isVisible = data.allContacts.isEmpty() && loading.not()
                     }

@@ -38,9 +38,6 @@ internal class SearchContactView @JvmOverloads constructor(
 
     init {
         orientation = VERTICAL
-        isSaveEnabled = true
-        binding.searchView.isSaveEnabled = true   // ensure child saves its own state
-
         with(binding) {
             contactsRecyclerView.adapter = contactsAdapter
             emptyState.isVisible = false

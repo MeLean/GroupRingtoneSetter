@@ -140,19 +140,18 @@ internal class ContactsRepositoryImpl(
         }
     }
 
-    override suspend fun clearAllRingtones() =
-        withContext(DispatchersProvider.io) {
-            helper.clearAllRingtoneUris()
-            tracker.trackEvent("clear_all_ringtones")
-            val updated =
-                _labels.value.map { g ->
-                    g.copy(
-                        ringtoneUriList = emptyList(),
-                        ringtoneFileName = ""
-                    )
-                }
-            _labels.update { updated }
+    override suspend fun clearAllRingtones() = withContext(DispatchersProvider.io) {
+        helper.clearAllRingtoneUris()
+        tracker.trackEvent("clear_all_ringtones")
+        val updated = _labels.value.map { g ->
+            g.copy(
+                ringtoneUriList = emptyList(),
+                ringtoneFileName = "",
+                contacts = g.contacts.map { it.copy(ringtoneUriStr = null) }
+            )
         }
+        _labels.update { updated }
+    }
 
 
     override suspend fun refreshAllPhoneContacts() {

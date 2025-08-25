@@ -196,13 +196,18 @@ internal class HomeViewModel(
 
     fun startPurchase(activity: Activity) {
         launch {
-            runCatching {
-                _state.update { it.copy(isLoading = true) }
-                handleBillingResult(billing.launchPurchase(activity))
-                _state.update { it.copy() }
-            }.onFailure {
-                tracker.trackError(it)
-                _events.trySend(HomeEvent.ShowErrorText(it.localizedMessage))
+            _state.update { it.copy(isLoading = true) }
+
+            try {
+                val result = billing.launchPurchase(activity)
+                handleBillingResult(result)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                tracker.trackError(e)
+                _events.trySend(HomeEvent.ShowErrorText(e.localizedMessage ?: "Purchase failed"))
+            } finally {
+                _state.update { it.copy(isLoading = false) }
             }
         }
     }

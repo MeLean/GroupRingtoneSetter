@@ -111,15 +111,18 @@ internal class PickerViewModel(
 
         if (contactsRepo.allContacts.value == null) {
             viewModelScope.launch {
+                showLoading()
                 try {
                     contactsRepo.refreshAllPhoneContacts()
                 } catch (_: CancellationException) {
                 } catch (t: Throwable) {
                     tracker.trackError(t)
+                } finally {
+                    hideLoading()
                 }
             }
         }
-        
+
         startUpdateContactsForLabel(group.id)
     }
 

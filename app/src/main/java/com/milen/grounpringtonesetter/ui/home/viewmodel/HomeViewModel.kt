@@ -258,7 +258,6 @@ internal class HomeViewModel(
         // If we already have a selection, just ensure data loading happens.
         if (accountRepo.selected.value != null) {
             updateGroupList()
-            refreshContactsSilently()
             return
         }
 

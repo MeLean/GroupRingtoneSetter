@@ -1,5 +1,7 @@
 package com.milen.grounpringtonesetter.data.repos
 
+import androidx.core.net.toUri
+import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
@@ -7,6 +9,7 @@ import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -19,6 +22,10 @@ internal interface ContactsRepository {
     val allContacts: StateFlow<List<Contact>?>
 
     suspend fun loadAccountLabels()
+
+    suspend fun loadAccountLabelsShallow()
+
+    suspend fun enrichRingtonesForCurrentLabels(batchSize: Int = 100)
 
     suspend fun setGroupRingtone(group: LabelItem, uriStr: String, fileName: String)
 
@@ -39,6 +46,7 @@ internal interface ContactsRepository {
 
 
 internal class ContactsRepositoryImpl(
+    private val app: App,
     private val helper: ContactsHelper,
     private val tracker: Tracker,
     private val prefs: EncryptedPreferencesHelper,
@@ -66,6 +74,54 @@ internal class ContactsRepositoryImpl(
             _labels.update { fresh }
         }
     }
+
+    override suspend fun loadAccountLabelsShallow() {
+        return lock.withLock {
+            val selected = accountsProvider()
+            val fresh = if (selected == null) {
+                tracker.trackError(RuntimeException("The contacts are queried with no accounts selected"))
+                helper.getAllLabelItemsShallow()
+            } else {
+                helper.getAllLabelItemsForAccountsShallow(selected)
+            }
+            _labels.update { fresh }
+        }
+    }
+
+    override suspend fun enrichRingtonesForCurrentLabels(batchSize: Int) {
+        // Take a snapshot of current labels (IDs only so far).
+        val snapshot = labelsFlow.value
+        val allIds = snapshot
+            .asSequence()
+            .flatMap { it.contacts.asSequence() }
+            .map { it.id }
+            .distinct()
+            .toList()
+
+        if (allIds.isEmpty()) return
+
+        // Query ringtones off the main thread.
+        val ringtoneMap = helper.getRingtonesForContactsBatched(allIds, batchSize)
+
+        // Atomically update labels with enriched contact ringtone URIs and group summaries.
+        lock.withLock {
+            _labels.update { current ->
+                current.map { label ->
+                    val updatedContacts = label.contacts.map { c ->
+                        val uri = ringtoneMap[c.id]
+                        if (uri == c.ringtoneUriStr) c else c.copy(ringtoneUriStr = uri)
+                    }
+                    val distinctUris = updatedContacts.mapNotNull { it.ringtoneUriStr }.distinct()
+                    label.copy(
+                        contacts = updatedContacts,
+                        ringtoneUriList = distinctUris,
+                        ringtoneFileName = deriveGroupRingtoneFileName(distinctUris)
+                    )
+                }
+            }
+        }
+    }
+
 
     override suspend fun setGroupRingtone(
         group: LabelItem,
@@ -177,5 +233,24 @@ internal class ContactsRepositoryImpl(
         }
 
         _labels.update { updated }
+    }
+
+    private fun deriveGroupRingtoneFileName(uris: List<String>): String {
+        val distinctUris = uris.toSet()
+        if (distinctUris.isEmpty()) return ""
+
+        // 2) Map each distinct URI to a human-friendly filename
+        val names = distinctUris.mapNotNull { uriStr ->
+            val uri = runCatching { uriStr.toUri() }.getOrNull() ?: return@mapNotNull null
+            val fromExt = runCatching { uri.getFileNameOrEmpty(app) }.getOrNull()
+            when {
+                !fromExt.isNullOrBlank() -> fromExt
+                !uri.lastPathSegment.isNullOrBlank() -> uri.lastPathSegment
+                else -> null
+            }
+        }.distinct()
+
+        // 3) Join for display (or empty if nothing resolved)
+        return if (names.isEmpty()) "" else names.joinToString(", ")
     }
 }

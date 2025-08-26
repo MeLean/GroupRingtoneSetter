@@ -223,12 +223,30 @@ internal class HomeViewModel(
         launch {
             showLoading()
 
-            runCatching { contactsRepo.loadAccountLabels() }
+            runCatching { contactsRepo.loadAccountLabelsShallow() }
                 .onFailure { error ->
                     handleError(error)
                 }
-
+                .onSuccess {
+                    enrichRingtonesInBackground()
+                }
+            
             hideLoading()
+        }
+    }
+
+
+    private var ringtoneEnrichmentJob: Job? = null
+    private fun enrichRingtonesInBackground() {
+        ringtoneEnrichmentJob?.cancel()
+        ringtoneEnrichmentJob = launch {
+            try {
+                contactsRepo.enrichRingtonesForCurrentLabels(batchSize = 100)
+            } catch (_: CancellationException) {
+                // ignored
+            } catch (t: Throwable) {
+                tracker.trackError(t)
+            }
         }
     }
 

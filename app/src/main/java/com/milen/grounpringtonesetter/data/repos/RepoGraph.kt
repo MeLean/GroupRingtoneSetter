@@ -33,6 +33,7 @@ internal object RepoGraph {
         repo ?: synchronized(this) {
             val ar = accountRepo(app, prefs)
             repo ?: ContactsRepositoryImpl(
+                app = app,
                 helper = helper,
                 tracker = app.tracker,
                 prefs = prefs,

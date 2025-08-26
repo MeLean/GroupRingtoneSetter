@@ -118,6 +118,7 @@ internal class HomeViewModel(
                 }
                 result.onSuccess {
                     updateGroupList()
+                    refreshContactsSilently()
                 }.onFailure { e ->
                     if (e is CancellationException) throw e
                     handleError(e)

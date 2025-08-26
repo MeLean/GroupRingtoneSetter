@@ -142,6 +142,11 @@ internal class ContactsRepositoryImpl(
         )
 
         updateGroupRingtone(group.id, uriStr, fileName)
+
+        val ids = group.contacts.map { it.id }.toHashSet()
+        _contacts.update { list ->
+            list?.map { c -> if (c.id in ids) c.copy(ringtoneUriStr = uriStr) else c }
+        }
     }
 
     override suspend fun deleteGroup(groupId: Long) {

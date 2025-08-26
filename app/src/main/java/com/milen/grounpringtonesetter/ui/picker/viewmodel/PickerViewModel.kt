@@ -109,6 +109,17 @@ internal class PickerViewModel(
             )
         }
 
+        if (contactsRepo.allContacts.value == null) {
+            viewModelScope.launch {
+                try {
+                    contactsRepo.refreshAllPhoneContacts()
+                } catch (_: CancellationException) {
+                } catch (t: Throwable) {
+                    tracker.trackError(t)
+                }
+            }
+        }
+        
         startUpdateContactsForLabel(group.id)
     }
 

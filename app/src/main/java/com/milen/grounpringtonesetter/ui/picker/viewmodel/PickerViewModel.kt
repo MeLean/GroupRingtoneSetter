@@ -11,6 +11,7 @@ import com.milen.grounpringtonesetter.ui.picker.PickerScreenState
 import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -81,6 +82,20 @@ internal class PickerViewModel(
         }
     }
 
+    private var enrichJob: Job? = null
+    private fun startUpdateContactsForLabel(labelId: Long) {
+        enrichJob?.cancel()
+        enrichJob = viewModelScope.launch {
+            try {
+                contactsRepo.enrichGroupContactsBasics(labelId)
+            } catch (_: CancellationException) {
+                // ignored
+            } catch (t: Throwable) {
+                tracker.trackError(t)
+            }
+        }
+    }
+
     fun startManageContacts(group: LabelItem) {
         tracker.trackEvent("Picker_startManageContacts")
         _state.update {
@@ -93,6 +108,8 @@ internal class PickerViewModel(
                 )
             )
         }
+
+        startUpdateContactsForLabel(group.id)
     }
 
     fun startCreateGroup() {

@@ -581,6 +581,77 @@ internal class ContactsHelper(
         }
     }
 
+    suspend fun getDisplayNamesForContactsBatched(
+        contactIds: List<Long>,
+        batchSize: Int = 200,
+    ): Map<Long, String> = withContext(DispatchersProvider.io) {
+        if (contactIds.isEmpty()) return@withContext emptyMap()
+        val resolver = appContext.contentResolver
+        val out = HashMap<Long, String>(contactIds.size)
+
+        contactIds.chunked(batchSize).forEach { chunk ->
+            val selection = "${ContactsContract.Contacts._ID} IN (${chunk.joinToString(",")})"
+            val projection = arrayOf(
+                ContactsContract.Contacts._ID,
+                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY
+            )
+            resolver.query(
+                ContactsContract.Contacts.CONTENT_URI,
+                projection, selection, null, null
+            )?.use { c ->
+                val idxId = c.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                val idxName =
+                    c.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                while (c.moveToNext()) {
+                    val id = c.getLong(idxId)
+                    val name = c.getString(idxName) ?: ""
+                    if (name.isNotBlank()) out[id] = name
+                }
+            }
+        }
+        out
+    }
+
+    suspend fun getPrimaryPhonesForContactsBatched(
+        contactIds: List<Long>,
+        batchSize: Int = 200,
+    ): Map<Long, String?> = withContext(DispatchersProvider.io) {
+        if (contactIds.isEmpty()) return@withContext emptyMap()
+        val resolver = appContext.contentResolver
+        val out = HashMap<Long, String?>()
+
+        contactIds.chunked(batchSize).forEach { chunk ->
+            val selection =
+                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} IN (${chunk.joinToString(",")})"
+            val projection = arrayOf(
+                ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
+                ContactsContract.CommonDataKinds.Phone.NUMBER,
+                ContactsContract.CommonDataKinds.Phone.IS_SUPER_PRIMARY,
+                ContactsContract.CommonDataKinds.Phone.IS_PRIMARY
+            )
+            val sortOrder =
+                "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} ASC, " +
+                        "${ContactsContract.CommonDataKinds.Phone.IS_SUPER_PRIMARY} DESC, " +
+                        "${ContactsContract.CommonDataKinds.Phone.IS_PRIMARY} DESC, " +
+                        "${ContactsContract.CommonDataKinds.Phone._ID} ASC"
+
+            resolver.query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                projection, selection, null, sortOrder
+            )?.use { c ->
+                val idxId =
+                    c.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.CONTACT_ID)
+                val idxNum = c.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                while (c.moveToNext()) {
+                    val id = c.getLong(idxId)
+                    if (out.containsKey(id)) continue
+                    out[id] = c.getString(idxNum)
+                }
+            }
+        }
+        out
+    }
+
     private fun triggerSyncForAllAccounts() {
         val accounts = AccountManager.get(appContext).accounts
 

@@ -42,6 +42,10 @@ internal interface ContactsRepository {
     )
 
     suspend fun clearAllRingtones()
+
+    suspend fun getContactsByIdsPreferCache(ids: List<Long>, batchSize: Int = 200): List<Contact>
+
+    suspend fun enrichGroupContactsBasics(labelId: Long, batchSize: Int = 200)
 }
 
 
@@ -215,6 +219,71 @@ internal class ContactsRepositoryImpl(
         tracker.trackEvent("getAllPhoneContacts: $accountId")
         val contacts = helper.getAllPhoneContacts(accountId)
         _contacts.update { contacts }
+    }
+    override suspend fun getContactsByIdsPreferCache(
+        ids: List<Long>,
+        batchSize: Int,
+    ): List<Contact> {
+        if (ids.isEmpty()) return emptyList()
+
+        // 1) try cache first
+        val cacheMap = allContacts.value?.associateBy { it.id } ?: emptyMap()
+        val fromCache = ids.mapNotNull { cacheMap[it] }
+        val missingIds = ids.filterNot { cacheMap.containsKey(it) }
+        if (missingIds.isEmpty()) return fromCache
+
+        // 2) fetch only missing (batched, off-main inside helpers)
+        val namesMap = helper.getDisplayNamesForContactsBatched(missingIds, batchSize)
+        val phonesMap = helper.getPrimaryPhonesForContactsBatched(missingIds, batchSize)
+
+        val fetched = missingIds.map { id ->
+            Contact(
+                id = id,
+                name = namesMap[id] ?: "",
+                phone = phonesMap[id],
+                ringtoneUriStr = null // ringtone remains group-specific; don't touch here
+            )
+        }
+
+        // 3) merge into cache
+        lock.withLock {
+            val cur = _contacts.value.orEmpty()
+            val merged = (cur + fetched).distinctBy { it.id }
+            _contacts.value = merged
+        }
+
+        // 4) return in requested order
+        val resultMap = (fromCache + fetched).associateBy { it.id }
+        return ids.mapNotNull { resultMap[it] }
+    }
+
+    override suspend fun enrichGroupContactsBasics(labelId: Long, batchSize: Int) {
+        // Snapshot target label & contact IDs
+        val label = labelsFlow.value.firstOrNull { it.id == labelId } ?: return
+        val ids = label.contacts.map { it.id }.distinct()
+        if (ids.isEmpty()) return
+
+        // Resolve via cache; fetch only what's missing
+        val contacts = getContactsByIdsPreferCache(ids, batchSize)
+        val byId = contacts.associateBy { it.id }
+
+        // Update ONLY this label's contacts with name/phone (keep ringtone as-is)
+        lock.withLock {
+            _labels.update { current ->
+                current.map { item ->
+                    if (item.id != labelId) item else {
+                        val updated = item.contacts.map { c ->
+                            val enriched = byId[c.id]
+                            if (enriched == null) c else c.copy(
+                                name = enriched.name.ifBlank { c.name },
+                                phone = enriched.phone ?: c.phone
+                            )
+                        }
+                        item.copy(contacts = updated)
+                    }
+                }
+            }
+        }
     }
 
     private fun updateGroupRingtone(

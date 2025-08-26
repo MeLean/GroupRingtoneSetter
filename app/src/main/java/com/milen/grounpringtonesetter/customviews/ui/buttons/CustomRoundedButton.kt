@@ -7,8 +7,8 @@ import android.widget.FrameLayout
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.CustomRoundedButtonBinding
 
-class CustomRoundedButton @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
+internal class CustomRoundedButton @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
     private val binding = CustomRoundedButtonBinding.inflate(
@@ -28,6 +28,10 @@ class CustomRoundedButton @JvmOverloads constructor(
                 recycle()
             }
         }
+    }
+
+    fun setLabel(label: String) {
+        binding.btnMain.text = label
     }
 
     fun setOnClickListener(listener: () -> Unit) {

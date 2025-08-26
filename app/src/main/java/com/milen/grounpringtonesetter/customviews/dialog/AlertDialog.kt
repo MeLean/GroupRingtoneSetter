@@ -1,37 +1,117 @@
 package com.milen.grounpringtonesetter.customviews.dialog
 
-import android.content.Context
+import android.app.Activity
+import android.view.View
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import com.milen.grounpringtonesetter.R
 
-data class ButtonData(
-    @StringRes val textId: Int = R.string.confirm,
-    val onClick: () -> Unit = {}
+internal data class ButtonData(
+    @param:StringRes val textId: Int = R.string.confirm,
+    val onClick: () -> Unit = {},
 )
 
-fun Context.showAlertDialog(
+internal fun Activity.showAlertDialog(
     @StringRes titleResId: Int,
     message: String,
-    cancelButtonData: ButtonData? = ButtonData(R.string.cancel),
-    confirmButtonData: ButtonData
+    cancelButtonData: ButtonData? = null,
+    confirmButtonData: ButtonData,
 ) {
-    AlertDialog.Builder(this, R.style.AlertDialogCustom).apply {
+    showDialogSafe {
         setTitle(titleResId)
         setMessage(message)
-
-        setPositiveButton(confirmButtonData.textId) { dialog, _ ->
-            dialog.dismiss()
-            confirmButtonData.onClick()
-        }
-
-        cancelButtonData?.let {
-            setNegativeButton(it.textId) { dialog, _ ->
-                dialog.dismiss()
-                it.onClick()
+        setPositiveButton(confirmButtonData.textId) { d, _ ->
+            try {
+                confirmButtonData.onClick()
+            } finally {
+                d.dismiss()
             }
         }
+        cancelButtonData?.let { data ->
+            setNegativeButton(data.textId) { d, _ ->
+                try {
+                    data.onClick()
+                } finally {
+                    d.dismiss()
+                }
+            }
+        }
+    }
+}
 
-        create().show()
+internal fun Activity.showCustomViewAlertDialog(
+    @StringRes titleResId: Int,
+    customView: View,
+    cancelButtonData: ButtonData? = null,
+    confirmButtonData: ButtonData,
+) {
+    showDialogSafe {
+        setTitle(titleResId)
+        setView(customView)
+        setPositiveButton(confirmButtonData.textId) { d, _ ->
+            try {
+                confirmButtonData.onClick()
+            } finally {
+                d.dismiss()
+            }
+        }
+        cancelButtonData?.let { data ->
+            setNegativeButton(data.textId) { d, _ ->
+                try {
+                    data.onClick()
+                } finally {
+                    d.dismiss()
+                }
+            }
+        }
+    }
+}
+
+/** Shared, lifecycle-safe dialog runner to avoid BadTokenException + window leaks. */
+private fun Activity.showDialogSafe(
+    build: AlertDialog.Builder.() -> Unit,
+): AlertDialog? {
+    if (isFinishing || isDestroyed) return null
+
+    val dialog = AlertDialog.Builder(this, R.style.AlertDialogCustom)
+        .apply(build)
+        .create()
+
+    if (isFinishing || isDestroyed) return null
+
+    if (this is ComponentActivity) {
+        val act = this
+        val observer = object : DefaultLifecycleObserver {
+            override fun onDestroy(owner: LifecycleOwner) {
+                try {
+                    if (dialog.isShowing) dialog.dismiss()
+                } catch (_: Throwable) {
+                }
+                act.lifecycle.removeObserver(this)
+            }
+        }
+        act.lifecycle.addObserver(observer)
+        dialog.setOnDismissListener { act.lifecycle.removeObserver(observer) }
+    }
+
+    dialog.setOnShowListener {
+        if (isFinishing || isDestroyed) {
+            try {
+                dialog.dismiss()
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
+    return try {
+        dialog.show()
+        dialog.window?.let { win -> win.attributes = win.attributes }
+        dialog
+    } catch (_: WindowManager.BadTokenException) {
+        null
     }
 }

@@ -19,3 +19,17 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Keep all Google Mobile Ads SDK classes
+-keep class com.google.android.gms.ads.** { *; }
+
+# Keep all Google Mobile Ads internal ads classes
+-keep class com.google.android.gms.internal.ads.** { *; }
+
+# Don't warn about classes referenced in the Ads SDK but not found
+-dontwarn com.google.android.gms.**
+
+# Keep any fields and methods referenced by Google Ads
+-keepattributes *Annotation*
+
+-keep class androidx.appcompat.** { *; }
+-keep class android.content.res.** { *; }

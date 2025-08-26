@@ -6,8 +6,9 @@
     <string name="need_permission_to_run">Пожалуйста, предоставьте разрешение на использование приложения. Перезапустите приложение или предоставьте их вручную в настройках устройства.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Выберите\nМелодию звонка</string>
+    <string name="apply_ringtone">Применить\nМелодию</string>
     <string name="add_group">Добавить новую группу</string>
-    <string name="do_the_magic">Сделайте волшебство</string>
+    <string name="do_the_magic">Применить все рингтоны</string>
     <string name="file_name_not_accessible">Имя файла недоступно</string>
     <string name="contacts">Контакты</string>
     <string name="close_app">Закрыть приложение</string>
@@ -29,6 +30,22 @@
     <string name="loading">Загрузка. . .</string>
     <string name="error">Ошибка</string>
     <string name="info">Информация</string>
-    <string name="info_text">Для оптимальной производительности убедитесь, что ваши контакты сохранены непосредственно на вашем устройстве.</string>
+    <string name="info_text">Для лучшей работы:\n- Убедитесь, что предоставлены все необходимые разрешения.\n- Войдите в свою учетную запись Google.\n- Избегайте добавления контакта в несколько групп.</string>
     <string name="no_ringtone_selected">Мелодия звонка не выбрана</string>
+    <string name="no_contacts">В группе нет контактов</string>
+    <string name="group_contacts_count">Количество контактов в группе</string>
+    <string name="end_button">Кнопка завершения</string>
+    <string name="image_button">Кнопка с изображением</string>
+    <string name="click_to_check">Нажмите, чтобы отметить</string>
+    <string name="click_to_uncheck">Нажмите, чтобы снять отметку</string>
+    <string name="remove_repeating_groups">Удалить повторяющиеся группы</string>
+    <string name="pick_account">Выберите аккаунт, в котором будет создана группа</string>
+    <string name="reset_all_ringtones">Сбросить все рингтоны</string>
+    <string name="reset_all_ringtones_description">Если вы продолжите, все пользовательские рингтоны, установленные для ваших контактов, будут удалены. Это означает, что ваши контакты вернутся к стандартному рингтону, и индивидуальные настройки рингтонов не сохранятся.</string>
+    <string name="ad_free_forever">Без рекламы навсегда</string>
+    <string name="pick_account_contacts">Выберите аккаунты, чьи контакты будет использовать приложение</string>
+    <string name="pick_account_btn_label">Выбрать аккаунт</string>
+    <string name="click_here">нажмите здесь</string>
+    <string name="my_song_please_promo_text">Получите рингтон, сделанный специально для вас или вашего близкого — %1$s, чтобы попробовать наше музыкальное приложение.</string>
+    <string name="ringtone_lable">мелодия звонка</string>
 </resources>

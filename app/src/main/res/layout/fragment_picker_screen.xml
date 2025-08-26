@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+
     <com.milen.grounpringtonesetter.customviews.ui.texts.CustomInputView
         android:id="@+id/civNameInput"
         android:layout_width="0dp"
@@ -17,17 +18,27 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:visibility="visible" />
 
+    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+        android:id="@+id/crbResetRingtones"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:buttonLabel="@string/reset_all_ringtones"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="@+id/civNameInput"
+        app:layout_constraintTop_toBottomOf="@+id/civNameInput" />
+
     <com.milen.grounpringtonesetter.customviews.ui.texts.SearchContactView
         android:id="@+id/scvContacts"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginHorizontal="16dp"
-        android:layout_marginVertical="8dp"
+        android:layout_marginBottom="8dp"
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@+id/crbDone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/civNameInput"
+        app:layout_constraintTop_toBottomOf="@+id/crbResetRingtones"
         tools:listitem="@layout/item_contact"
         tools:visibility="visible" />
 
@@ -52,12 +63,12 @@
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="16dp"
         app:buttonLabel="@string/done"
-        app:layout_constraintBottom_toTopOf="@+id/abPicker"
+        app:layout_constraintBottom_toTopOf="@+id/ad_banner_picker"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
     <com.milen.grounpringtonesetter.customviews.ui.ads.AdBannerView
-        android:id="@+id/abPicker"
+        android:id="@+id/ad_banner_picker"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"

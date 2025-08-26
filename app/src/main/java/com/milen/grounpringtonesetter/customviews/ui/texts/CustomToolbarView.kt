@@ -7,14 +7,14 @@ import android.widget.LinearLayout
 import androidx.core.view.isVisible
 import com.milen.grounpringtonesetter.databinding.CustomToolbarViewBinding
 
-class CustomToolbarView @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
+internal class CustomToolbarView @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
 ) : LinearLayout(context, attrs, defStyleAttr) {
 
-    private var binding: CustomToolbarViewBinding
+    private var binding: CustomToolbarViewBinding =
+        CustomToolbarViewBinding.inflate(LayoutInflater.from(context), this)
 
     init {
-        binding = CustomToolbarViewBinding.inflate(LayoutInflater.from(context), this)
         orientation = HORIZONTAL
         layoutParams = LayoutParams(
             LayoutParams.MATCH_PARENT,

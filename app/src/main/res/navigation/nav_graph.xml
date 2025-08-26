@@ -7,19 +7,36 @@
 
     <fragment
         android:id="@+id/homeFragment"
-        android:name="com.milen.grounpringtonesetter.screens.home.HomeScreen"
+        android:name="com.milen.grounpringtonesetter.ui.home.HomeScreen"
         android:label="Home"
-        tools:layout="@layout/fragment_home_screen" />
+        tools:layout="@layout/fragment_home_screen">
+
+        <action
+            android:id="@+id/action_home_to_picker"
+            app:destination="@id/pickerFragment" />
+
+        <action
+            android:id="@+id/action_home_to_noInternet"
+            app:destination="@id/noInternetFragment"
+            app:popUpTo="@id/homeFragment"
+            app:popUpToInclusive="false" />
+    </fragment>
 
     <fragment
         android:id="@+id/pickerFragment"
-        android:name="com.milen.grounpringtonesetter.screens.picker.PickerScreenFragment"
+        android:name="com.milen.grounpringtonesetter.ui.picker.PickerScreenFragment"
         android:label="Picker"
-        tools:layout="@layout/fragment_picker_screen" />
+        tools:layout="@layout/fragment_picker_screen">
+
+        <argument
+            android:name="mode"
+            android:defaultValue="MANAGE"
+            app:argType="string" />
+    </fragment>
 
     <fragment
         android:id="@+id/noInternetFragment"
-        android:name="com.milen.grounpringtonesetter.screens.nointernet.NoInternetScreen"
+        android:name="com.milen.grounpringtonesetter.ui.nointernet.NoInternetScreen"
         android:label="No Internet"
         tools:layout="@layout/fragment_no_internet_screen" />
 </navigation>

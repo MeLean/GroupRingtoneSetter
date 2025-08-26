@@ -5,12 +5,12 @@ import kotlinx.parcelize.Parcelize
 
 
 @Parcelize
-data class SelectableContact(
+internal data class SelectableContact(
     val id: Long,
     val name: String,
     val phone: String?,
     val ringtoneUriString: String?,
-    var isChecked: Boolean
+    val isChecked: Boolean,
 ) : Parcelable {
     companion object {
         fun from(contact: Contact, isSelected: Boolean = false): SelectableContact =

@@ -1,0 +1,42 @@
+package com.milen.grounpringtonesetter.ui.nointernet
+
+import android.content.Intent
+import android.os.Bundle
+import android.provider.Settings
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.databinding.FragmentNoInternetScreenBinding
+import com.milen.grounpringtonesetter.utils.navigateAsRoot
+import com.milen.grounpringtonesetter.utils.subscribeForConnectivityChanges
+
+internal class NoInternetScreen : Fragment() {
+    private lateinit var binding: FragmentNoInternetScreenBinding
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        binding = FragmentNoInternetScreenBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.topBarEndButton.setOnClickListener {
+            activity?.finish()
+        }
+        binding.openNetworkSettingsButton.setOnClickListener {
+            startActivity(Intent(Settings.ACTION_WIFI_SETTINGS).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
+        }
+
+        requireActivity().subscribeForConnectivityChanges { isOnline ->
+            if (isOnline) {
+                findNavController().navigateAsRoot(R.id.homeFragment)
+            }
+        }
+    }
+}

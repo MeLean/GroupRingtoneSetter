@@ -6,8 +6,9 @@
     <string name="need_permission_to_run">请授予应用程序使用权限。 请从设备设置中重新启动应用程序或手动授予。</string>
     <string name="ok">确定</string>
     <string name="choose_ringtone">选择\n铃声</string>
+    <string name="apply_ringtone">应用\n铃声</string>
     <string name="add_group">添加新组</string>
-    <string name="do_the_magic">施展魔法</string>
+    <string name="do_the_magic">应用所有铃声</string>
     <string name="file_name_not_accessible">文件名不可访问</string>
     <string name="contacts">联系人</string>
     <string name="close_app">关闭应用程序</string>
@@ -29,7 +30,22 @@
     <string name="loading">加载中…</string>
     <string name="error">错误</string>
     <string name="info">信息</string>
-    <string name="info_text">为了最佳性能，请确保您的联系人直接保存在您的设备上。</string>
+    <string name="info_text">为了获得最佳性能：\n- 确保授予所有必要的权限。\n- 使用您的 Google 帐户登录。\n- 避免将联系人添加到多个组中。</string>
     <string name="no_ringtone_selected">未选择铃声</string>
+    <string name="no_contacts">组中没有联系人</string>
+    <string name="group_contacts_count">群组中的联系人数量</string>
+    <string name="end_button">结束按钮</string>
+    <string name="image_button">带图像的按钮</string>
+    <string name="click_to_check">点击以选中</string>
+    <string name="click_to_uncheck">点击以取消选中</string>
+    <string name="remove_repeating_groups">删除重复组</string>
+    <string name="pick_account">选择要创建群组的账户</string>
+    <string name="reset_all_ringtones">重置所有铃声</string>
+    <string name="reset_all_ringtones_description">如果继续，所有为联系人设置的自定义铃声都将被移除。这意味着您的联系人将恢复为默认铃声，且不会保留任何个别铃声设置。</string>
+    <string name="ad_free_forever">永久无广告</string>
+    <string name="pick_account_contacts">选择应用将使用其联系人的账户</string>
+    <string name="pick_account_btn_label">选择账户</string>
+    <string name="click_here">点击这里</string>
+    <string name="my_song_please_promo_text">为你或你所爱的人定制专属铃声 — %1$s 试用我们的音乐应用。</string>
+    <string name="ringtone_lable">铃声</string>
 </resources>
-

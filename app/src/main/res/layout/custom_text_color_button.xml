@@ -8,7 +8,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@android:color/transparent"
-        android:contentDescription="Image button"
+        android:contentDescription="@string/image_button"
         android:scaleType="fitXY"
         app:srcCompat="@drawable/ic_launcher_background"
         tools:ignore="HardcodedText" />

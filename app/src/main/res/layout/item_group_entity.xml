@@ -3,6 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_marginHorizontal="16dp"
     android:layout_marginBottom="8dp"
     android:background="@drawable/rounded_border_textcolored_border"
@@ -14,9 +15,11 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="8dp"
         android:maxLines="2"
+        android:ellipsize="end"
         app:layout_constraintEnd_toStartOf="@+id/ctcibManageContacts"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="Group title is here" />
 
     <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomTextColorImageButton
         android:id="@+id/ctcibManageContacts"
@@ -24,6 +27,7 @@
         android:layout_height="@dimen/icon_btn_size"
         android:layout_marginEnd="16dp"
         app:iconDrawable="@drawable/ic_manage_contacts"
+        android:contentDescription="@string/manage_contacts_group_name"
         app:layout_constraintBottom_toBottomOf="@+id/ctvGroupName"
         app:layout_constraintEnd_toStartOf="@+id/ctcibEdit"
         app:layout_constraintTop_toTopOf="@+id/ctvGroupName" />
@@ -33,6 +37,7 @@
         android:layout_width="@dimen/icon_btn_size"
         android:layout_height="@dimen/icon_btn_size"
         android:layout_marginEnd="16dp"
+        android:contentDescription="@string/edit_group_name"
         app:iconDrawable="@drawable/ic_edit_group_name"
         app:layout_constraintBottom_toBottomOf="@+id/ctvGroupName"
         app:layout_constraintEnd_toStartOf="@+id/ctcibDelete"
@@ -42,6 +47,7 @@
         android:id="@+id/ctcibDelete"
         android:layout_width="@dimen/icon_btn_size"
         android:layout_height="@dimen/icon_btn_size"
+        android:contentDescription="@string/delete_group"
         app:iconDrawable="@drawable/ic_delete"
         app:layout_constraintBottom_toBottomOf="@+id/ctvGroupName"
         app:layout_constraintEnd_toEndOf="parent"
@@ -52,32 +58,34 @@
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:layout_marginVertical="8dp"
-        app:layout_constraintBottom_toBottomOf="@+id/ctwRingtone"
+        app:layout_constraintBottom_toBottomOf="@+id/crb_choose_ringtone"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/ctwRingtone" />
+        app:layout_constraintTop_toTopOf="@+id/crb_choose_ringtone"
+        tools:text="10" />
 
     <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
         android:id="@+id/ctwRingtone"
         android:layout_width="0dp"
+        android:ellipsize="end"
+        android:maxLines="3"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="8dp"
         android:textSize="16sp"
-        app:layout_constraintBottom_toBottomOf="@+id/crb_ser_ringtone"
-        app:layout_constraintEnd_toStartOf="@+id/crb_ser_ringtone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/crb_choose_ringtone"
         app:layout_constraintStart_toEndOf="@+id/cwtContacts"
-        app:layout_constraintTop_toTopOf="@+id/crb_ser_ringtone" />
+        app:layout_constraintTop_toTopOf="@+id/crb_choose_ringtone"
+        tools:text="Very long ringtone name that someone have chosen and now it is ellipsized" />
 
     <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
-        android:id="@+id/crb_ser_ringtone"
+        android:id="@+id/crb_choose_ringtone"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         app:buttonLabel="@string/choose_ringtone"
-        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@+id/ctcibManageContacts"
         app:layout_constraintTop_toBottomOf="@+id/ctvGroupName" />
-
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 

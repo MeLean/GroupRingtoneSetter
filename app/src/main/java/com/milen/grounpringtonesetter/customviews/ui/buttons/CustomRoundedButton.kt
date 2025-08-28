@@ -15,6 +15,9 @@ internal class CustomRoundedButton @JvmOverloads constructor(
         LayoutInflater.from(context), this
     )
 
+    private var lastClickTime = 0L
+    private val debounceInterval = 1000L
+
     init {
         context.theme.obtainStyledAttributes(
             attrs,
@@ -35,6 +38,12 @@ internal class CustomRoundedButton @JvmOverloads constructor(
     }
 
     fun setOnClickListener(listener: () -> Unit) {
-        binding.btnMain.setOnClickListener { listener() }
+        binding.btnMain.setOnClickListener {
+            val now = System.currentTimeMillis()
+            if (now - lastClickTime >= debounceInterval) {
+                lastClickTime = now
+                listener()
+            }
+        }
     }
 }

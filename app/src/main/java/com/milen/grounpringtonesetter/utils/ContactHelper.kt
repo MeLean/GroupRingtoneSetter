@@ -1,6 +1,5 @@
 package com.milen.grounpringtonesetter.utils
 
-import android.accounts.AccountManager
 import android.app.Application
 import android.content.ContentProviderOperation
 import android.content.ContentResolver
@@ -653,25 +652,16 @@ internal class ContactsHelper(
     }
 
     private fun triggerSyncForAllAccounts() {
-        val accounts = AccountManager.get(appContext).accounts
-
-        accounts.forEach { account ->
-            if (account.type == "com.google") {
-                // Ensure sync is enabled for the account and Contacts authority
-                if (!ContentResolver.getSyncAutomatically(account, ContactsContract.AUTHORITY)) {
-                    ContentResolver.setSyncAutomatically(account, ContactsContract.AUTHORITY, true)
-                }
-
-                // Trigger a manual sync
-                val extras = Bundle().apply {
-                    putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true) // Force manual sync
-                    putBoolean(
-                        ContentResolver.SYNC_EXTRAS_EXPEDITED,
-                        true
-                    ) // Expedite the sync process
-                }
-                ContentResolver.requestSync(account, ContactsContract.AUTHORITY, extras)
-            }
+        val extras = Bundle().apply {
+            putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true)
+            putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
+            putBoolean(ContentResolver.SYNC_EXTRAS_IGNORE_SETTINGS, true)
+        }
+        try {
+            ContentResolver.requestSync(null, ContactsContract.AUTHORITY, extras)
+            tracker.trackEvent("Sync successful")
+        } catch (t: Throwable) {
+            tracker.trackError(t)
         }
     }
 

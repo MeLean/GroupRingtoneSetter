@@ -30,6 +30,9 @@ internal class BillingEntitlementManager(app: Application) : PurchasesUpdatedLis
 
     private val grace = AdFreeGraceStore(app)
 
+    @Volatile
+    private var purchaseInProgress = false
+
     private val client: BillingClient = BillingClient.newBuilder(app)
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
         .enableAutoServiceReconnection()
@@ -52,21 +55,31 @@ internal class BillingEntitlementManager(app: Application) : PurchasesUpdatedLis
     suspend fun launchPurchase(activity: Activity): Int {
         ensureConnected()
 
-        val pd = queryProductDetails(productId)
-            ?: return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
+        if (purchaseInProgress) return BillingClient.BillingResponseCode.DEVELOPER_ERROR
+        purchaseInProgress = true
+        try {
+            val pd = queryProductDetails(productId)
+                ?: return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
 
-        val flow = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(
-                listOf(
-                    BillingFlowParams.ProductDetailsParams.newBuilder()
-                        .setProductDetails(pd)
-                        .build()
+            // For INAPP you do NOT set offerToken; this is correct.
+            val flow = BillingFlowParams.newBuilder()
+                .setProductDetailsParamsList(
+                    listOf(
+                        BillingFlowParams.ProductDetailsParams.newBuilder()
+                            .setProductDetails(pd)
+                            .build()
+                    )
                 )
-            )
-            .build()
+                .build()
 
-        val launch = client.launchBillingFlow(activity, flow)
-        return launch.responseCode
+            // Must be called on the main thread with a real Activity
+            val res = client.launchBillingFlow(activity, flow)
+            return res.responseCode
+        } finally {
+            // allow another attempt only after the UI returns via onPurchasesUpdated
+            // If you prefer: move this reset into onPurchasesUpdated()/onActivityResult flow.
+            purchaseInProgress = false
+        }
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {

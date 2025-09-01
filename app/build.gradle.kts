@@ -16,15 +16,16 @@ val keystoreProperties = Properties().apply {
 android {
     namespace = "com.milen.grounpringtonesetter"
 
+    // AGP 8.12 + API 36 ✅
     compileSdk = 36
 
     defaultConfig {
         applicationId = "com.milen.grounpringtonesetter"
         minSdk = 27
+        //noinspection OldTargetApi
         targetSdk = 35
-        versionCode = 727
-        versionName = "7.2.7"
-        
+        versionCode = 703
+        versionName = "7.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }

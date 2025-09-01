@@ -32,7 +32,7 @@ class App : Application() {
         }
 
 
-        billingManager = BillingEntitlementManager(this)
+        billingManager = BillingEntitlementManager(this, tracker)
         CoroutineScope(SupervisorJob() + DispatchersProvider.io).launch {
             runCatching {
                 billingManager.start()

@@ -17,10 +17,9 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.CancellableContinuation
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -32,8 +31,8 @@ internal class BillingEntitlementManager(
 
     private val productId = "remove_ads_forever"
 
-    private val _state = kotlinx.coroutines.flow.MutableStateFlow(EntitlementState.UNKNOWN)
-    val state: kotlinx.coroutines.flow.StateFlow<EntitlementState> = _state
+    private val _state = MutableStateFlow(EntitlementState.UNKNOWN)
+    val state: StateFlow<EntitlementState> = _state
 
     private val grace = AdFreeGraceStore(app)
 
@@ -51,7 +50,7 @@ internal class BillingEntitlementManager(
     /** Call at startup from a coroutine. Leaves UNKNOWN on failure. */
     suspend fun start() = runCatching {
         tracker.trackEvent("billing_start_called")
-        ensureConnectedWithRetry()
+        ensureConnected()
         getAdFree()
     }.onSuccess {
         tracker.trackEvent("billing_start_ok", mapOf("state" to _state.value.name))
@@ -63,41 +62,31 @@ internal class BillingEntitlementManager(
     suspend fun launchPurchase(activity: Activity): Int {
         tracker.trackEvent("billing_launch_called")
 
-        ensureConnectedWithRetry()
+        ensureConnected()
 
         val resumed = (activity as? LifecycleOwner)?.lifecycle
             ?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
-        val destroyed = try {
-            activity.isDestroyed
-        } catch (_: Throwable) {
-            false
-        }
-
         tracker.trackEvent(
             "billing_prelaunch_check",
             mapOf(
                 "in_progress" to purchaseInProgress,
                 "resumed" to resumed,
-                "finishing" to activity.isFinishing,
-                "destroyed" to destroyed
+                "finishing" to activity.isFinishing
             )
         )
 
-        if (!resumed || activity.isFinishing || destroyed) {
+        if (!resumed || activity.isFinishing) {
             tracker.trackEvent(
                 "billing_abort_activity_state",
-                mapOf(
-                    "resumed" to resumed,
-                    "finishing" to activity.isFinishing,
-                    "destroyed" to destroyed
-                )
+                mapOf("resumed" to resumed, "finishing" to activity.isFinishing)
             )
-            tracker.trackError(RuntimeException("Activity not in a valid state for billing launch"))
+            tracker.trackError(RuntimeException("Activity is not resumed"))
             return BillingClient.BillingResponseCode.ERROR
         }
 
         if (purchaseInProgress) {
-            tracker.trackError(RuntimeException("Purchase already in progress"))
+            tracker.trackEvent("billing_abort_in_progress")
+            tracker.trackError(RuntimeException("Purchase is in progress"))
             return BillingClient.BillingResponseCode.DEVELOPER_ERROR
         }
         purchaseInProgress = true
@@ -106,13 +95,13 @@ internal class BillingEntitlementManager(
             val pd = queryProductDetails(productId)
             if (pd == null) {
                 tracker.trackEvent("billing_abort_pd_null", mapOf("id" to productId))
-                tracker.trackError(RuntimeException("ProductDetails null"))
+                tracker.trackError(RuntimeException("no such item"))
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
 
             if (!pd.isUsableInapp()) {
                 tracker.trackEvent("billing_abort_pd_not_sellable", mapOf("id" to pd.productId))
-                tracker.trackError(RuntimeException("ProductDetails not sellable (no one-time offer)"))
+                tracker.trackError(RuntimeException("not appropriate item"))
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
 
@@ -135,46 +124,12 @@ internal class BillingEntitlementManager(
                 )
                 .build()
 
-            val immediate = withContext(Dispatchers.Main) {
-                client.launchBillingFlow(activity, flow)
-            }
+            val res = client.launchBillingFlow(activity, flow)
             tracker.trackEvent(
                 "billing_launch_result",
-                mapOf("rc" to rcName(immediate.responseCode), "msg" to immediate.debugMessage)
+                mapOf("rc" to rcName(res.responseCode), "msg" to res.debugMessage)
             )
-
-            // Handle common real-world outcome
-            if (immediate.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
-                tracker.trackEvent("billing_item_already_owned_autogrant_start")
-                // Reconcile immediately
-                getAdFree()
-                tracker.trackEvent(
-                    "billing_item_already_owned_autogrant_done",
-                    mapOf("state" to _state.value.name)
-                )
-            }
-
-            // One-shot retry for transient launch errors
-            if (immediate.responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE ||
-                immediate.responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
-            ) {
-                tracker.trackEvent(
-                    "billing_launch_retry_due_transient",
-                    mapOf("rc" to rcName(immediate.responseCode))
-                )
-                delay(400)
-                ensureConnectedWithRetry()
-                val retry = withContext(Dispatchers.Main) {
-                    client.launchBillingFlow(activity, flow)
-                }
-                tracker.trackEvent(
-                    "billing_launch_retry_result",
-                    mapOf("rc" to rcName(retry.responseCode), "msg" to retry.debugMessage)
-                )
-                return retry.responseCode
-            }
-
-            return immediate.responseCode
+            return res.responseCode
         } catch (t: Throwable) {
             tracker.trackEvent(
                 "billing_launch_exception",
@@ -205,60 +160,25 @@ internal class BillingEntitlementManager(
             return
         }
 
-        // Separate PENDING vs PURCHASED for clarity
-        val hasPending = purchases.any {
-            it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PENDING
-        }
-        if (hasPending) {
-            tracker.trackEvent("billing_purchase_pending")
-        }
-
         val owns = purchases.any {
             it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PURCHASED
         }
         tracker.trackEvent("billing_updates_has_owned", mapOf("owns" to owns))
         if (!owns) return
 
-        // Acknowledge with 1 retry for transient failures
         purchases.filter { it.products.contains(productId) && !it.isAcknowledged }
-            .forEach { p ->
-                val token = p.purchaseToken
-                fun ackOnce(cb: (BillingResult) -> Unit) {
-                    val params =
-                        AcknowledgePurchaseParams.newBuilder().setPurchaseToken(token).build()
-                    client.acknowledgePurchase(params, cb)
-                }
-
+            .forEach {
                 tracker.trackEvent(
                     "billing_ack_attempt",
-                    mapOf("purchaseToken" to token.take(12) + "…")
+                    mapOf("purchaseToken" to it.purchaseToken.take(12) + "…")
                 )
-                ackOnce { ackRes ->
-                    if (ackRes.responseCode == BillingClient.BillingResponseCode.OK) {
-                        tracker.trackEvent("billing_ack_result", mapOf("rc" to "OK"))
-                    } else if (ackRes.responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE ||
-                        ackRes.responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
-                    ) {
-                        tracker.trackEvent(
-                            "billing_ack_retry_due_transient",
-                            mapOf("rc" to rcName(ackRes.responseCode))
-                        )
-                        // Retry once
-                        ackOnce { ackRes2 ->
-                            tracker.trackEvent(
-                                "billing_ack_result_retry",
-                                mapOf(
-                                    "rc" to rcName(ackRes2.responseCode),
-                                    "msg" to ackRes2.debugMessage
-                                )
-                            )
-                        }
-                    } else {
-                        tracker.trackEvent(
-                            "billing_ack_result_terminal",
-                            mapOf("rc" to rcName(ackRes.responseCode), "msg" to ackRes.debugMessage)
-                        )
-                    }
+                val params = AcknowledgePurchaseParams.newBuilder()
+                    .setPurchaseToken(it.purchaseToken).build()
+                client.acknowledgePurchase(params) { ackRes ->
+                    tracker.trackEvent(
+                        "billing_ack_result",
+                        mapOf("rc" to rcName(ackRes.responseCode), "msg" to ackRes.debugMessage)
+                    )
                 }
             }
 
@@ -266,34 +186,6 @@ internal class BillingEntitlementManager(
         val until = System.currentTimeMillis() + AdFreeGraceStore.GRACE_TTL_MILLIS
         grace.saveAdFreeUntil(until)
         tracker.trackEvent("billing_entitlement_owned", mapOf("grace_until" to until))
-    }
-
-    // ---- internals ----
-
-    private suspend fun ensureConnectedWithRetry() {
-        val maxAttempts = 2
-        var attempt = 1
-        var lastError: Throwable? = null
-        while (attempt <= maxAttempts) {
-            try {
-                ensureConnected()
-                if (attempt > 1) tracker.trackEvent(
-                    "billing_connect_retry_success",
-                    mapOf("attempt" to attempt)
-                )
-                return
-            } catch (t: Throwable) {
-                lastError = t
-                tracker.trackEvent(
-                    "billing_connect_attempt_fail",
-                    mapOf("attempt" to attempt, "error" to (t.message ?: "unknown"))
-                )
-                if (attempt == maxAttempts) break
-                delay(300)
-                attempt++
-            }
-        }
-        throw lastError ?: IllegalStateException("Billing connect failed")
     }
 
     private suspend fun ensureConnected(): Unit = suspendCancellableCoroutine { cont ->
@@ -353,18 +245,12 @@ internal class BillingEntitlementManager(
             val owns = purchases.any {
                 it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PURCHASED
             }
-            val hasPending = purchases.any {
-                it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PENDING
-            }
-            if (hasPending) tracker.trackEvent("billing_query_purchases_pending")
+            tracker.trackEvent("billing_query_purchases_owns", mapOf("owns" to owns))
 
             if (owns) {
                 purchases.filter { it.products.contains(productId) && !it.isAcknowledged }
                     .forEach {
-                        tracker.trackEvent(
-                            "billing_ack_attempt_on_query",
-                            mapOf("token" to it.purchaseToken.take(12) + "…")
-                        )
+                        tracker.trackEvent("billing_ack_attempt_on_query")
                         client.acknowledgePurchase(
                             AcknowledgePurchaseParams.newBuilder()
                                 .setPurchaseToken(it.purchaseToken).build()

@@ -1,11 +1,14 @@
 package com.milen.grounpringtonesetter.utils
 
+import android.app.Activity
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -19,44 +22,61 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
+fun Context.hasInternetConnection(): Boolean =
+    with(getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager) {
+        this?.activeNetwork?.let {
+            getNetworkCapabilities(it)
+                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                    && getNetworkCapabilities(it)
+                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+        }
+    } ?: false
+
 internal fun Context.internetAvailableFlow(): Flow<Boolean> = callbackFlow {
-    val cm = applicationContext.getSystemService(ConnectivityManager::class.java)
+    val app = this@internetAvailableFlow.applicationContext
+    val cm = app.getSystemService(ConnectivityManager::class.java)
 
-    fun isOnlineNow(): Boolean {
-        val active = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(active) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-    }
+    fun snapshot() = app.hasInternetConnection()
+    trySend(snapshot())
 
-    trySend(isOnlineNow()).isSuccess
+    val cb = object : ConnectivityManager.NetworkCallback() {
+        override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+            val ok = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            trySend(ok)
+        }
 
-    val callback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            // Network became available; verify it's actually validated
-            trySend(isOnlineNow()).isSuccess
+            trySend(snapshot())
         }
 
         override fun onLost(network: Network) {
-            // Active network lost; check if another one is active/validated
-            trySend(isOnlineNow()).isSuccess
-        }
-
-        override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-            val ok = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
-            trySend(ok).isSuccess
+            trySend(snapshot())
         }
 
         override fun onUnavailable() {
-            trySend(false).isSuccess
+            trySend(false)
         }
     }
 
-    runCatching { cm.registerDefaultNetworkCallback(callback) }
-        .onFailure { trySend(isOnlineNow()).isSuccess }
+    val req = NetworkRequest.Builder()
+        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        .build()
+    cm.registerNetworkCallback(req, cb)
 
-    awaitClose { runCatching { cm.unregisterNetworkCallback(callback) } }
+    awaitClose { cm.unregisterNetworkCallback(cb) }
+}.distinctUntilChanged()
+
+internal fun Activity.subscribeForConnectivityChanges(block: (Boolean) -> Unit) {
+    (this as? AppCompatActivity)?.lifecycleScope?.launch {
+        repeatOnLifecycle(Lifecycle.State.STARTED) {
+            internetAvailableFlow()
+                .distinctUntilChanged()
+                .collect { isOnline ->
+                    block(isOnline)
+                }
+        }
+    }
 }
 
 inline fun <T> Flow<T>.collectStateIn(

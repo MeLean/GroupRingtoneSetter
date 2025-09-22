@@ -1,4 +1,3 @@
-// main/java/com/milen/grounpringtonesetter/utils/ContextExtentsions.kt
 package com.milen.grounpringtonesetter.utils
 
 import android.content.Context
@@ -20,15 +19,45 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
-fun Context.hasInternetConnection(): Boolean =
-    with(getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager) {
-        this?.activeNetwork?.let {
-            getNetworkCapabilities(it)
-                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-                    && getNetworkCapabilities(it)
-                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+internal fun Context.internetAvailableFlow(): Flow<Boolean> = callbackFlow {
+    val cm = applicationContext.getSystemService(ConnectivityManager::class.java)
+
+    fun isOnlineNow(): Boolean {
+        val active = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(active) ?: return false
+        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    trySend(isOnlineNow()).isSuccess
+
+    val callback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            // Network became available; verify it's actually validated
+            trySend(isOnlineNow()).isSuccess
         }
-    } ?: false
+
+        override fun onLost(network: Network) {
+            // Active network lost; check if another one is active/validated
+            trySend(isOnlineNow()).isSuccess
+        }
+
+        override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+            val ok = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            trySend(ok).isSuccess
+        }
+
+        override fun onUnavailable() {
+            trySend(false).isSuccess
+        }
+    }
+
+    runCatching { cm.registerDefaultNetworkCallback(callback) }
+        .onFailure { trySend(isOnlineNow()).isSuccess }
+
+    awaitClose { runCatching { cm.unregisterNetworkCallback(callback) } }
+}
 
 inline fun <T> Flow<T>.collectStateIn(
     owner: LifecycleOwner,
@@ -59,6 +88,7 @@ inline fun <T> Flow<T>.collectEventsIn(
 internal fun Fragment.handleLoading(loading: Boolean) =
     (requireActivity() as? MainActivity)?.handleLoading(loading)
 
+
 internal fun View.hideSoftInput() {
     (context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)
         ?.hideSoftInputFromWindow(windowToken, InputMethodManager.HIDE_NOT_ALWAYS)
@@ -67,39 +97,4 @@ internal fun View.hideSoftInput() {
 
 internal fun Fragment.changeMainTitle(title: String) {
     (requireActivity() as? MainActivity)?.setCustomTitle(title)
-}
-
-internal fun Context.connectivityFlow(): Flow<Boolean> = callbackFlow {
-    val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-
-    val callback = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) {
-            trySend(true).isSuccess
-        }
-
-        override fun onLost(network: Network) {
-            trySend(false).isSuccess
-        }
-
-        override fun onUnavailable() {
-            trySend(false).isSuccess
-        }
-    }
-
-    // Initial state
-    trySend(isOnlineNow(cm))
-
-    // Register default callback (API 24+; minSdk 26 is fine)
-    runCatching { cm.registerDefaultNetworkCallback(callback) }
-        .onFailure { /* if it ever fails, we at least emitted initial state */ }
-
-    awaitClose { runCatching { cm.unregisterNetworkCallback(callback) } }
-}.distinctUntilChanged()
-
-private fun isOnlineNow(cm: ConnectivityManager): Boolean {
-    val active = cm.activeNetwork ?: return false
-    val caps = cm.getNetworkCapabilities(active) ?: return false
-    // VALIDATED implies actual internet; INTERNET alone can be captive/no route
-    return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 }

@@ -31,11 +31,11 @@ import com.milen.grounpringtonesetter.utils.collectEventsIn
 import com.milen.grounpringtonesetter.utils.collectStateIn
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import com.milen.grounpringtonesetter.utils.handleLoading
-import com.milen.grounpringtonesetter.utils.internetAvailableFlow
 import com.milen.grounpringtonesetter.utils.log
 import com.milen.grounpringtonesetter.utils.manageVisibility
 import com.milen.grounpringtonesetter.utils.navigateSingleTop
 import com.milen.grounpringtonesetter.utils.parcelableOrNull
+import com.milen.grounpringtonesetter.utils.subscribeForConnectivityChanges
 
 internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private lateinit var binding: FragmentHomeScreenBinding
@@ -72,6 +72,10 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         groupsAdapter = GroupsAdapter(this)
 
         checkPermissions()
+
+        requireActivity().subscribeForConnectivityChanges { isOnline ->
+            viewModel.onConnectionChanged(isOnline)
+        }
     }
 
     override fun onCreateView(
@@ -84,11 +88,6 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        requireContext().internetAvailableFlow()
-            .collectStateIn(viewLifecycleOwner) { isOnline ->
-                viewModel.onConnectionChanged(isOnline)
-            }
 
         binding.apply {
             rwGroupItems.adapter = groupsAdapter

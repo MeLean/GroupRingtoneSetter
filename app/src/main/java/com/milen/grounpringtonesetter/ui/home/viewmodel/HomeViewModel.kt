@@ -97,8 +97,8 @@ internal class HomeViewModel(
     }
 
     fun onConnectionChanged(isOnline: Boolean) {
+        tracker.trackEvent("onConnectionChanged isOnline: $isOnline")
         if (!isOnline && state.value.entitlement != EntitlementState.OWNED) {
-            tracker.trackEvent("onConnectionChanged")
             launch { _events.send(HomeEvent.ConnectionLost) }
         }
     }

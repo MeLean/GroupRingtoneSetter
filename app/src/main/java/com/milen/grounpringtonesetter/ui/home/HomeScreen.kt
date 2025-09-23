@@ -1,3 +1,4 @@
+// main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
 package com.milen.grounpringtonesetter.ui.home
 
 import android.net.Uri
@@ -9,6 +10,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.EntitlementState
@@ -29,13 +33,15 @@ import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
 import com.milen.grounpringtonesetter.utils.changeMainTitle
 import com.milen.grounpringtonesetter.utils.collectEventsIn
 import com.milen.grounpringtonesetter.utils.collectStateIn
+import com.milen.grounpringtonesetter.utils.connectivityFlow
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.log
 import com.milen.grounpringtonesetter.utils.manageVisibility
 import com.milen.grounpringtonesetter.utils.navigateSingleTop
 import com.milen.grounpringtonesetter.utils.parcelableOrNull
-import com.milen.grounpringtonesetter.utils.subscribeForConnectivityChanges
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private lateinit var binding: FragmentHomeScreenBinding
@@ -68,14 +74,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         groupsAdapter = GroupsAdapter(this)
-
         checkPermissions()
-
-        requireActivity().subscribeForConnectivityChanges { isOnline ->
-            viewModel.onConnectionChanged(isOnline)
-        }
     }
 
     override fun onCreateView(
@@ -88,6 +88,17 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                requireContext()
+                    .connectivityFlow() // defined below in this same file
+                    .collectLatest { isOnline ->
+                        // Guard: fragment must be attached + navController available
+                        viewModel.onConnectionChanged(isOnline)
+                    }
+            }
+        }
 
         binding.apply {
             rwGroupItems.adapter = groupsAdapter
@@ -124,9 +135,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
                 btnAddGroup.apply {
                     isVisible = !state.isLoading
-                    setOnClickListener {
-                        viewModel.setUpGroupCreateRequest()
-                    }
+                    setOnClickListener { viewModel.setUpGroupCreateRequest() }
                 }
 
                 btnSelectAccount.apply {
@@ -138,9 +147,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
                 btnRemoveAds.apply {
                     isVisible = !state.isLoading && state.entitlement != EntitlementState.OWNED
-                    setOnClickListener {
-                        viewModel.startPurchase(requireActivity())
-                    }
+                    setOnClickListener { viewModel.startPurchase(requireActivity()) }
                 }
             }
         }
@@ -204,9 +211,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             titleResId = R.string.manage_contacts_group_name,
             message = getString(R.string.manage_contacts_group_name_desc),
             cancelButtonData = ButtonData(R.string.cancel),
-            confirmButtonData = ButtonData {
-                viewModel.setUpContactsManaging(labelItem)
-            }
+            confirmButtonData = ButtonData { viewModel.setUpContactsManaging(labelItem) }
         )
 
     override fun onEditName(labelItem: LabelItem): Unit =
@@ -214,9 +219,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             titleResId = R.string.edit_group_name,
             message = getString(R.string.edit_group_name_desc),
             cancelButtonData = ButtonData(R.string.cancel),
-            confirmButtonData = ButtonData {
-                viewModel.setUpGroupNameEditing(labelItem)
-            }
+            confirmButtonData = ButtonData { viewModel.setUpGroupNameEditing(labelItem) }
         )
 
     override fun onGroupDelete(labelItem: LabelItem): Unit =
@@ -224,9 +227,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             titleResId = R.string.delete_group,
             message = getString(R.string.delete_group_desc),
             cancelButtonData = ButtonData(R.string.cancel),
-            confirmButtonData = ButtonData {
-                viewModel.onGroupDeleted(labelItem)
-            }
+            confirmButtonData = ButtonData { viewModel.onGroupDeleted(labelItem) }
         )
 
     override fun onChoseRingtoneIntent(labelItem: LabelItem) {

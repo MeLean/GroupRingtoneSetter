@@ -50,7 +50,6 @@ internal class NoInternetScreen : Fragment() {
             )
         }
 
-        // ✅ Lifecycle-aware collection: auto-stops when view stops/destroys
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 requireContext()

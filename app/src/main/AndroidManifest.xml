@@ -35,6 +35,17 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name="com.android.billingclient.api.ProxyBillingActivity"
+            android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            tools:node="merge"
+            tools:replace="noHistory,finishOnTaskLaunch,excludeFromRecents,exported,theme,configChanges" />
+
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-6177746105485183~9226068349" />

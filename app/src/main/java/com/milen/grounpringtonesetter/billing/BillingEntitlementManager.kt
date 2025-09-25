@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -38,7 +39,7 @@ internal class BillingEntitlementManager(
     private val grace = AdFreeGraceStore(app)
 
     @Volatile
-    private var purchaseInProgress = false
+    private var purchaseInProgress = AtomicBoolean(false)
 
     private val client: BillingClient = BillingClient.newBuilder(app)
         .enablePendingPurchases(
@@ -60,13 +61,13 @@ internal class BillingEntitlementManager(
         tracker.trackError(e)
     }.getOrNull()
 
+
     suspend fun launchPurchase(activity: Activity): Int {
         tracker.trackEvent("billing_launch_called")
-
         ensureConnectedWithRetry()
 
-        val resumed = (activity as? LifecycleOwner)?.lifecycle
-            ?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
+        val resumed =
+            (activity as? LifecycleOwner)?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
         val destroyed = try {
             activity.isDestroyed
         } catch (_: Throwable) {
@@ -74,9 +75,8 @@ internal class BillingEntitlementManager(
         }
 
         tracker.trackEvent(
-            "billing_prelaunch_check",
-            mapOf(
-                "in_progress" to purchaseInProgress,
+            "billing_prelaunch_check", mapOf(
+                "in_progress" to purchaseInProgress.get(),
                 "resumed" to resumed,
                 "finishing" to activity.isFinishing,
                 "destroyed" to destroyed
@@ -84,46 +84,26 @@ internal class BillingEntitlementManager(
         )
 
         if (!resumed || activity.isFinishing || destroyed) {
-            tracker.trackEvent(
-                "billing_abort_activity_state",
-                mapOf(
-                    "resumed" to resumed,
-                    "finishing" to activity.isFinishing,
-                    "destroyed" to destroyed
-                )
-            )
-            tracker.trackError(RuntimeException("Activity not in a valid state for billing launch"))
+            tracker.trackError(RuntimeException("Activity not in valid state for billing launch"))
             return BillingClient.BillingResponseCode.ERROR
         }
 
-        if (purchaseInProgress) {
+        // prevent double-fire from rapid taps / lifecycle bounce
+        if (!purchaseInProgress.compareAndSet(false, true)) {
             tracker.trackError(RuntimeException("Purchase already in progress"))
             return BillingClient.BillingResponseCode.DEVELOPER_ERROR
         }
-        purchaseInProgress = true
 
         try {
             val pd = queryProductDetails(productId)
             if (pd == null) {
-                tracker.trackEvent("billing_abort_pd_null", mapOf("id" to productId))
                 tracker.trackError(RuntimeException("ProductDetails null"))
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
-
             if (!pd.isUsableInapp()) {
-                tracker.trackEvent("billing_abort_pd_not_sellable", mapOf("id" to pd.productId))
                 tracker.trackError(RuntimeException("ProductDetails not sellable (no one-time offer)"))
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
-
-            tracker.trackEvent(
-                "billing_launch_attempt",
-                mapOf(
-                    "id" to pd.productId,
-                    "title" to pd.title,
-                    "price" to (pd.oneTimePurchaseOfferDetails?.formattedPrice ?: "n/a")
-                )
-            )
 
             val flow = BillingFlowParams.newBuilder()
                 .setProductDetailsParamsList(
@@ -132,41 +112,26 @@ internal class BillingEntitlementManager(
                             .setProductDetails(pd)
                             .build()
                     )
-                )
-                .build()
+                ).build()
 
-            val immediate = withContext(Dispatchers.Main) {
-                client.launchBillingFlow(activity, flow)
-            }
+            val immediate =
+                withContext(Dispatchers.Main) { client.launchBillingFlow(activity, flow) }
             tracker.trackEvent(
                 "billing_launch_result",
                 mapOf("rc" to rcName(immediate.responseCode), "msg" to immediate.debugMessage)
             )
 
-            // Handle common real-world outcome
             if (immediate.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
-                tracker.trackEvent("billing_item_already_owned_autogrant_start")
-                // Reconcile immediately
                 getAdFree()
-                tracker.trackEvent(
-                    "billing_item_already_owned_autogrant_done",
-                    mapOf("state" to _state.value.name)
-                )
             }
 
-            // One-shot retry for transient launch errors
             if (immediate.responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE ||
                 immediate.responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
             ) {
-                tracker.trackEvent(
-                    "billing_launch_retry_due_transient",
-                    mapOf("rc" to rcName(immediate.responseCode))
-                )
                 delay(400)
                 ensureConnectedWithRetry()
-                val retry = withContext(Dispatchers.Main) {
-                    client.launchBillingFlow(activity, flow)
-                }
+                val retry =
+                    withContext(Dispatchers.Main) { client.launchBillingFlow(activity, flow) }
                 tracker.trackEvent(
                     "billing_launch_retry_result",
                     mapOf("rc" to rcName(retry.responseCode), "msg" to retry.debugMessage)
@@ -183,12 +148,12 @@ internal class BillingEntitlementManager(
             tracker.trackError(t)
             throw t
         } finally {
-            purchaseInProgress = false
+            purchaseInProgress.set(false)
         }
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {
-        purchaseInProgress = false
+        purchaseInProgress.set(false)
         tracker.trackEvent(
             "billing_updates_callback",
             mapOf(

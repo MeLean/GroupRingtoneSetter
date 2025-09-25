@@ -147,7 +147,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
                 btnRemoveAds.apply {
                     isVisible = !state.isLoading && state.entitlement != EntitlementState.OWNED
-                    setOnClickListener { viewModel.startPurchase(requireActivity()) }
+                    setOnClickListener {
+                        isEnabled = false
+                        viewModel.startPurchase(requireActivity())
+                        postDelayed({ isEnabled = true }, 500)
+                    }
                 }
             }
         }

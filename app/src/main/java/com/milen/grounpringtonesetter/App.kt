@@ -60,10 +60,12 @@ class App : Application() {
                                 )
                             )
                         } catch (_: Throwable) {
+                            // do noting
                         }
                         try {
                             a.finish()
                         } catch (_: Throwable) {
+                            // do noting
                         }
                     } else {
                         try {
@@ -74,6 +76,7 @@ class App : Application() {
                                 )
                             )
                         } catch (_: Throwable) {
+                            // do noting
                         }
                     }
                 }
@@ -91,5 +94,10 @@ class App : Application() {
         CoroutineScope(SupervisorJob() + DispatchersProvider.io).launch {
             runCatching { billingManager.start() }.onFailure { tracker.trackError(it) }
         }
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        billingManager.end()
     }
 }

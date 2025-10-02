@@ -17,6 +17,7 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,9 +26,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 internal class BillingEntitlementManager(
     app: Application,
@@ -43,16 +44,21 @@ internal class BillingEntitlementManager(
 
     @Volatile
     private var purchaseInProgress = AtomicBoolean(false)
-
-    @Volatile
-    private var needsReconnect = false
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    // Single BillingClient instance (no auto-reconnect; we control it)
     private val client: BillingClient = BillingClient.newBuilder(app)
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
-        .enableAutoServiceReconnection()
         .setListener(this)
         .build()
+
+    // 🔒 Single-flight connection guard (cancellation-proof)
+    private val connectingRef = AtomicReference<CompletableDeferred<Unit>?>(null)
+
+    /** Optional tidy-up if you decide to release the client manually. */
+    fun end() {
+        runCatching { client.endConnection() }
+    }
 
     /** Call at startup from a coroutine. Leaves UNKNOWN on failure. */
     suspend fun start() = runCatching {
@@ -98,7 +104,7 @@ internal class BillingEntitlementManager(
         }
 
         try {
-            val pd = queryProductDetails(productId) // <-- now implemented below
+            val pd = queryProductDetails(productId)
             if (pd == null) {
                 tracker.trackError(RuntimeException("ProductDetails null"))
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
@@ -115,8 +121,7 @@ internal class BillingEntitlementManager(
                             .setProductDetails(pd)
                             .build()
                     )
-                )
-                .build()
+                ).build()
 
             // legit launch → let ProxyBillingActivity through
             BillingGuard.beginLaunch()
@@ -210,7 +215,6 @@ internal class BillingEntitlementManager(
                     BillingClient.BillingResponseCode.OK -> {
                         tracker.trackEvent("billing_ack_result", mapOf("rc" to "OK"))
                     }
-
                     BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
                     BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
                         -> {
@@ -274,37 +278,53 @@ internal class BillingEntitlementManager(
         throw lastError ?: IllegalStateException("Billing connect failed")
     }
 
-    private suspend fun ensureConnected(): Unit = suspendCancellableCoroutine { cont ->
-        // reconnect if not ready OR we saw a disconnect
-        if (client.isReady && !needsReconnect) {
+    /** Single-flight, cancellation-proof. Never overlaps startConnection(). */
+    private suspend fun ensureConnected() {
+        if (client.isReady) {
             tracker.trackEvent("billing_connect_already_ready")
-            cont.safeResume(Unit); return@suspendCancellableCoroutine
+            return
+        }
+
+        // Join an in-flight connection if any
+        connectingRef.get()?.let { existing ->
+            tracker.trackEvent("billing_connect_wait_existing")
+            existing.await()
+            return
+        }
+
+        // Try to become the "winner" who starts the connection
+        val created = CompletableDeferred<Unit>()
+        if (!connectingRef.compareAndSet(null, created)) {
+            // Lost the race → wait on the existing one
+            connectingRef.get()!!.await()
+            return
         }
 
         tracker.trackEvent("billing_connect_start")
         client.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(r: BillingResult) {
-                if (!cont.isActive) return
+                // Release the shared handle first, then complete
+                connectingRef.set(null)
                 if (r.responseCode == BillingClient.BillingResponseCode.OK) {
-                    needsReconnect = false
                     tracker.trackEvent("billing_connect_ok")
-                    cont.safeResume(Unit)
+                    created.complete(Unit)
                 } else {
                     tracker.trackEvent(
                         "billing_connect_fail",
                         mapOf("rc" to rcName(r.responseCode), "msg" to r.debugMessage)
                     )
-                    cont.resumeWithException(IllegalStateException("Billing connect failed: ${r.responseCode} ${r.debugMessage}"))
+                    created.completeExceptionally(IllegalStateException("Billing connect failed: ${r.responseCode} ${r.debugMessage}"))
                 }
             }
 
             override fun onBillingServiceDisconnected() {
-                needsReconnect = true
+                // Passive; next API call will reconnect via ensureConnectedWithRetry()
                 tracker.trackEvent("billing_connect_disconnected")
             }
         })
 
-        cont.invokeOnCancellation { tracker.trackEvent("billing_connect_cancelled") }
+        // Await connection (this caller may be cancelled; the shared deferred continues)
+        created.await()
     }
 
     private suspend fun getAdFree(): EntitlementState = suspendCancellableCoroutine { cont ->
@@ -316,6 +336,30 @@ internal class BillingEntitlementManager(
 
         client.queryPurchasesAsync(params) { br, purchases ->
             if (!cont.isActive) return@queryPurchasesAsync
+
+            if (br.responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) {
+                tracker.trackEvent("billing_query_purchases_need_reconnect")
+                ioScope.launch {
+                    runCatching { ensureConnectedWithRetry() }
+                        .onSuccess {
+                            client.queryPurchasesAsync(params) { br2, p2 ->
+                                tracker.trackEvent(
+                                    "billing_query_purchases_retry_result", mapOf(
+                                    "rc" to rcName(br2.responseCode),
+                                    "msg" to br2.debugMessage,
+                                        "count" to p2.size
+                                    )
+                                )
+                                handlePurchasesResultAfterOk(br2, p2, cont)
+                            }
+                        }
+                        .onFailure {
+                            cont.safeResume(EntitlementState.UNKNOWN)
+                        }
+                }
+                return@queryPurchasesAsync
+            }
+
             tracker.trackEvent(
                 "billing_query_purchases_result", mapOf(
                     "rc" to rcName(br.responseCode),
@@ -323,37 +367,10 @@ internal class BillingEntitlementManager(
                     "count" to purchases.size
                 )
             )
-
-            if (br.responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) {
-                tracker.trackEvent("billing_query_purchases_need_reconnect")
-                needsReconnect = true
-                ioScope.launch {
-                    runCatching { ensureConnectedWithRetry() }.onSuccess {
-                        val retryParams = QueryPurchasesParams.newBuilder()
-                            .setProductType(BillingClient.ProductType.INAPP)
-                            .build()
-                        client.queryPurchasesAsync(retryParams) { br2, purchases2 ->
-                            tracker.trackEvent(
-                                "billing_query_purchases_retry_result", mapOf(
-                                    "rc" to rcName(br2.responseCode),
-                                    "msg" to br2.debugMessage,
-                                    "count" to purchases2.size
-                                )
-                            )
-                            handlePurchasesResultAfterOk(br2, purchases2, cont)
-                        }
-                    }.onFailure {
-                        cont.safeResume(EntitlementState.UNKNOWN)
-                    }
-                }
-                return@queryPurchasesAsync
-            }
-
             handlePurchasesResultAfterOk(br, purchases, cont)
         }
     }
 
-    // 🔧 MISSING EARLIER: now included
     private suspend fun queryProductDetails(id: String): ProductDetails? =
         suspendCancellableCoroutine { cont ->
             tracker.trackEvent("billing_pd_query_start", mapOf("id" to id))
@@ -366,19 +383,18 @@ internal class BillingEntitlementManager(
                             .setProductType(BillingClient.ProductType.INAPP)
                             .build()
                     )
-                )
-                .build()
+                ).build()
 
             client.queryProductDetailsAsync(q) { br, result ->
                 if (!cont.isActive) return@queryProductDetailsAsync
                 val list = result.productDetailsList
                 tracker.trackEvent(
                     "billing_pd_query_result", mapOf(
-                        "rc" to rcName(br.responseCode),
-                        "msg" to br.debugMessage,
-                        "count" to list.size,
-                        "ids" to list.joinToString { it.productId }
-                    ))
+                    "rc" to rcName(br.responseCode),
+                    "msg" to br.debugMessage,
+                    "count" to list.size,
+                    "ids" to list.joinToString { it.productId }
+                ))
 
                 if (br.responseCode != BillingClient.BillingResponseCode.OK) {
                     cont.safeResume(null); return@queryProductDetailsAsync
@@ -469,7 +485,7 @@ internal class BillingEntitlementManager(
         BillingClient.BillingResponseCode.ERROR -> "ERROR"
         BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> "ITEM_ALREADY_OWNED"
         BillingClient.BillingResponseCode.ITEM_NOT_OWNED -> "ITEM_NOT_OWNED"
-        BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> "SERVICE_DISCONNECTED" // -1
+        BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> "SERVICE_DISCONNECTED"
         else -> "UNKNOWN_$code"
     }
 }

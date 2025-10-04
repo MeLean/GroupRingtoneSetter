@@ -34,50 +34,48 @@ class App : Application() {
             )
         }
 
-        // 🔒 Kill bogus ProxyBillingActivity launches (bots/PLR) BEFORE its onCreate.
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityPreCreated(a: Activity, s: Bundle?) {
                 killIfBadProxy(a)
             }
 
-            @Suppress("DEPRECATION") // API 26–28: runs after onCreate (best-effort)
+            @Suppress("DEPRECATION")
             override fun onActivityCreated(a: Activity, s: Bundle?) {
                 if (Build.VERSION.SDK_INT < 29) killIfBadProxy(a)
             }
 
             private fun killIfBadProxy(a: Activity) {
-                if (a.javaClass.name == "com.android.billingclient.api.ProxyBillingActivity") {
-                    val extrasOk = a.intent?.extras?.isEmpty == false
-                    val launchedByUs = BillingGuard.isExpecting()
-                    // ✅ SAFEST rule: Only kill if extras are missing.
-                    //    (We just log when extras exist but guard is false.)
-                    if (!extrasOk) {
-                        try {
-                            tracker.trackEvent(
-                                "billing_proxy_killed", mapOf(
-                                    "extrasOk" to extrasOk,
-                                    "launchedByUs" to launchedByUs
-                                )
+                if (a.javaClass.name != "com.android.billingclient.api.ProxyBillingActivity") return
+
+                val hasValidExtras = BillingGuard.hasValidBillingExtras(a.intent)
+                val launchedByUs = BillingGuard.isExpecting()
+
+                if (!hasValidExtras || !launchedByUs) {
+                    try {
+                        tracker.trackEvent(
+                            "billing_proxy_killed", mapOf(
+                                "validExtras" to hasValidExtras,
+                                "launchedByUs" to launchedByUs,
+                                "hasIntent" to (a.intent != null),
+                                "hasExtras" to (a.intent?.extras != null),
+                                "extrasEmpty" to (a.intent?.extras?.isEmpty ?: true)
                             )
-                        } catch (_: Throwable) {
-                            // do noting
-                        }
-                        try {
-                            a.finish()
-                        } catch (_: Throwable) {
-                            // do noting
-                        }
-                    } else {
-                        try {
-                            tracker.trackEvent(
-                                "billing_proxy_seen", mapOf(
-                                    "extrasOk" to true,
-                                    "launchedByUs" to launchedByUs
-                                )
+                        )
+                    } catch (_: Throwable) {
+                    }
+                    try {
+                        a.finish()
+                    } catch (_: Throwable) {
+                    }
+                } else {
+                    try {
+                        tracker.trackEvent(
+                            "billing_proxy_allowed", mapOf(
+                                "validExtras" to true,
+                                "launchedByUs" to true
                             )
-                        } catch (_: Throwable) {
-                            // do noting
-                        }
+                        )
+                    } catch (_: Throwable) {
                     }
                 }
             }

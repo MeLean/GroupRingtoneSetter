@@ -33,3 +33,5 @@
 
 -keep class androidx.appcompat.** { *; }
 -keep class android.content.res.** { *; }
+
+-keep class com.android.billingclient.api.** { *; }

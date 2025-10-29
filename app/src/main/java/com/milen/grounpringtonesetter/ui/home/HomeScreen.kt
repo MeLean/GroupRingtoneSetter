@@ -146,7 +146,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                 abHome.manageVisibility(state.entitlement)
 
                 btnRemoveAds.apply {
-                    isVisible = !state.isLoading && state.entitlement != EntitlementState.OWNED
+                    isVisible = !state.loadingVisible && state.entitlement != EntitlementState.OWNED
                     setOnClickListener {
                         isEnabled = false
                         viewModel.startPurchase(requireActivity())

@@ -46,21 +46,17 @@ internal class BillingEntitlementManager(
     private var purchaseInProgress = AtomicBoolean(false)
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // Single BillingClient instance (no auto-reconnect; we control it)
     private val client: BillingClient = BillingClient.newBuilder(app)
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
         .setListener(this)
         .build()
 
-    // 🔒 Single-flight connection guard (cancellation-proof)
     private val connectingRef = AtomicReference<CompletableDeferred<Unit>?>(null)
 
-    /** Optional tidy-up if you decide to release the client manually. */
     fun end() {
         runCatching { client.endConnection() }
     }
 
-    /** Call at startup from a coroutine. Leaves UNKNOWN on failure. */
     suspend fun start() = runCatching {
         tracker.trackEvent("billing_start_called")
         ensureConnectedWithRetry()
@@ -74,7 +70,13 @@ internal class BillingEntitlementManager(
 
     suspend fun launchPurchase(activity: Activity): Int {
         tracker.trackEvent("billing_launch_called")
-        ensureConnectedWithRetry()
+
+        try {
+            ensureConnectedWithRetry()
+        } catch (e: Exception) {
+            tracker.trackError(e)
+            return BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE
+        }
 
         val resumed =
             (activity as? LifecycleOwner)?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
@@ -110,7 +112,7 @@ internal class BillingEntitlementManager(
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
             if (!pd.isUsableInapp()) {
-                tracker.trackError(RuntimeException("ProductDetails not sellable (no one-time offer)"))
+                tracker.trackError(RuntimeException("ProductDetails not sellable"))
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
 
@@ -123,11 +125,18 @@ internal class BillingEntitlementManager(
                     )
                 ).build()
 
-            // legit launch → let ProxyBillingActivity through
             BillingGuard.beginLaunch()
 
-            val immediate =
-                withContext(Dispatchers.Main) { client.launchBillingFlow(activity, flow) }
+            val immediate = try {
+                withContext(Dispatchers.Main) {
+                    client.launchBillingFlow(activity, flow)
+                }
+            } catch (e: Exception) {
+                tracker.trackError(e)
+                BillingGuard.endLaunch()
+                return BillingClient.BillingResponseCode.ERROR
+            }
+
             tracker.trackEvent(
                 "billing_launch_result", mapOf(
                     "rc" to rcName(immediate.responseCode),
@@ -143,11 +152,24 @@ internal class BillingEntitlementManager(
                 immediate.responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
             ) {
                 delay(400)
-                ensureConnectedWithRetry()
-                // keep window open for retry
+                try {
+                    ensureConnectedWithRetry()
+                } catch (e: Exception) {
+                    tracker.trackError(e)
+                    return immediate.responseCode
+                }
+
                 BillingGuard.beginLaunch()
-                val retry =
-                    withContext(Dispatchers.Main) { client.launchBillingFlow(activity, flow) }
+                val retry = try {
+                    withContext(Dispatchers.Main) {
+                        client.launchBillingFlow(activity, flow)
+                    }
+                } catch (e: Exception) {
+                    tracker.trackError(e)
+                    BillingGuard.endLaunch()
+                    return BillingClient.BillingResponseCode.ERROR
+                }
+
                 tracker.trackEvent(
                     "billing_launch_retry_result", mapOf(
                         "rc" to rcName(retry.responseCode),
@@ -172,7 +194,6 @@ internal class BillingEntitlementManager(
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {
-        // legit flow reached callback (covers USER_CANCELED)
         BillingGuard.endLaunch()
 
         purchaseInProgress.set(false)
@@ -250,8 +271,6 @@ internal class BillingEntitlementManager(
         tracker.trackEvent("billing_entitlement_owned", mapOf("grace_until" to until))
     }
 
-    // ---- internals ----
-
     private suspend fun ensureConnectedWithRetry() {
         val maxAttempts = 2
         var attempt = 1
@@ -278,24 +297,20 @@ internal class BillingEntitlementManager(
         throw lastError ?: IllegalStateException("Billing connect failed")
     }
 
-    /** Single-flight, cancellation-proof. Never overlaps startConnection(). */
     private suspend fun ensureConnected() {
         if (client.isReady) {
             tracker.trackEvent("billing_connect_already_ready")
             return
         }
 
-        // Join an in-flight connection if any
         connectingRef.get()?.let { existing ->
             tracker.trackEvent("billing_connect_wait_existing")
             existing.await()
             return
         }
 
-        // Try to become the "winner" who starts the connection
         val created = CompletableDeferred<Unit>()
         if (!connectingRef.compareAndSet(null, created)) {
-            // Lost the race → wait on the existing one
             connectingRef.get()!!.await()
             return
         }
@@ -303,7 +318,6 @@ internal class BillingEntitlementManager(
         tracker.trackEvent("billing_connect_start")
         client.startConnection(object : BillingClientStateListener {
             override fun onBillingSetupFinished(r: BillingResult) {
-                // Release the shared handle first, then complete
                 connectingRef.set(null)
                 if (r.responseCode == BillingClient.BillingResponseCode.OK) {
                     tracker.trackEvent("billing_connect_ok")
@@ -318,12 +332,10 @@ internal class BillingEntitlementManager(
             }
 
             override fun onBillingServiceDisconnected() {
-                // Passive; next API call will reconnect via ensureConnectedWithRetry()
                 tracker.trackEvent("billing_connect_disconnected")
             }
         })
 
-        // Await connection (this caller may be cancelled; the shared deferred continues)
         created.await()
     }
 
@@ -345,8 +357,8 @@ internal class BillingEntitlementManager(
                             client.queryPurchasesAsync(params) { br2, p2 ->
                                 tracker.trackEvent(
                                     "billing_query_purchases_retry_result", mapOf(
-                                    "rc" to rcName(br2.responseCode),
-                                    "msg" to br2.debugMessage,
+                                        "rc" to rcName(br2.responseCode),
+                                        "msg" to br2.debugMessage,
                                         "count" to p2.size
                                     )
                                 )
@@ -390,11 +402,11 @@ internal class BillingEntitlementManager(
                 val list = result.productDetailsList
                 tracker.trackEvent(
                     "billing_pd_query_result", mapOf(
-                    "rc" to rcName(br.responseCode),
-                    "msg" to br.debugMessage,
-                    "count" to list.size,
-                    "ids" to list.joinToString { it.productId }
-                ))
+                        "rc" to rcName(br.responseCode),
+                        "msg" to br.debugMessage,
+                        "count" to list.size,
+                        "ids" to list.joinToString { it.productId }
+                    ))
 
                 if (br.responseCode != BillingClient.BillingResponseCode.OK) {
                     cont.safeResume(null); return@queryProductDetailsAsync
@@ -460,7 +472,6 @@ internal class BillingEntitlementManager(
         cont.safeResume(_state.value)
     }
 
-    // Helpers
     private fun <T> CancellableContinuation<T>.safeResume(value: T) {
         if (isActive) resume(value)
     }

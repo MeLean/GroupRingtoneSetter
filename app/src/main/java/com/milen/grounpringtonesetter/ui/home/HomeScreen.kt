@@ -185,6 +185,30 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                 is HomeEvent.ShowErrorById -> dialogHandler.showErrorById(event.strRes)
                 is HomeEvent.ShowErrorText -> dialogHandler.showError(event.message)
                 is HomeEvent.ShowInfoText -> dialogHandler.showInfo(event.strRes)
+
+                is HomeEvent.PurchaseBillingUnavailable -> {
+                    requireActivity().showAlertDialog(
+                        titleResId = R.string.purchase_unavailable,
+                        message = getString(R.string.billing_not_available_on_device),
+                        confirmButtonData = ButtonData(R.string.ok)
+                    )
+                }
+
+                is HomeEvent.PurchaseItemUnavailable -> {
+                    requireActivity().showAlertDialog(
+                        titleResId = R.string.purchase_unavailable,
+                        message = getString(R.string.item_not_available),
+                        confirmButtonData = ButtonData(R.string.ok)
+                    )
+                }
+
+                HomeEvent.PurchaseServiceUnavailable, HomeEvent.PurchaseError -> {
+                    requireActivity().showAlertDialog(
+                        titleResId = R.string.purchase_unavailable,
+                        message = getString(R.string.billing_service_unavailable),
+                        confirmButtonData = ButtonData(R.string.ok)
+                    )
+                }
             }
         }
 

@@ -36,15 +36,15 @@
         </activity>
 
         <activity
-            android:name="com.android.billingclient.api.ProxyBillingActivity"
+            android:name=".billing.SafeProxyBillingActivity"
             android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
             android:excludeFromRecents="true"
             android:exported="false"
             android:finishOnTaskLaunch="true"
             android:noHistory="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            tools:node="merge"
-            tools:replace="noHistory,finishOnTaskLaunch,excludeFromRecents,exported,theme,configChanges" />
+            tools:node="replace"
+            tools:replace="android:name,noHistory,finishOnTaskLaunch,excludeFromRecents,exported,theme,configChanges" />
 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"

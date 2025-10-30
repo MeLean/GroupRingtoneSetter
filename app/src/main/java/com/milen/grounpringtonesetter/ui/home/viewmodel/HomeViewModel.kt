@@ -195,30 +195,50 @@ internal class HomeViewModel(
         }
     }
 
-    fun startPurchase(activity: Activity) {
-        launch {
-            _state.update { it.copy(isLoading = true) }
+    // In your HomeViewModel
 
-            try {
-                val result = billing.launchPurchase(activity)
-                handleBillingResult(result)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                tracker.trackError(e)
-                _events.trySend(HomeEvent.ShowErrorText(e.localizedMessage ?: "Purchase failed"))
-            } finally {
-                _state.update { it.copy(isLoading = false) }
+    fun startPurchase(activity: Activity) {
+        viewModelScope.launch {
+            val responseCode = billing.launchPurchase(activity)
+
+            handleBillingResult(responseCode)
+        }
+    }
+
+    private suspend fun handleBillingResult(responseCode: Int) =
+        when (responseCode) {
+            BillingClient.BillingResponseCode.OK -> {
+                tracker.trackEvent("billing_OK")
+            }
+
+            BillingClient.BillingResponseCode.USER_CANCELED -> {
+                tracker.trackEvent("billing_USER_CANCELED")
+            }
+
+            BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> {
+                tracker.trackEvent("billing_BILLING_UNAVAILABLE")
+                _events.send(HomeEvent.PurchaseBillingUnavailable)
+            }
+
+            BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE -> {
+                tracker.trackEvent("billing_SERVICE_UNAVAILABLE")
+                _events.send(HomeEvent.PurchaseServiceUnavailable)
+            }
+
+            BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> {
+                tracker.trackError(RuntimeException("billing_ITEM_UNAVAILABLE"))
+                _events.send(HomeEvent.PurchaseItemUnavailable)
+            }
+
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
+                tracker.trackError(RuntimeException("billing_ITEM_ALREADY_OWNED"))
+            }
+
+            else -> {
+                tracker.trackError(RuntimeException("billing_$responseCode}"))
+                _events.send(HomeEvent.PurchaseError)
             }
         }
-    }
-
-    private fun handleBillingResult(code: Int) {
-        if (code != BillingClient.BillingResponseCode.OK) {
-            tracker.trackError(RuntimeException("Billing not available code: $code"))
-            _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
-        }
-    }
 
     private fun updateGroupList() {
         launch {

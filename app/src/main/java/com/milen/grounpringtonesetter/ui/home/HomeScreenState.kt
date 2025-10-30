@@ -29,4 +29,9 @@ internal sealed interface HomeEvent {
     ) : HomeEvent
     data class NavigateToRename(val group: LabelItem) : HomeEvent
     data class NavigateToManageContacts(val group: LabelItem) : HomeEvent
+
+    data object PurchaseBillingUnavailable : HomeEvent
+    data object PurchaseServiceUnavailable : HomeEvent
+    data object PurchaseItemUnavailable : HomeEvent
+    data object PurchaseError : HomeEvent
 }

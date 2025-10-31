@@ -22,8 +22,8 @@ android {
         applicationId = "com.milen.grounpringtonesetter"
         minSdk = 27
         targetSdk = 35
-        versionCode = 767
-        versionName = "7.6.7"
+        versionCode = 777
+        versionName = "7.7.7"
         
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -6,6 +6,8 @@ import com.milen.grounpringtonesetter.App
 
 class SafeProxyBillingActivity : ProxyBillingActivity() {
 
+    private var shouldFinish = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val tracker = (application as? App)?.tracker
 
@@ -25,8 +27,7 @@ class SafeProxyBillingActivity : ProxyBillingActivity() {
                     "reason" to "guard_validation_failed"
                 )
             )
-            finish()
-            return
+            shouldFinish = true
         }
 
         try {
@@ -38,6 +39,10 @@ class SafeProxyBillingActivity : ProxyBillingActivity() {
                     "type" to e.javaClass.simpleName
                 )
             )
+            shouldFinish = true
+        }
+
+        if (shouldFinish) {
             finish()
         }
     }

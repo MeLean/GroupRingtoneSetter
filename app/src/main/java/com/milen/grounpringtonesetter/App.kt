@@ -45,7 +45,13 @@ class App : Application() {
             }
 
             private fun killIfBadProxy(a: Activity) {
-                if (a.javaClass.name != "com.android.billingclient.api.ProxyBillingActivity") return
+                val className = a.javaClass.name
+                if (
+                    className != "com.android.billingclient.api.ProxyBillingActivity" &&
+                    className != "com.milen.grounpringtonesetter.billing.SafeProxyBillingActivity"
+                ) {
+                    return
+                }
 
                 val hasValidExtras = BillingGuard.hasValidBillingExtras(a.intent)
                 val launchedByUs = BillingGuard.isExpecting()

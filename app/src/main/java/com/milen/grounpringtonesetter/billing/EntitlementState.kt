@@ -1,3 +1,3 @@
 package com.milen.grounpringtonesetter.billing
 
-internal enum class EntitlementState { UNKNOWN, OWNED, NOT_OWNED }
+internal enum class EntitlementState { UNKNOWN, PENDING, OWNED, NOT_OWNED }

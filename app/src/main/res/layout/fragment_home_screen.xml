@@ -61,22 +61,43 @@
         android:layout_height="0dp"
         android:layout_marginVertical="8dp"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        app:layout_constraintBottom_toTopOf="@+id/btnRemoveAds"
+        app:layout_constraintBottom_toTopOf="@+id/llBillingsActions"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/btnAddGroup"
+        tools:itemCount="12"
         tools:listitem="@layout/item_group_entity" />
 
-    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
-        android:id="@+id/btnRemoveAds"
+
+    <LinearLayout
+        android:id="@+id/llBillingsActions"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginHorizontal="64dp"
-        android:layout_marginVertical="8dp"
-        app:buttonLabel="@string/ad_free_forever"
+        android:gravity="center"
+        android:orientation="vertical"
         app:layout_constraintBottom_toTopOf="@+id/abHome"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent">
+
+        <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+            android:id="@+id/ctvValidationPurchases"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="64dp"
+            android:layout_marginVertical="8dp"
+            android:text="@string/validating_purchases"
+            tools:visibility="gone" />
+
+        <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+            android:id="@+id/btnRemoveAds"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="64dp"
+            android:layout_marginVertical="8dp"
+            app:buttonLabel="@string/ad_free_forever"
+            tools:visibility="gone" />
+
+    </LinearLayout>
 
     <com.milen.grounpringtonesetter.customviews.ui.ads.AdBannerView
         android:id="@+id/abHome"

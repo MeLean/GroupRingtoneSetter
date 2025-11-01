@@ -492,7 +492,7 @@ internal class BillingEntitlementManager(
             tracker.trackEvent("billing_entitlement_owned_on_query", mapOf("grace_until" to until))
         } else {
             grace.clear()
-            _state.value = EntitlementState.NOT_OWNED
+            _state.value = if (hasPending) EntitlementState.PENDING else EntitlementState.NOT_OWNED
             tracker.trackEvent("billing_entitlement_not_owned_on_query")
         }
 

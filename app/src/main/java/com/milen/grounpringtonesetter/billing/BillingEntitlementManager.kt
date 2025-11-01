@@ -72,10 +72,26 @@ internal class BillingEntitlementManager(
         tracker.trackError(e)
     }.getOrNull()
 
+    /**
+     * SAFE launch with the same signature.
+     * - Never throws; always returns a BillingResponseCode.
+     * - Strict prelaunch validation (connected, foreground activity).
+     * - Debounces double taps.
+     * - Validates ProductDetails for INAPP.
+     * - Retries once on transient unavailability.
+     */
     suspend fun launchPurchase(activity: Activity): Int {
         tracker.trackEvent("billing_launch_called")
-        ensureConnectedWithRetry()
 
+        // 1) Make sure client is connected (wrap to avoid throwing)
+        try {
+            ensureConnectedWithRetry()
+        } catch (e: Exception) {
+            tracker.trackError(e)
+            return BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE
+        }
+
+        // 2) Activity must be in a good state (RESUMED, not finishing/destroyed).
         val resumed =
             (activity as? LifecycleOwner)?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
         val destroyed = try {
@@ -94,23 +110,25 @@ internal class BillingEntitlementManager(
         )
 
         if (!resumed || activity.isFinishing || destroyed) {
-            tracker.trackError(RuntimeException("Activity not in valid state for billing launch"))
+            tracker.trackEvent("billing_prelaunch_invalid_activity")
             return BillingClient.BillingResponseCode.ERROR
         }
 
+        // 3) Prevent re-entrancy (no throwing).
         if (!purchaseInProgress.compareAndSet(false, true)) {
-            tracker.trackError(RuntimeException("Purchase already in progress"))
+            tracker.trackEvent("billing_already_in_progress")
             return BillingClient.BillingResponseCode.DEVELOPER_ERROR
         }
 
         try {
+            // 4) Fetch ProductDetails and validate for INAPP.
             val pd = queryProductDetails(productId)
             if (pd == null) {
-                tracker.trackError(RuntimeException("ProductDetails null"))
+                tracker.trackEvent("billing_pd_null")
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
             if (!pd.isUsableInapp()) {
-                tracker.trackError(RuntimeException("ProductDetails not sellable (no one-time offer)"))
+                tracker.trackEvent("billing_pd_not_sellable (no one-time offer)")
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
 
@@ -123,11 +141,18 @@ internal class BillingEntitlementManager(
                     )
                 ).build()
 
-            // legit launch → let ProxyBillingActivity through
+            // 5) Mark that WE initiated the flow (allows Proxy guard to pass).
             BillingGuard.beginLaunch()
 
-            val immediate =
+            // 6) Launch on main thread with hard guard (no exceptions leak).
+            val immediate = try {
                 withContext(Dispatchers.Main) { client.launchBillingFlow(activity, flow) }
+            } catch (e: Exception) {
+                tracker.trackError(e)
+                BillingGuard.endLaunch()
+                return BillingClient.BillingResponseCode.ERROR
+            }
+
             tracker.trackEvent(
                 "billing_launch_result", mapOf(
                     "rc" to rcName(immediate.responseCode),
@@ -136,18 +161,31 @@ internal class BillingEntitlementManager(
             )
 
             if (immediate.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+                // Sync entitlement silently.
                 getAdFree()
             }
 
+            // 7) Retry once on transient unavailability.
             if (immediate.responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE ||
                 immediate.responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
             ) {
                 delay(400)
-                ensureConnectedWithRetry()
-                // keep window open for retry
+                try {
+                    ensureConnectedWithRetry()
+                } catch (e: Exception) {
+                    tracker.trackError(e)
+                    return immediate.responseCode
+                }
+
                 BillingGuard.beginLaunch()
-                val retry =
+                val retry = try {
                     withContext(Dispatchers.Main) { client.launchBillingFlow(activity, flow) }
+                } catch (e: Exception) {
+                    tracker.trackError(e)
+                    BillingGuard.endLaunch()
+                    return BillingClient.BillingResponseCode.ERROR
+                }
+
                 tracker.trackEvent(
                     "billing_launch_retry_result", mapOf(
                         "rc" to rcName(retry.responseCode),
@@ -159,12 +197,13 @@ internal class BillingEntitlementManager(
 
             return immediate.responseCode
         } catch (t: Throwable) {
+            // SAFETY: never throw out. Convert to ERROR response code.
             tracker.trackEvent(
                 "billing_launch_exception",
                 mapOf("error" to (t.message ?: "unknown"))
             )
             tracker.trackError(t)
-            throw t
+            return BillingClient.BillingResponseCode.ERROR
         } finally {
             BillingGuard.endLaunch()
             purchaseInProgress.set(false)
@@ -231,7 +270,6 @@ internal class BillingEntitlementManager(
                             )
                         }
                     }
-
                     else -> {
                         tracker.trackEvent(
                             "billing_ack_result_terminal", mapOf(
@@ -345,8 +383,8 @@ internal class BillingEntitlementManager(
                             client.queryPurchasesAsync(params) { br2, p2 ->
                                 tracker.trackEvent(
                                     "billing_query_purchases_retry_result", mapOf(
-                                    "rc" to rcName(br2.responseCode),
-                                    "msg" to br2.debugMessage,
+                                        "rc" to rcName(br2.responseCode),
+                                        "msg" to br2.debugMessage,
                                         "count" to p2.size
                                     )
                                 )
@@ -390,11 +428,12 @@ internal class BillingEntitlementManager(
                 val list = result.productDetailsList
                 tracker.trackEvent(
                     "billing_pd_query_result", mapOf(
-                    "rc" to rcName(br.responseCode),
-                    "msg" to br.debugMessage,
-                    "count" to list.size,
-                    "ids" to list.joinToString { it.productId }
-                ))
+                        "rc" to rcName(br.responseCode),
+                        "msg" to br.debugMessage,
+                        "count" to list.size,
+                        "ids" to list.joinToString { it.productId }
+                    )
+                )
 
                 if (br.responseCode != BillingClient.BillingResponseCode.OK) {
                     cont.safeResume(null); return@queryProductDetailsAsync

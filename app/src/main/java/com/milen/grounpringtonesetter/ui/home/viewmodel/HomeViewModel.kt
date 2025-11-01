@@ -215,7 +215,6 @@ internal class HomeViewModel(
 
     private fun handleBillingResult(code: Int) {
         if (code != BillingClient.BillingResponseCode.OK) {
-            tracker.trackError(RuntimeException("Billing not available code: $code"))
             _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
         }
     }
@@ -266,7 +265,6 @@ internal class HomeViewModel(
         when (deviceAccounts.size) {
             0 -> {
                 _state.update { it.copy(isLoading = false) }
-                _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
             }
 
             1 -> {

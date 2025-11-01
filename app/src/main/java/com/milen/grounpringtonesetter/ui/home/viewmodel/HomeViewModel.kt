@@ -232,7 +232,7 @@ internal class HomeViewModel(
 
             else -> R.string.purchase_unavailable
         }
-        
+
         errorMsg?.let { _events.trySend(HomeEvent.ShowInfoText(it)) }
     }
 
@@ -335,13 +335,14 @@ internal class HomeViewModel(
                 hideLoading()
                 showDoneMessage()
             }
-            EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN -> adHelper.run {
-                loadInterstitialAd {
-                    hideLoading()
-                    showDoneMessage()
-                    showInterstitialAd()
+            EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN, EntitlementState.PENDING ->
+                adHelper.run {
+                    loadInterstitialAd {
+                        hideLoading()
+                        showDoneMessage()
+                        showInterstitialAd()
+                    }
                 }
-            }
         }
 
         refreshContactsSilently()

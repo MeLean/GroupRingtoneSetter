@@ -52,4 +52,5 @@
     <string name="billing_not_available_on_device">Google Play-Abrechnung ist auf diesem Gerät nicht verfügbar.</string>
     <string name="billing_service_unavailable">Der Abrechnungsdienst ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.</string>
     <string name="item_not_available">Dieser Artikel ist derzeit nicht zum Kauf verfügbar.</string>
+    <string name="validating_purchases">Kauf wird überprüft…</string>
 </resources>

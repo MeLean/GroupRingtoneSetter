@@ -214,9 +214,26 @@ internal class HomeViewModel(
     }
 
     private fun handleBillingResult(code: Int) {
-        if (code != BillingClient.BillingResponseCode.OK) {
-            _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
+        val errorMsg = when (code) {
+            BillingClient.BillingResponseCode.OK,
+            BillingClient.BillingResponseCode.USER_CANCELED,
+                -> null
+
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+                -> R.string.item_not_available
+
+            BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
+            BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+            BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
+                -> R.string.billing_service_unavailable
+
+            BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+                -> R.string.billing_not_available_on_device
+
+            else -> R.string.purchase_unavailable
         }
+        
+        errorMsg?.let { _events.trySend(HomeEvent.ShowInfoText(it)) }
     }
 
     private fun updateGroupList() {

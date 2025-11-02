@@ -1,11 +1,14 @@
 package com.milen.grounpringtonesetter
 
+import BillingGuard
 import android.app.Activity
 import android.app.Application
+import android.app.PendingIntent
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
-import com.milen.grounpringtonesetter.billing.BillingGuard
+import com.milen.grounpringtonesetter.billing.NoopBillingResultActivity
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.CoroutineScope
@@ -19,65 +22,29 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
         if (BuildConfig.DEBUG) {
             android.os.StrictMode.setThreadPolicy(
                 android.os.StrictMode.ThreadPolicy.Builder()
                     .detectDiskReads().detectDiskWrites().detectNetwork()
-                    .penaltyLog()
-                    .build()
+                    .penaltyLog().build()
             )
             android.os.StrictMode.setVmPolicy(
                 android.os.StrictMode.VmPolicy.Builder()
                     .detectLeakedClosableObjects()
-                    .penaltyLog()
-                    .build()
+                    .penaltyLog().build()
             )
         }
 
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityPreCreated(a: Activity, s: Bundle?) {
-                killIfBadProxy(a)
+                // API 29+ runs here before Activity.onCreate()
+                patchOrKillBadProxy(a)
             }
-
             @Suppress("DEPRECATION")
             override fun onActivityCreated(a: Activity, s: Bundle?) {
-                if (Build.VERSION.SDK_INT < 29) killIfBadProxy(a)
-            }
-
-            private fun killIfBadProxy(a: Activity) {
-                if (a.javaClass.name != "com.android.billingclient.api.ProxyBillingActivity") return
-
-                val hasValidExtras = BillingGuard.hasValidBillingExtras(a.intent)
-                val launchedByUs = BillingGuard.isExpecting()
-
-                if (!hasValidExtras || !launchedByUs) {
-                    try {
-                        tracker.trackEvent(
-                            "billing_proxy_killed", mapOf(
-                                "validExtras" to hasValidExtras,
-                                "launchedByUs" to launchedByUs,
-                                "hasIntent" to (a.intent != null),
-                                "hasExtras" to (a.intent?.extras != null),
-                                "extrasEmpty" to (a.intent?.extras?.isEmpty ?: true)
-                            )
-                        )
-                    } catch (_: Throwable) {
-                    }
-                    try {
-                        a.finish()
-                    } catch (_: Throwable) {
-                    }
-                } else {
-                    try {
-                        tracker.trackEvent(
-                            "billing_proxy_allowed", mapOf(
-                                "validExtras" to true,
-                                "launchedByUs" to true
-                            )
-                        )
-                    } catch (_: Throwable) {
-                    }
-                }
+                // Fallback for <29 (may be too late to patch, but keeps parity)
+                if (Build.VERSION.SDK_INT < 29) patchOrKillBadProxy(a)
             }
 
             override fun onActivityStarted(a: Activity) {}
@@ -97,5 +64,76 @@ class App : Application() {
     override fun onTerminate() {
         super.onTerminate()
         billingManager.end()
+    }
+
+    private fun patchOrKillBadProxy(a: Activity) {
+        if (a.javaClass.name != "com.android.billingclient.api.ProxyBillingActivity") return
+
+        tracker.trackEvent("patchOrKillBadProxy called ${a::javaClass.name}")
+
+
+        val launchedByUs = BillingGuard.isExpecting()
+        val hasValidExtras = BillingGuard.hasValidBillingExtras(a.intent)
+
+        // If a legit launch → allow immediately
+        if (launchedByUs && hasValidExtras) {
+            try {
+                tracker.trackEvent(
+                    "billing_proxy_allowed",
+                    mapOf("validExtras" to true, "launchedByUs" to true)
+                )
+            } catch (_: Throwable) {
+            }
+            return
+        }
+
+        // Rogue launch (pre-launch bot, deep link fuzzing, etc.)
+        // On API 29+ we are still before onCreate(), so we can PATCH missing extras.
+        var patched = false
+        try {
+            val extras = a.intent?.extras
+            if (Build.VERSION.SDK_INT >= 29) {
+                if (extras == null || extras.isEmpty || !hasValidExtras) {
+                    val flags = PendingIntent.FLAG_IMMUTABLE
+                    val noopIntent = Intent(a, NoopBillingResultActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+
+                    val pi = PendingIntent.getActivity(a, 0, noopIntent, flags)
+
+                    val i = a.intent ?: Intent().also { a.intent = it }
+                    i.putExtra("BUY_INTENT", pi) // the one ProxyBillingActivity dereferences
+                    // add a benign receiver key some older builds check for:
+                    i.putExtra("result_receiver", intArrayOf()) // harmless placeholder
+
+                    patched = true
+                    tracker.trackEvent(
+                        "billing_proxy_patched",
+                        mapOf("launchedByUs" to launchedByUs)
+                    )
+                }
+            }
+        } catch (t: Throwable) {
+            try {
+                tracker.trackError(t)
+            } catch (_: Throwable) {
+            }
+        }
+
+        if (!patched) {
+            // Last resort: close it (works on many devices, but the patch above is the real fix)
+            try {
+                tracker.trackEvent(
+                    "billing_proxy_killed", mapOf(
+                        "validExtras" to hasValidExtras,
+                        "launchedByUs" to launchedByUs,
+                        "hasIntent" to (a.intent != null),
+                        "hasExtras" to (a.intent?.extras != null),
+                        "extrasEmpty" to (a.intent?.extras?.isEmpty ?: true)
+                    )
+                )
+            } catch (_: Throwable) {
+            }
+            runCatching { a.finish() }
+        }
     }
 }

@@ -145,14 +145,18 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
                 abHome.manageVisibility(state.entitlement)
 
+                llBillingsActions.isVisible = state.entitlement != EntitlementState.OWNED
+
                 btnRemoveAds.apply {
-                    isVisible = !state.isLoading && state.entitlement != EntitlementState.OWNED
+                    isVisible = state.entitlement == EntitlementState.NOT_OWNED
                     setOnClickListener {
                         isEnabled = false
                         viewModel.startPurchase(requireActivity())
                         postDelayed({ isEnabled = true }, 500)
                     }
                 }
+
+                ctvValidationPurchases.isVisible = state.entitlement == EntitlementState.PENDING
             }
         }
 

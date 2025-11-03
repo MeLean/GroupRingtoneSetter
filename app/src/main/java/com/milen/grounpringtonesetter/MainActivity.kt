@@ -1,6 +1,5 @@
 package com.milen.grounpringtonesetter
 
-
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -15,6 +14,7 @@ import android.util.TypedValue
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -29,7 +29,6 @@ import com.milen.grounpringtonesetter.databinding.ActivityMainBinding
 import com.milen.grounpringtonesetter.utils.applyNavAndImePadding
 import com.milen.grounpringtonesetter.utils.applyStatusBarPadding
 
-
 class MainActivity : AppCompatActivity() {
 
     private lateinit var navController: NavController
@@ -37,6 +36,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setWindowBackground()
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
@@ -62,6 +63,15 @@ class MainActivity : AppCompatActivity() {
         setUpToolbar()
     }
 
+    private fun setWindowBackground() {
+        try {
+            val drawable = ContextCompat.getDrawable(this, R.drawable.ringtone_background_3)
+            window.setBackgroundDrawable(drawable)
+        } catch (_: Exception) {
+            window.setBackgroundDrawableResource(android.R.color.black)
+        }
+    }
+
     private fun setUpToolbar() {
         binding.toolbarMain.apply {
             setActionClick {
@@ -76,7 +86,6 @@ class MainActivity : AppCompatActivity() {
                     .append(buildSpannableHiperLink())
                     .append("\n\n")
                     .append("(${BuildConfig.VERSION_NAME})")
-
 
                 showCustomViewAlertDialog(
                     titleResId = R.string.info,
@@ -121,7 +130,6 @@ private fun Activity.buildSpannableHiperLink(
 
             override fun updateDrawState(ds: TextPaint) {
                 super.updateDrawState(ds)
-                // Keep default link color; ensure it looks like a link
                 ds.isUnderlineText = true
             }
         }, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)

@@ -48,4 +48,9 @@
     <string name="click_here">нажмите здесь</string>
     <string name="my_song_please_promo_text">Получите рингтон, сделанный специально для вас или вашего близкого — %1$s, чтобы попробовать наше музыкальное приложение.</string>
     <string name="ringtone_lable">мелодия звонка</string>
+    <string name="purchase_unavailable">Покупка недоступна</string>
+    <string name="billing_not_available_on_device">Система оплаты Google Play недоступна на этом устройстве.</string>
+    <string name="billing_service_unavailable">Сервис оплаты временно недоступен. Пожалуйста, попробуйте позже.</string>
+    <string name="item_not_available">Этот товар сейчас недоступен для покупки.</string>
+    <string name="validating_purchases">Проверяем вашу покупку…</string>
 </resources>

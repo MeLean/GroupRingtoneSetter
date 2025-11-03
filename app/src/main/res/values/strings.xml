@@ -48,4 +48,9 @@
     <string name="click_here">click here</string>
     <string name="my_song_please_promo_text">Get a ringtone made just for you or your loved one — %1$s to try our music app.</string>
     <string name="ringtone_lable">ringtone</string>
+    <string name="purchase_unavailable">Purchase Unavailable</string>
+    <string name="billing_not_available_on_device">Google Play Billing is not available on this device.</string>
+    <string name="billing_service_unavailable">Billing service is temporarily unavailable. Please try again later.</string>
+    <string name="item_not_available">This item is currently not available for purchase.</string>
+    <string name="validating_purchases">Validating your purchase…</string>
 </resources>

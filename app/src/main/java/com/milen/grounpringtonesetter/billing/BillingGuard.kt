@@ -1,6 +1,6 @@
-package com.milen.grounpringtonesetter.billing
-
+import android.app.PendingIntent
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import java.util.concurrent.atomic.AtomicLong
 
@@ -17,22 +17,31 @@ object BillingGuard {
     }
 
     fun isExpecting(): Boolean {
-        val launched = lastLaunchTime.get()
-        if (launched == 0L) return false
-        return (System.currentTimeMillis() - launched) < LAUNCH_WINDOW_MS
+        val t = lastLaunchTime.get()
+        if (t == 0L) return false
+        return (System.currentTimeMillis() - t) < LAUNCH_WINDOW_MS
     }
 
     fun hasValidBillingExtras(intent: Intent?): Boolean {
-        if (intent == null) return false
-        val extras = intent.extras ?: return false
-        if (extras.isEmpty) return false
-        return hasKnownBillingKey(extras)
+        val e = intent?.extras ?: return false
+        if (e.isEmpty) return false
+        // Require a non-null PendingIntent for any of the known keys.
+        // Do NOT accept "result_receiver" alone – it doesn't start a purchase flow.
+        return hasPI(e, "BUY_INTENT") || hasPI(e, "SUBS_MANAGEMENT_INTENT") || hasPI(
+            e,
+            "IN_APP_MESSAGE_INTENT"
+        )
     }
 
-    private fun hasKnownBillingKey(extras: Bundle): Boolean {
-        return extras.containsKey("BUY_INTENT") ||
-                extras.containsKey("SUBS_MANAGEMENT_INTENT") ||
-                extras.containsKey("IN_APP_MESSAGE_INTENT") ||
-                extras.containsKey("result_receiver")
+    private fun hasPI(b: Bundle, key: String): Boolean {
+        return try {
+            val pi =
+                if (Build.VERSION.SDK_INT >= 33) b.getParcelable(key, PendingIntent::class.java)
+                else @Suppress("DEPRECATION") b.getParcelable<PendingIntent>(key)
+            // Extra safety: ensure the intentSender exists
+            pi?.intentSender != null
+        } catch (_: Throwable) {
+            false
+        }
     }
 }

@@ -214,10 +214,26 @@ internal class HomeViewModel(
     }
 
     private fun handleBillingResult(code: Int) {
-        if (code != BillingClient.BillingResponseCode.OK) {
-            tracker.trackError(RuntimeException("Billing not available code: $code"))
-            _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
+        val errorMsg = when (code) {
+            BillingClient.BillingResponseCode.OK,
+            BillingClient.BillingResponseCode.USER_CANCELED,
+                -> null
+
+            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+                -> R.string.item_not_available
+
+            BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
+            BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+            BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
+                -> R.string.billing_service_unavailable
+
+            BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+                -> R.string.billing_not_available_on_device
+
+            else -> R.string.purchase_unavailable
         }
+
+        errorMsg?.let { _events.trySend(HomeEvent.ShowInfoText(it)) }
     }
 
     private fun updateGroupList() {
@@ -266,7 +282,6 @@ internal class HomeViewModel(
         when (deviceAccounts.size) {
             0 -> {
                 _state.update { it.copy(isLoading = false) }
-                _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
             }
 
             1 -> {
@@ -320,13 +335,14 @@ internal class HomeViewModel(
                 hideLoading()
                 showDoneMessage()
             }
-            EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN -> adHelper.run {
-                loadInterstitialAd {
-                    hideLoading()
-                    showDoneMessage()
-                    showInterstitialAd()
+            EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN, EntitlementState.PENDING ->
+                adHelper.run {
+                    loadInterstitialAd {
+                        hideLoading()
+                        showDoneMessage()
+                        showInterstitialAd()
+                    }
                 }
-            }
         }
 
         refreshContactsSilently()

@@ -23,7 +23,6 @@ internal class ContactRingtoneUpdateHelper(
     private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider,
 ) {
 
-    // Public entry used today — keep signature
     suspend fun scanAndUpdate(context: Context, ringtoneStr: String, contactId: Long) {
         val src = ringtoneStr.toUri()
         if (ringtoneStr.isBlank() || src == Uri.EMPTY) {
@@ -31,74 +30,63 @@ internal class ContactRingtoneUpdateHelper(
             return
         }
 
-        // Prepare a playable URI first (reuse/copy or persisted SAF)
-        val finalUri =
-            withContext(dispatcherProvider.io) { preparePlayableRingtoneUri(context, src) }
+        val finalUri = withContext(dispatcherProvider.io) {
+            preparePlayableRingtoneUri(context, src)
+        }
         if (finalUri == null) {
             tracker.trackEvent("ringtone_prepare_failed", scrubUriForTelemetry(src))
             return
         }
 
-        // Save display name for UI (keyed by final URI)
-        val displayName =
-            withContext(dispatcherProvider.io) { getNormalizedFileName(context, finalUri) }
+        val displayName = withContext(dispatcherProvider.io) {
+            getNormalizedFileName(context, finalUri)
+        }
         withContext(dispatcherProvider.io) {
             preferenceHelper.saveStringAsync(finalUri.toString(), displayName)
         }
 
-        // Update contact — rows==0 can be read-only contacts; log as event
         val updated = withContext(dispatcherProvider.io) {
             tryUpdateCustomRingtone(context, contactId, finalUri.toString())
         }
         if (!updated) {
             tracker.trackEvent(
-                "contact_custom_ringtone_not_updated", mapOf(
-                    "contactId" to contactId.toString()
-                ) + scrubUriForTelemetry(finalUri)
+                "contact_custom_ringtone_not_updated",
+                mapOf("contactId" to contactId.toString()) + scrubUriForTelemetry(finalUri)
             )
             return
         }
 
-        // Soft verification: never crash
         withContext(dispatcherProvider.io) {
             softVerifyCustomRingtone(context, contactId, finalUri.toString())
         }
     }
 
-    // -------- prepare/copy/reuse ----------
-
     private suspend fun preparePlayableRingtoneUri(context: Context, source: Uri): Uri? =
         withContext(dispatcherProvider.io) {
             val meta = scrubUriForTelemetry(source)
-
             val desiredName = getNormalizedFileName(context, source)
 
-            // Reuse existing in MediaStore
             findExistingRingtoneUri(context, desiredName)?.let {
                 tracker.trackEvent("ringtone_reuse_in_mediastore", meta + ("name" to desiredName))
                 return@withContext it
             }
 
-            // Preflight readability
             if (!canReadFromUri(context, source)) {
                 tracker.trackEvent("preflight_unreadable_uri", meta)
                 return@withContext null
             }
 
-            // Copy into MediaStore/Ringtones
             copyRingtoneToScopedMedia(context, source, desiredName)?.let {
                 tracker.trackEvent("ringtone_copied_to_mediastore", meta + ("name" to desiredName))
                 return@withContext it
             }
 
-            // SAF fallback: only if persistable
             if (DocumentsContract.isDocumentUri(context, source)) {
-                tryPersistUriPermission(context, source) // benign if already persisted
+                tryPersistUriPermission(context, source)
                 tracker.trackEvent("ringtone_using_persisted_saf", meta)
                 return@withContext source
             }
 
-            // Non-persistable 3P URI and copy failed -> give up
             tracker.trackEvent("non_persistable_vendor_uri_rejected", meta)
             null
         }
@@ -114,7 +102,6 @@ internal class ContactRingtoneUpdateHelper(
             tracker.trackEvent("content_provider_missing", scrubUriForTelemetry(uri))
             return false
         }
-        // Tiny probe — if this fails, we just log and return false
         return runCatching {
             context.contentResolver.openInputStream(uri)?.use { true } ?: false
         }.onFailure {
@@ -131,20 +118,40 @@ internal class ContactRingtoneUpdateHelper(
         displayName: String,
     ): Uri? = withContext(dispatcherProvider.io) {
         val cr = context.contentResolver
+        val collection = if (Build.VERSION.SDK_INT >= 29) {
+            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        }
+
+        // If a ringtone with this name already exists, reuse it
+        findExistingRingtoneUri(context, displayName)?.let {
+            tracker.trackEvent("ringtone_copy_preexisting_reused", mapOf("name" to displayName))
+            return@withContext it
+        }
+
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
             put(MediaStore.MediaColumns.MIME_TYPE, cr.getType(src) ?: guessMime(displayName))
             put(MediaStore.Audio.Media.IS_RINGTONE, 1)
             put(MediaStore.Audio.Media.IS_MUSIC, 0)
             if (Build.VERSION.SDK_INT >= 29) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_RINGTONES)
+                put(
+                    MediaStore.MediaColumns.RELATIVE_PATH,
+                    Environment.DIRECTORY_RINGTONES + "/"
+                )
             }
         }
-        val collection = if (Build.VERSION.SDK_INT >= 29) {
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        } else MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
 
-        val dest = cr.insert(collection, values) ?: run {
+        val dest = try {
+            cr.insert(collection, values)
+        } catch (e: IllegalStateException) {
+            tracker.trackEvent(
+                "mediastore_insert_illegal_state",
+                mapOf("name" to displayName, "reason" to (e.message ?: e::class.java.simpleName))
+            )
+            findExistingRingtoneUri(context, displayName)
+        } ?: run {
             tracker.trackEvent("mediastore_insert_failed", mapOf("name" to displayName))
             return@withContext null
         }
@@ -169,15 +176,21 @@ internal class ContactRingtoneUpdateHelper(
 
     private fun findExistingRingtoneUri(context: Context, fileName: String): Uri? {
         val cr = context.contentResolver
-        val base = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val base = if (Build.VERSION.SDK_INT >= 29) {
+            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        }
         val projection = arrayOf(MediaStore.Audio.Media._ID)
         val (sel, args) = if (Build.VERSION.SDK_INT >= 29) {
-            ("${MediaStore.Audio.Media.DISPLAY_NAME}=? AND " +
+            ("${MediaStore.MediaColumns.DISPLAY_NAME}=? AND " +
                     "${MediaStore.Audio.Media.IS_RINGTONE}=1 AND " +
-                    "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?") to
+                    "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?") to
                     arrayOf(fileName, "%${Environment.DIRECTORY_RINGTONES}%")
         } else {
-            "${MediaStore.Audio.Media.DISPLAY_NAME}=?" to arrayOf(fileName)
+            ("${MediaStore.MediaColumns.DISPLAY_NAME}=? AND " +
+                    "${MediaStore.Audio.Media.IS_RINGTONE}=1") to
+                    arrayOf(fileName)
         }
         return runCatching {
             cr.query(base, projection, sel, args, null)?.use { c ->
@@ -188,8 +201,6 @@ internal class ContactRingtoneUpdateHelper(
             }
         }.getOrNull()
     }
-
-    // -------- contacts update & verify ----------
 
     private fun tryUpdateCustomRingtone(
         context: Context,
@@ -217,18 +228,29 @@ internal class ContactRingtoneUpdateHelper(
     }
 
     private fun softVerifyCustomRingtone(context: Context, contactId: Long, expected: String) {
-        val uri = ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId)
+        val uri =
+            ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contactId)
         runCatching {
             context.contentResolver.query(
-                uri, arrayOf(ContactsContract.Contacts.CUSTOM_RINGTONE), null, null, null
+                uri,
+                arrayOf(ContactsContract.Contacts.CUSTOM_RINGTONE),
+                null,
+                null,
+                null
             )?.use { c ->
                 if (c.moveToFirst()) {
-                    val actual =
-                        c.getString(c.getColumnIndexOrThrow(ContactsContract.Contacts.CUSTOM_RINGTONE))
+                    val actual = c.getString(
+                        c.getColumnIndexOrThrow(
+                            ContactsContract.Contacts.CUSTOM_RINGTONE
+                        )
+                    )
                     if (actual != expected) {
                         tracker.trackEvent(
                             "custom_ringtone_mismatch",
-                            mapOf("expected" to expected, "actual" to (actual ?: "null"))
+                            mapOf(
+                                "expected" to expected,
+                                "actual" to (actual ?: "null")
+                            )
                         )
                     }
                 } else {
@@ -253,14 +275,14 @@ internal class ContactRingtoneUpdateHelper(
                 return
             }
             context.contentResolver.takePersistableUriPermission(
-                uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
         } catch (e: SecurityException) {
             tracker.trackError(e)
         }
     }
-
-    // -------- filename & telemetry helpers ----------
 
     private fun getNormalizedFileName(context: Context, uri: Uri): String {
         val allowed = setOf("mp3", "wav", "ogg", "m4a", "aac")
@@ -272,15 +294,17 @@ internal class ContactRingtoneUpdateHelper(
                     null,
                     null,
                     null
-                )
-                    ?.use { if (it.moveToFirst()) it.getString(0) else null }
+                )?.use {
+                    if (it.moveToFirst()) it.getString(0) else null
+                }
             } else null
         }.getOrNull()
 
-        val base = (meta?.takeIf { it.isNotBlank() }
-            ?: uri.lastPathSegment?.substringAfterLast('/')
-            ?: generateFallbackFileName(context, uri))
-            .replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        val base = (
+                meta?.takeIf { it.isNotBlank() }
+                    ?: uri.lastPathSegment?.substringAfterLast('/')
+                    ?: generateFallbackFileName(context, uri)
+                ).replace(Regex("[^a-zA-Z0-9._-]"), "_")
 
         val dot = base.lastIndexOf('.')
         val hasExt = dot > 0 && base.substring(dot + 1).lowercase() in allowed
@@ -319,7 +343,11 @@ internal class ContactRingtoneUpdateHelper(
     private fun scrubUriForTelemetry(uri: Uri): Map<String, String> {
         val auth = uri.authority ?: ""
         val last = uri.lastPathSegment ?: ""
-        val sig = (auth + "|" + last).hashCode().toUInt().toString(16)
-        return mapOf("scheme" to (uri.scheme ?: ""), "authority" to auth, "uri_sig" to sig)
+        val sig = ("$auth|$last").hashCode().toUInt().toString(16)
+        return mapOf(
+            "scheme" to (uri.scheme ?: ""),
+            "authority" to auth,
+            "uri_sig" to sig
+        )
     }
 }

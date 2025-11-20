@@ -51,6 +51,11 @@
     <string name="purchase_unavailable">Purchase Unavailable</string>
     <string name="billing_not_available_on_device">Google Play Billing is not available on this device.</string>
     <string name="billing_service_unavailable">Billing service is temporarily unavailable. Please try again later.</string>
+    <string name="billing_configuration_error">Google Play Billing is not properly configured. Please check your Google Play Store app and try again.</string>
+    <string name="billing_temporary_unavailable">Billing service is temporarily unavailable. Please try again in a moment.</string>
+    <string name="billing_connection_timeout">Connection to billing service timed out. Please check your internet connection and try again.</string>
+    <string name="billing_product_not_found">The product is not available. Please contact support if this persists.</string>
     <string name="item_not_available">This item is currently not available for purchase.</string>
     <string name="validating_purchases">Validating your purchase…</string>
+    <string name="ringtone_format_not_supported">The selected file format cannot be used as a ringtone. Please choose an audio file in MP3, M4A, OGG, WAV, or AAC format.</string>
 </resources>

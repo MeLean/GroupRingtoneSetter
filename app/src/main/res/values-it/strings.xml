@@ -51,6 +51,11 @@
     <string name="purchase_unavailable">Acquisto non disponibile</string>
     <string name="billing_not_available_on_device">La fatturazione di Google Play non è disponibile su questo dispositivo.</string>
     <string name="billing_service_unavailable">Il servizio di fatturazione non è temporaneamente disponibile. Riprova più tardi.</string>
+    <string name="billing_configuration_error">La fatturazione di Google Play non è configurata correttamente. Controlla l\'app Google Play Store e riprova.</string>
+    <string name="billing_temporary_unavailable">Il servizio di fatturazione non è temporaneamente disponibile. Riprova tra un momento.</string>
+    <string name="billing_connection_timeout">Il timeout della connessione al servizio di fatturazione è scaduto. Controlla la connessione Internet e riprova.</string>
+    <string name="billing_product_not_found">Il prodotto non è disponibile. Contatta il supporto se il problema persiste.</string>
     <string name="item_not_available">Questo articolo non è attualmente disponibile per l\'acquisto.</string>
     <string name="validating_purchases">Verifica dell\'acquisto in corso…</string>
+    <string name="ringtone_format_not_supported">Il formato del file selezionato non può essere utilizzato come suoneria. Scegli un file audio in formato MP3, M4A, OGG, WAV o AAC.</string>
 </resources>

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
+import com.milen.grounpringtonesetter.billing.BillingError
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.LabelItem
@@ -16,6 +17,7 @@ import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
+import com.milen.grounpringtonesetter.utils.RingtoneFormatValidator
 import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launch
 import kotlinx.coroutines.Job
@@ -156,8 +158,36 @@ internal class HomeViewModel(
             return
         }
 
-        showLoading()
+        // Validate ringtone format before processing
         viewModelScope.launch {
+            val activity = adHelper.activity
+            if (activity == null || activity.isDestroyed) {
+                tracker.trackEvent("ringtone_validation_activity_unavailable")
+                _selectingGroup = null
+                return@launch
+            }
+            
+            val errorResId = withContext(DispatchersProvider.io) {
+                RingtoneFormatValidator.validateRingtoneFormat(
+                    context = activity,
+                    uri = uri
+                )
+            }
+            
+            if (errorResId != null) {
+                val mimeType = runCatching { activity.contentResolver.getType(uri) }.getOrNull() ?: "unknown"
+                tracker.trackEvent(
+                    "ringtone_format_rejected",
+                    mapOf(
+                        "mime_type" to mimeType,
+                        "file_name" to fileName
+                    )
+                )
+                _events.send(HomeEvent.ShowErrorById(errorResId))
+                _selectingGroup = null
+                return@launch
+            }
+
             showLoading()
             try {
                 contactsRepo.setGroupRingtone(
@@ -197,14 +227,38 @@ internal class HomeViewModel(
 
     fun startPurchase(activity: Activity) {
         launch {
+            val startTime = System.currentTimeMillis()
             _state.update { it.copy(isLoading = true) }
+            tracker.trackEvent(
+                "billing_purchase_ui_started",
+                mapOf("activity" to activity::class.java.simpleName)
+            )
 
             try {
                 val result = billing.launchPurchase(activity)
+                tracker.trackEvent(
+                    "billing_purchase_ui_completed",
+                    mapOf(
+                        "rc" to result,
+                        "elapsed_ms" to (System.currentTimeMillis() - startTime)
+                    )
+                )
                 handleBillingResult(result)
             } catch (e: CancellationException) {
+                tracker.trackEvent(
+                    "billing_purchase_ui_cancelled",
+                    mapOf("elapsed_ms" to (System.currentTimeMillis() - startTime))
+                )
                 throw e
             } catch (e: Throwable) {
+                tracker.trackEvent(
+                    "billing_purchase_ui_exception",
+                    mapOf(
+                        "error_type" to e::class.java.simpleName,
+                        "error_message" to (e.localizedMessage ?: "unknown"),
+                        "elapsed_ms" to (System.currentTimeMillis() - startTime)
+                    )
+                )
                 tracker.trackError(e)
                 _events.trySend(HomeEvent.ShowErrorText(e.localizedMessage ?: "Purchase failed"))
             } finally {
@@ -214,26 +268,80 @@ internal class HomeViewModel(
     }
 
     private fun handleBillingResult(code: Int) {
-        val errorMsg = when (code) {
-            BillingClient.BillingResponseCode.OK,
-            BillingClient.BillingResponseCode.USER_CANCELED,
-                -> null
-
-            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
-                -> R.string.item_not_available
-
-            BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
-            BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
-            BillingClient.BillingResponseCode.BILLING_UNAVAILABLE,
-                -> R.string.billing_service_unavailable
-
-            BillingClient.BillingResponseCode.DEVELOPER_ERROR,
-                -> R.string.billing_not_available_on_device
-
-            else -> R.string.purchase_unavailable
+        val billingError = BillingError.fromResponseCode(code)
+        val errorMsg = when {
+            code == BillingClient.BillingResponseCode.OK -> {
+                tracker.trackEvent("billing_result_ok")
+                null
+            }
+            code == BillingClient.BillingResponseCode.USER_CANCELED -> {
+                tracker.trackEvent("billing_result_user_canceled")
+                null
+            }
+            code == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
+                tracker.trackEvent(
+                    "billing_result_item_already_owned",
+                    mapOf("error_category" to billingError.category.name)
+                )
+                R.string.item_not_available
+            }
+            billingError.category == BillingError.ErrorCategory.CONFIGURATION -> {
+                tracker.trackEvent(
+                    "billing_result_configuration_error",
+                    mapOf(
+                        "rc" to code,
+                        "rc_name" to rcName(code),
+                        "error_category" to billingError.category.name
+                    )
+                )
+                when (code) {
+                    BillingClient.BillingResponseCode.DEVELOPER_ERROR -> R.string.billing_not_available_on_device
+                    BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> R.string.billing_product_not_found
+                    BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> R.string.billing_configuration_error
+                    else -> R.string.billing_configuration_error
+                }
+            }
+            billingError.category == BillingError.ErrorCategory.TEMPORARY -> {
+                tracker.trackEvent(
+                    "billing_result_temporary_error",
+                    mapOf(
+                        "rc" to code,
+                        "rc_name" to rcName(code),
+                        "error_category" to billingError.category.name
+                    )
+                )
+                when (code) {
+                    BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> R.string.billing_connection_timeout
+                    else -> R.string.billing_temporary_unavailable
+                }
+            }
+            else -> {
+                tracker.trackEvent(
+                    "billing_result_fatal_error",
+                    mapOf(
+                        "rc" to code,
+                        "rc_name" to rcName(code),
+                        "error_category" to billingError.category.name
+                    )
+                )
+                R.string.purchase_unavailable
+            }
         }
 
         errorMsg?.let { _events.trySend(HomeEvent.ShowInfoText(it)) }
+    }
+
+    private fun rcName(code: Int) = when (code) {
+        BillingClient.BillingResponseCode.OK -> "OK"
+        BillingClient.BillingResponseCode.USER_CANCELED -> "USER_CANCELED"
+        BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE -> "SERVICE_UNAVAILABLE"
+        BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> "BILLING_UNAVAILABLE"
+        BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> "ITEM_UNAVAILABLE"
+        BillingClient.BillingResponseCode.DEVELOPER_ERROR -> "DEVELOPER_ERROR"
+        BillingClient.BillingResponseCode.ERROR -> "ERROR"
+        BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> "ITEM_ALREADY_OWNED"
+        BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> "SERVICE_DISCONNECTED"
+        else -> "UNKNOWN_$code"
     }
 
     private fun updateGroupList() {

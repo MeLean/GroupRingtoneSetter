@@ -28,6 +28,7 @@ import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModel
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModelFactory
 import com.milen.grounpringtonesetter.ui.picker.PickerScreenFragment
+import com.milen.grounpringtonesetter.utils.RingtoneFormatValidator
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
 import com.milen.grounpringtonesetter.utils.changeMainTitle
@@ -241,7 +242,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     override fun onChoseRingtoneIntent(labelItem: LabelItem) {
         if (requireContext().areAllPermissionsGranted(permissions = permissions)) {
             viewModel.selectingGroup = labelItem
-            pickAudioFileLauncher.launch("audio/*")
+            // Use supported MIME type filter (MP3 is most common)
+            // Validation will still accept other supported formats (M4A, OGG, WAV, AAC)
+            pickAudioFileLauncher.launch(RingtoneFormatValidator.getMimeTypeFilter())
         } else {
             viewModel.onNoPermissions()
         }

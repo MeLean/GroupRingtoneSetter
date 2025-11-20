@@ -51,6 +51,11 @@
     <string name="purchase_unavailable">Покупка недоступна</string>
     <string name="billing_not_available_on_device">Система оплаты Google Play недоступна на этом устройстве.</string>
     <string name="billing_service_unavailable">Сервис оплаты временно недоступен. Пожалуйста, попробуйте позже.</string>
+    <string name="billing_configuration_error">Система оплаты Google Play неправильно настроена. Пожалуйста, проверьте приложение Google Play Маркет и попробуйте снова.</string>
+    <string name="billing_temporary_unavailable">Сервис оплаты временно недоступен. Пожалуйста, попробуйте через мгновение.</string>
+    <string name="billing_connection_timeout">Истекло время ожидания подключения к сервису оплаты. Пожалуйста, проверьте подключение к интернету и попробуйте снова.</string>
+    <string name="billing_product_not_found">Товар недоступен. Пожалуйста, свяжитесь со службой поддержки, если проблема сохраняется.</string>
     <string name="item_not_available">Этот товар сейчас недоступен для покупки.</string>
     <string name="validating_purchases">Проверяем вашу покупку…</string>
+    <string name="ringtone_format_not_supported">Выбранный формат файла не может быть использован в качестве рингтона. Пожалуйста, выберите аудиофайл в формате MP3, M4A, OGG, WAV или AAC.</string>
 </resources>

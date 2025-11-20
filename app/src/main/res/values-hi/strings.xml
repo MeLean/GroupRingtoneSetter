@@ -51,6 +51,11 @@
     <string name="purchase_unavailable">खरीद उपलब्ध नहीं है</string>
     <string name="billing_not_available_on_device">इस डिवाइस पर Google Play बिलिंग उपलब्ध नहीं है।</string>
     <string name="billing_service_unavailable">बिलिंग सेवा अस्थायी रूप से उपलब्ध नहीं है। कृपया बाद में फिर से प्रयास करें।</string>
+    <string name="billing_configuration_error">Google Play बिलिंग सही ढंग से कॉन्फ़िगर नहीं है। कृपया अपने Google Play Store ऐप की जांच करें और फिर से प्रयास करें।</string>
+    <string name="billing_temporary_unavailable">बिलिंग सेवा अस्थायी रूप से उपलब्ध नहीं है। कृपया एक क्षण में फिर से प्रयास करें।</string>
+    <string name="billing_connection_timeout">बिलिंग सेवा से कनेक्शन का समय समाप्त हो गया। कृपया अपने इंटरनेट कनेक्शन की जांच करें और फिर से प्रयास करें।</string>
+    <string name="billing_product_not_found">उत्पाद उपलब्ध नहीं है। यदि समस्या बनी रहती है, तो कृपया सहायता से संपर्क करें।</string>
     <string name="item_not_available">यह आइटम फिलहाल खरीद के लिए उपलब्ध नहीं है।</string>
     <string name="validating_purchases">आपकी खरीद का सत्यापन हो रहा है…</string>
+    <string name="ringtone_format_not_supported">चयनित फ़ाइल प्रारूप को रिंगटोन के रूप में उपयोग नहीं किया जा सकता। कृपया MP3, M4A, OGG, WAV, या AAC प्रारूप में एक ऑडियो फ़ाइल चुनें।</string>
 </resources>

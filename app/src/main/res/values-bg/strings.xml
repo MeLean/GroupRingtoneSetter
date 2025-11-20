@@ -51,6 +51,11 @@
     <string name="purchase_unavailable">Плащанията не недостъпни</string>
     <string name="billing_not_available_on_device">Системата за плащания на Google Play не е налична на това устройство.</string>
     <string name="billing_service_unavailable">Услугата за плащания временно е недостъпна. Моля, опитайте отново по-късно.</string>
+    <string name="billing_configuration_error">Системата за плащания на Google Play не е правилно конфигурирана. Моля, проверете приложението Google Play Store и опитайте отново.</string>
+    <string name="billing_temporary_unavailable">Услугата за плащания временно е недостъпна. Моля, опитайте отново след малко.</string>
+    <string name="billing_connection_timeout">Времето за свързване с услугата за плащания изтече. Моля, проверете интернет връзката си и опитайте отново.</string>
+    <string name="billing_product_not_found">Продуктът не е наличен. Моля, свържете се с поддръжката, ако проблемът продължава.</string>
     <string name="item_not_available">Този продукт в момента не е наличен за закупуване.</string>
     <string name="validating_purchases">Проверяваме покупките ви…</string>
+    <string name="ringtone_format_not_supported">Избраният файлов формат не може да се използва като звънец. Моля, изберете аудио файл във формат MP3, M4A, OGG, WAV или AAC.</string>
 </resources>

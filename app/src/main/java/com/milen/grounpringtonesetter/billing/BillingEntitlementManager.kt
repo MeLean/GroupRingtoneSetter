@@ -24,12 +24,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 
 internal class BillingEntitlementManager(
@@ -48,9 +51,17 @@ internal class BillingEntitlementManager(
     private var purchaseInProgress = AtomicBoolean(false)
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    // Single BillingClient instance (we control connection explicitly)
+    private companion object {
+        const val CONNECTION_TIMEOUT_MS = 10_000L
+        const val POST_CONNECTION_DELAY_MS = 200L
+        const val INITIAL_RETRY_DELAY_MS = 300L
+        const val MAX_RETRY_DELAY_MS = 2000L
+        const val MAX_RETRY_ATTEMPTS = 3
+    }
+
     private val client: BillingClient = BillingClient.newBuilder(app)
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+        .enableAutoServiceReconnection()
         .setListener(this)
         .build()
 
@@ -62,13 +73,28 @@ internal class BillingEntitlementManager(
     }
 
     suspend fun start() = runCatching {
-        tracker.trackEvent("billing_start_called")
+        tracker.trackEvent("billing_start_called", mapOf("current_state" to _state.value.name))
         ensureConnectedWithRetry()
+        delay(POST_CONNECTION_DELAY_MS)
         getAdFree()
     }.onSuccess {
-        tracker.trackEvent("billing_start_ok", mapOf("state" to _state.value.name))
+        tracker.trackEvent(
+            "billing_start_ok",
+            mapOf(
+                "state" to _state.value.name,
+                "client_ready" to client.isReady
+            )
+        )
     }.onFailure { e ->
         if (e is CancellationException) throw e
+        tracker.trackEvent(
+            "billing_start_failed",
+            mapOf(
+                "error_type" to e::class.java.simpleName,
+                "error_message" to (e.message ?: "unknown"),
+                "client_ready" to client.isReady
+            )
+        )
         tracker.trackError(e)
     }.getOrNull()
 
@@ -77,12 +103,34 @@ internal class BillingEntitlementManager(
      * Never throws; always returns a BillingResponseCode.
      */
     suspend fun launchPurchase(activity: Activity): Int {
-        tracker.trackEvent("billing_launch_called")
+        val startTime = System.currentTimeMillis()
+        tracker.trackEvent(
+            "billing_launch_called",
+            mapOf(
+                "client_ready" to client.isReady,
+                "purchase_in_progress" to purchaseInProgress.get()
+            )
+        )
 
-        // 1) Ensure connected
         try {
             ensureConnectedWithRetry()
+            if (!client.isReady) {
+                tracker.trackEvent(
+                    "billing_launch_client_not_ready_after_connect",
+                    mapOf("client_ready" to client.isReady)
+                )
+                return BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE
+            }
+            delay(POST_CONNECTION_DELAY_MS)
         } catch (e: Exception) {
+            tracker.trackEvent(
+                "billing_launch_connect_failed",
+                mapOf(
+                    "error_type" to e::class.java.simpleName,
+                    "error_message" to (e.message ?: "unknown"),
+                    "elapsed_ms" to (System.currentTimeMillis() - startTime)
+                )
+            )
             tracker.trackError(e)
             return BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE
         }
@@ -111,14 +159,46 @@ internal class BillingEntitlementManager(
         }
 
         try {
-            // 4) Query ProductDetails
-            val pd = queryProductDetails(productId)
+            if (!client.isReady) {
+                tracker.trackEvent(
+                    "billing_launch_client_not_ready_before_query",
+                    mapOf("client_ready" to client.isReady)
+                )
+                try {
+                    ensureConnectedWithRetry()
+                } catch (e: Exception) {
+                    tracker.trackEvent(
+                        "billing_launch_reconnect_failed",
+                        mapOf(
+                            "error_type" to e::class.java.simpleName,
+                            "error_message" to (e.message ?: "unknown")
+                        )
+                    )
+                    tracker.trackError(e)
+                    return BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE
+                }
+            }
+
+            val pd = queryProductDetailsWithRetry(productId)
             if (pd == null) {
-                tracker.trackEvent("billing_pd_null")
+                tracker.trackEvent(
+                    "billing_pd_null",
+                    mapOf(
+                        "product_id" to productId,
+                        "client_ready" to client.isReady,
+                        "elapsed_ms" to (System.currentTimeMillis() - startTime)
+                    )
+                )
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
             if (!pd.isUsableInapp()) {
-                tracker.trackEvent("billing_pd_not_sellable")
+                tracker.trackEvent(
+                    "billing_pd_not_sellable",
+                    mapOf(
+                        "product_id" to productId,
+                        "has_one_time" to (pd.oneTimePurchaseOfferDetails != null)
+                    )
+                )
                 return BillingClient.BillingResponseCode.ITEM_UNAVAILABLE
             }
 
@@ -132,21 +212,86 @@ internal class BillingEntitlementManager(
                 )
                 .build()
 
-            // 5) Mark expectation → lets ProxyBillingActivity pass the App guard
+            if (!client.isReady) {
+                tracker.trackEvent(
+                    "billing_launch_client_not_ready_before_launch",
+                    mapOf("client_ready" to client.isReady)
+                )
+                try {
+                    ensureConnectedWithRetry()
+                } catch (e: Exception) {
+                    tracker.trackEvent(
+                        "billing_launch_final_reconnect_failed",
+                        mapOf(
+                            "error_type" to e::class.java.simpleName,
+                            "error_message" to (e.message ?: "unknown")
+                        )
+                    )
+                    tracker.trackError(e)
+                    return BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE
+                }
+            }
+
+            val stillResumedBeforeLaunch =
+                (activity as? LifecycleOwner)?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
+            val stillDestroyedBeforeLaunch = runCatching { activity.isDestroyed }.getOrDefault(false)
+            if (!stillResumedBeforeLaunch || activity.isFinishing || stillDestroyedBeforeLaunch) {
+                tracker.trackEvent(
+                    "billing_launch_activity_invalid_before_launch",
+                    mapOf("resumed" to stillResumedBeforeLaunch, "destroyed" to stillDestroyedBeforeLaunch)
+                )
+                return BillingClient.BillingResponseCode.ERROR
+            }
+
             BillingGuard.beginLaunch()
 
             val immediate = try {
-                withContext(Dispatchers.Main) { client.launchBillingFlow(activity, flow) }
+                withContext(Dispatchers.Main) {
+                    val launchStart = System.currentTimeMillis()
+                    val stillResumedAtLaunch =
+                        (activity as? LifecycleOwner)?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
+                    val stillDestroyedAtLaunch = runCatching { activity.isDestroyed }.getOrDefault(false)
+                    if (!stillResumedAtLaunch || activity.isFinishing || stillDestroyedAtLaunch) {
+                        tracker.trackEvent(
+                            "billing_launch_activity_invalid_at_launch",
+                            mapOf("resumed" to stillResumedAtLaunch, "destroyed" to stillDestroyedAtLaunch)
+                        )
+                        throw IllegalStateException("Activity no longer valid for billing launch")
+                    }
+                    val result = client.launchBillingFlow(activity, flow)
+                    tracker.trackEvent(
+                        "billing_launch_flow_called",
+                        mapOf(
+                            "elapsed_ms" to (System.currentTimeMillis() - launchStart),
+                            "client_ready" to client.isReady
+                        )
+                    )
+                    result
+                }
             } catch (e: Exception) {
+                tracker.trackEvent(
+                    "billing_launch_flow_exception",
+                    mapOf(
+                        "error_type" to e::class.java.simpleName,
+                        "error_message" to (e.message ?: "unknown"),
+                        "elapsed_ms" to (System.currentTimeMillis() - startTime)
+                    )
+                )
                 tracker.trackError(e)
                 BillingGuard.endLaunch()
                 return BillingClient.BillingResponseCode.ERROR
             }
 
+            val billingError = BillingError.fromBillingResult(immediate)
             tracker.trackEvent(
-                "billing_launch_result", mapOf(
+                "billing_launch_result",
+                mapOf(
                     "rc" to rcName(immediate.responseCode),
-                    "msg" to immediate.debugMessage
+                    "rc_code" to immediate.responseCode,
+                    "msg" to (immediate.debugMessage ?: ""),
+                    "error_category" to billingError.category.name,
+                    "elapsed_ms" to (System.currentTimeMillis() - startTime),
+                    "client_ready" to client.isReady
                 )
             )
 
@@ -159,6 +304,16 @@ internal class BillingEntitlementManager(
                 || immediate.responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
             ) {
                 delay(400)
+                val stillResumed =
+                    (activity as? LifecycleOwner)?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
+                val stillDestroyed = runCatching { activity.isDestroyed }.getOrDefault(false)
+                if (!stillResumed || activity.isFinishing || stillDestroyed) {
+                    tracker.trackEvent(
+                        "billing_launch_retry_activity_invalid",
+                        mapOf("resumed" to stillResumed, "destroyed" to stillDestroyed)
+                    )
+                    return immediate.responseCode
+                }
                 try {
                     ensureConnectedWithRetry()
                 } catch (e: Exception) {
@@ -167,7 +322,19 @@ internal class BillingEntitlementManager(
                 }
                 BillingGuard.beginLaunch()
                 val retry = try {
-                    withContext(Dispatchers.Main) { client.launchBillingFlow(activity, flow) }
+                    withContext(Dispatchers.Main) {
+                        val stillResumed2 =
+                            (activity as? LifecycleOwner)?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
+                        val stillDestroyed2 = runCatching { activity.isDestroyed }.getOrDefault(false)
+                        if (!stillResumed2 || activity.isFinishing || stillDestroyed2) {
+                            tracker.trackEvent(
+                                "billing_launch_retry_activity_invalid_at_launch",
+                                mapOf("resumed" to stillResumed2, "destroyed" to stillDestroyed2)
+                            )
+                            throw IllegalStateException("Activity no longer valid for billing launch retry")
+                        }
+                        client.launchBillingFlow(activity, flow)
+                    }
                 } catch (e: Exception) {
                     tracker.trackError(e)
                     BillingGuard.endLaunch()
@@ -176,9 +343,11 @@ internal class BillingEntitlementManager(
                 tracker.trackEvent(
                     "billing_launch_retry_result", mapOf(
                         "rc" to rcName(retry.responseCode),
-                        "msg" to retry.debugMessage
+                        "rc_code" to retry.responseCode,
+                        "msg" to (retry.debugMessage ?: "")
                     )
                 )
+                BillingGuard.endLaunch()
                 return retry.responseCode
             }
 
@@ -186,13 +355,22 @@ internal class BillingEntitlementManager(
         } catch (t: Throwable) {
             tracker.trackEvent(
                 "billing_launch_exception",
-                mapOf("error" to (t.message ?: "unknown"))
+                mapOf(
+                    "error_type" to t::class.java.simpleName,
+                    "error_message" to (t.message ?: "unknown"),
+                    "elapsed_ms" to (System.currentTimeMillis() - startTime),
+                    "client_ready" to client.isReady
+                )
             )
             tracker.trackError(t)
             return BillingClient.BillingResponseCode.ERROR
         } finally {
             BillingGuard.endLaunch()
             purchaseInProgress.set(false)
+            tracker.trackEvent(
+                "billing_launch_completed",
+                mapOf("total_elapsed_ms" to (System.currentTimeMillis() - startTime))
+            )
         }
     }
 
@@ -281,63 +459,210 @@ internal class BillingEntitlementManager(
     // ---- internals ----
 
     private suspend fun ensureConnectedWithRetry() {
-        val maxAttempts = 2
+        val startTime = System.currentTimeMillis()
         var attempt = 1
         var lastError: Throwable? = null
-        while (attempt <= maxAttempts) {
+        var lastDelay = INITIAL_RETRY_DELAY_MS
+
+        while (attempt <= MAX_RETRY_ATTEMPTS) {
+            coroutineContext.ensureActive()
             try {
                 ensureConnected()
-                if (attempt > 1) tracker.trackEvent(
+                if (attempt > 1) {
+                    tracker.trackEvent(
                     "billing_connect_retry_success",
-                    mapOf("attempt" to attempt)
-                )
+                        mapOf(
+                            "attempt" to attempt,
+                            "total_attempts" to attempt,
+                            "elapsed_ms" to (System.currentTimeMillis() - startTime),
+                            "client_ready" to client.isReady
+                        )
+                    )
+                }
                 return
             } catch (t: Throwable) {
                 lastError = t
+                val errorCategory = when {
+                    t.message?.contains("SERVICE_DISCONNECTED") == true -> "SERVICE_DISCONNECTED"
+                    t.message?.contains("SERVICE_UNAVAILABLE") == true -> "SERVICE_UNAVAILABLE"
+                    t.message?.contains("timeout") == true -> "TIMEOUT"
+                    else -> "UNKNOWN"
+                }
                 tracker.trackEvent(
                     "billing_connect_attempt_fail",
-                    mapOf("attempt" to attempt, "error" to (t.message ?: "unknown"))
+                    mapOf(
+                        "attempt" to attempt,
+                        "max_attempts" to MAX_RETRY_ATTEMPTS,
+                        "error_type" to t::class.java.simpleName,
+                        "error_message" to (t.message ?: "unknown"),
+                        "error_category" to errorCategory,
+                        "elapsed_ms" to (System.currentTimeMillis() - startTime),
+                        "client_ready" to client.isReady,
+                        "retry_delay_ms" to lastDelay
+                    )
                 )
-                if (attempt == maxAttempts) break
-                delay(300)
+                if (attempt == MAX_RETRY_ATTEMPTS) break
+                delay(lastDelay)
+                lastDelay = (lastDelay * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
                 attempt++
             }
         }
-        throw lastError ?: IllegalStateException("Billing connect failed")
+        val finalError = lastError ?: IllegalStateException("Billing connect failed after $MAX_RETRY_ATTEMPTS attempts")
+        tracker.trackEvent(
+            "billing_connect_final_failure",
+            mapOf(
+                "total_attempts" to attempt,
+                "total_elapsed_ms" to (System.currentTimeMillis() - startTime),
+                "error_type" to finalError::class.java.simpleName,
+                "error_message" to (finalError.message ?: "unknown")
+            )
+        )
+        throw finalError
     }
 
-    /** Single-flight; never overlaps startConnection(). */
     private suspend fun ensureConnected() {
+        val connectStartTime = System.currentTimeMillis()
         if (client.isReady) {
-            tracker.trackEvent("billing_connect_already_ready"); return
+            tracker.trackEvent(
+                "billing_connect_already_ready",
+                mapOf("client_ready" to client.isReady)
+            )
+            return
         }
         connectingRef.get()?.let { existing ->
-            tracker.trackEvent("billing_connect_wait_existing"); existing.await(); return
+            tracker.trackEvent("billing_connect_wait_existing")
+            val waitStart = System.currentTimeMillis()
+            existing.await()
+            tracker.trackEvent(
+                "billing_connect_wait_completed",
+                mapOf("wait_ms" to (System.currentTimeMillis() - waitStart))
+            )
+            return
         }
         val created = CompletableDeferred<Unit>()
         if (!connectingRef.compareAndSet(null, created)) {
-            connectingRef.get()!!.await(); return
+            connectingRef.get()!!.await()
+            return
         }
-        tracker.trackEvent("billing_connect_start")
-        client.startConnection(object : BillingClientStateListener {
+        tracker.trackEvent(
+            "billing_connect_start",
+            mapOf("client_ready" to client.isReady)
+        )
+        val listener = object : BillingClientStateListener {
             override fun onBillingSetupFinished(r: BillingResult) {
+                val currentRef = connectingRef.get()
+                if (currentRef != created) {
+                    tracker.trackEvent(
+                        "billing_connect_callback_stale",
+                        mapOf("rc" to rcName(r.responseCode))
+                    )
+                    return
+                }
                 connectingRef.set(null)
+                val elapsed = System.currentTimeMillis() - connectStartTime
+                val billingError = BillingError.fromBillingResult(r)
+
                 if (r.responseCode == BillingClient.BillingResponseCode.OK) {
-                    tracker.trackEvent("billing_connect_ok"); created.complete(Unit)
+                    tracker.trackEvent(
+                        "billing_connect_ok",
+                        mapOf(
+                            "elapsed_ms" to elapsed,
+                            "client_ready" to client.isReady,
+                            "debug_msg" to (r.debugMessage ?: "")
+                        )
+                    )
+                    if (!created.isCompleted) {
+                        created.complete(Unit)
+                    } else {
+                        tracker.trackEvent("billing_connect_callback_after_completion", mapOf("elapsed_ms" to elapsed))
+                    }
+                } else if (r.responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) {
+                    tracker.trackEvent(
+                        "billing_connect_service_disconnected",
+                        mapOf(
+                            "rc" to rcName(r.responseCode),
+                            "rc_code" to r.responseCode,
+                            "msg" to (r.debugMessage ?: ""),
+                            "error_category" to billingError.category.name,
+                            "elapsed_ms" to elapsed
+                        )
+                    )
+                    if (!created.isCompleted) {
+                        created.completeExceptionally(
+                            IllegalStateException("Billing connect failed: ${r.responseCode} ${r.debugMessage}")
+                        )
+                    } else {
+                        tracker.trackEvent("billing_connect_callback_after_completion_disconnected", mapOf("elapsed_ms" to elapsed))
+                    }
                 } else {
                     tracker.trackEvent(
                         "billing_connect_fail",
-                        mapOf("rc" to rcName(r.responseCode), "msg" to r.debugMessage)
+                        mapOf(
+                            "rc" to rcName(r.responseCode),
+                            "rc_code" to r.responseCode,
+                            "msg" to (r.debugMessage ?: ""),
+                            "error_category" to billingError.category.name,
+                            "elapsed_ms" to elapsed
+                        )
                     )
-                    created.completeExceptionally(IllegalStateException("Billing connect failed: ${r.responseCode} ${r.debugMessage}"))
+                    if (!created.isCompleted) {
+                        created.completeExceptionally(
+                            IllegalStateException("Billing connect failed: ${r.responseCode} ${r.debugMessage}")
+                        )
+                    } else {
+                        tracker.trackEvent("billing_connect_callback_after_completion_fail", mapOf("elapsed_ms" to elapsed))
+                    }
                 }
             }
 
             override fun onBillingServiceDisconnected() {
-                tracker.trackEvent("billing_connect_disconnected")
+                tracker.trackEvent(
+                    "billing_connect_disconnected",
+                    mapOf(
+                        "elapsed_ms" to (System.currentTimeMillis() - connectStartTime),
+                        "client_ready" to client.isReady
+                    )
+                )
+                val currentRef = connectingRef.get()
+                if (currentRef == created && !created.isCompleted) {
+                    connectingRef.set(null)
+                    tracker.trackEvent(
+                        "billing_connect_disconnected_during_setup",
+                        mapOf("elapsed_ms" to (System.currentTimeMillis() - connectStartTime))
+                    )
+                    created.completeExceptionally(
+                        IllegalStateException("Billing connect failed: -1 Service connection is disconnected.")
+                    )
+                } else if (currentRef == created && created.isCompleted) {
+                    tracker.trackEvent(
+                        "billing_connect_disconnected_after_completion",
+                        mapOf("elapsed_ms" to (System.currentTimeMillis() - connectStartTime))
+                    )
+                }
             }
-        })
+        }
+        client.startConnection(listener)
+        val result = withTimeoutOrNull(CONNECTION_TIMEOUT_MS) {
         created.await()
+        }
+        if (result == null) {
+            val currentRef = connectingRef.get()
+            if (currentRef == created) {
+                connectingRef.set(null)
+                if (!created.isCompleted) {
+                    created.cancel()
+                }
+            }
+            tracker.trackEvent(
+                "billing_connect_timeout",
+                mapOf(
+                    "timeout_ms" to CONNECTION_TIMEOUT_MS,
+                    "elapsed_ms" to (System.currentTimeMillis() - connectStartTime),
+                    "client_ready" to client.isReady
+                )
+            )
+            throw IllegalStateException("Billing connection timeout after ${CONNECTION_TIMEOUT_MS}ms")
+        }
     }
 
     private suspend fun getAdFree(): EntitlementState = suspendCancellableCoroutine { cont ->
@@ -376,9 +701,100 @@ internal class BillingEntitlementManager(
         }
     }
 
-    private suspend fun queryProductDetails(id: String): ProductDetails? =
-        suspendCancellableCoroutine { cont ->
-            tracker.trackEvent("billing_pd_query_start", mapOf("id" to id))
+    private suspend fun queryProductDetailsWithRetry(id: String): ProductDetails? {
+        val startTime = System.currentTimeMillis()
+        var attempt = 1
+        var lastDelay = INITIAL_RETRY_DELAY_MS
+
+        while (attempt <= MAX_RETRY_ATTEMPTS) {
+            coroutineContext.ensureActive()
+            if (!client.isReady) {
+                tracker.trackEvent(
+                    "billing_pd_query_client_not_ready",
+                    mapOf(
+                        "attempt" to attempt,
+                        "product_id" to id,
+                        "client_ready" to client.isReady
+                    )
+                )
+                try {
+                    ensureConnectedWithRetry()
+                    delay(POST_CONNECTION_DELAY_MS)
+                } catch (e: Exception) {
+                    tracker.trackEvent(
+                        "billing_pd_query_reconnect_failed",
+                        mapOf(
+                            "attempt" to attempt,
+                            "product_id" to id,
+                            "error_type" to e::class.java.simpleName,
+                            "error_message" to (e.message ?: "unknown")
+                        )
+                    )
+                    tracker.trackError(e)
+                    if (attempt == MAX_RETRY_ATTEMPTS) return null
+                    delay(lastDelay)
+                    lastDelay *= 2
+                    attempt++
+                    continue
+                }
+            }
+
+            val result = queryProductDetails(id, attempt, startTime)
+            if (result != null) {
+                if (attempt > 1) {
+                    tracker.trackEvent(
+                        "billing_pd_query_retry_success",
+                        mapOf(
+                            "attempt" to attempt,
+                            "product_id" to id,
+                            "elapsed_ms" to (System.currentTimeMillis() - startTime)
+                        )
+                    )
+                }
+                return result
+            }
+
+            if (attempt == MAX_RETRY_ATTEMPTS) {
+                tracker.trackEvent(
+                    "billing_pd_query_final_failure",
+                    mapOf(
+                        "total_attempts" to attempt,
+                        "product_id" to id,
+                        "elapsed_ms" to (System.currentTimeMillis() - startTime)
+                    )
+                )
+                return null
+            }
+
+            tracker.trackEvent(
+                "billing_pd_query_retry_scheduled",
+                mapOf(
+                    "attempt" to attempt,
+                    "next_attempt" to (attempt + 1),
+                    "product_id" to id,
+                    "retry_delay_ms" to lastDelay
+                )
+            )
+            delay(lastDelay)
+            lastDelay = (lastDelay * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
+            attempt++
+        }
+        return null
+    }
+
+    private suspend fun queryProductDetails(
+        id: String,
+        attempt: Int,
+        startTime: Long
+    ): ProductDetails? = suspendCancellableCoroutine { cont ->
+        tracker.trackEvent(
+            "billing_pd_query_start",
+            mapOf(
+                "id" to id,
+                "attempt" to attempt,
+                "client_ready" to client.isReady
+            )
+        )
             val q = QueryProductDetailsParams.newBuilder()
                 .setProductList(
                     listOf(
@@ -388,28 +804,101 @@ internal class BillingEntitlementManager(
                             .build()
                     )
                 ).build()
+        val queryStart = System.currentTimeMillis()
             client.queryProductDetailsAsync(q) { br, result ->
-                if (!cont.isActive) return@queryProductDetailsAsync
-                val list = result.productDetailsList
+            if (!cont.isActive) {
                 tracker.trackEvent(
-                    "billing_pd_query_result", mapOf(
+                    "billing_pd_query_cancelled",
+                    mapOf("product_id" to id, "attempt" to attempt)
+                )
+                return@queryProductDetailsAsync
+            }
+            val list = result.productDetailsList
+            val elapsed = System.currentTimeMillis() - queryStart
+            val billingError = BillingError.fromBillingResult(br)
+
+            tracker.trackEvent(
+                "billing_pd_query_result",
+                mapOf(
                     "rc" to rcName(br.responseCode),
-                    "msg" to br.debugMessage,
+                    "rc_code" to br.responseCode,
+                    "msg" to (br.debugMessage ?: ""),
+                    "error_category" to billingError.category.name,
                     "count" to list.size,
-                    "ids" to list.joinToString { it.productId }
-                ))
-                if (br.responseCode != BillingClient.BillingResponseCode.OK) {
-                    cont.safeResume(null); return@queryProductDetailsAsync
-                }
-                val match = list.firstOrNull { it.productId == id }
-                if (match == null) tracker.trackEvent("billing_pd_match_null", mapOf("id" to id))
-                else tracker.trackEvent(
-                    "billing_pd_match_found", mapOf(
-                        "id" to match.productId,
-                        "title" to match.title,
-                        "price" to (match.oneTimePurchaseOfferDetails?.formattedPrice ?: "n/a")
+                    "ids" to list.joinToString { it.productId },
+                    "elapsed_ms" to elapsed,
+                    "attempt" to attempt,
+                    "client_ready" to client.isReady
+                )
+            )
+
+            if (br.responseCode == BillingClient.BillingResponseCode.SERVICE_DISCONNECTED) {
+                tracker.trackEvent(
+                    "billing_pd_query_service_disconnected",
+                    mapOf(
+                        "product_id" to id,
+                        "attempt" to attempt,
+                        "elapsed_ms" to elapsed
                     )
                 )
+                cont.safeResume(null)
+                return@queryProductDetailsAsync
+            }
+
+            val errorCategory = billingError.category
+                if (br.responseCode != BillingClient.BillingResponseCode.OK) {
+                if (errorCategory == BillingError.ErrorCategory.CONFIGURATION) {
+                    tracker.trackEvent(
+                        "billing_pd_query_permanent_error",
+                        mapOf(
+                            "product_id" to id,
+                            "rc" to rcName(br.responseCode),
+                            "rc_code" to br.responseCode,
+                            "attempt" to attempt,
+                            "error_category" to errorCategory.name
+                        )
+                    )
+                    cont.safeResume(null)
+                    return@queryProductDetailsAsync
+                }
+                tracker.trackEvent(
+                    "billing_pd_query_non_ok",
+                    mapOf(
+                        "product_id" to id,
+                        "rc" to rcName(br.responseCode),
+                        "rc_code" to br.responseCode,
+                        "attempt" to attempt,
+                        "error_category" to billingError.category.name
+                    )
+                )
+                cont.safeResume(null)
+                return@queryProductDetailsAsync
+            }
+
+                val match = list.firstOrNull { it.productId == id }
+            if (match == null) {
+                tracker.trackEvent(
+                    "billing_pd_match_null",
+                    mapOf(
+                        "id" to id,
+                        "attempt" to attempt,
+                        "returned_ids" to list.joinToString { it.productId },
+                        "elapsed_ms" to elapsed
+                    )
+                )
+            } else {
+                tracker.trackEvent(
+                    "billing_pd_match_found",
+                    mapOf(
+                        "id" to match.productId,
+                        "title" to match.title,
+                        "price" to (match.oneTimePurchaseOfferDetails?.formattedPrice ?: "n/a"),
+                        "has_one_time" to (match.oneTimePurchaseOfferDetails != null),
+                        "attempt" to attempt,
+                        "elapsed_ms" to elapsed
+                    )
+                )
+            }
                 cont.safeResume(match)
             }
         }

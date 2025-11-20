@@ -146,11 +146,33 @@ internal class ContactRingtoneUpdateHelper(
         val dest = try {
             cr.insert(collection, values)
         } catch (e: IllegalStateException) {
+            val errorMsg = e.message ?: e::class.java.simpleName
             tracker.trackEvent(
                 "mediastore_insert_illegal_state",
-                mapOf("name" to displayName, "reason" to (e.message ?: e::class.java.simpleName))
+                mapOf("name" to displayName, "reason" to errorMsg)
             )
-            findExistingRingtoneUri(context, displayName)
+            if (errorMsg.contains("Failed to build unique file", ignoreCase = true)) {
+                val existing = findExistingRingtoneUri(context, displayName)
+                if (existing != null) {
+                    tracker.trackEvent(
+                        "mediastore_insert_duplicate_found",
+                        mapOf("name" to displayName)
+                    )
+                    return@withContext existing
+                }
+                val baseName = displayName.substringBeforeLast('.')
+                val ext = displayName.substringAfterLast('.', "")
+                val timestamp = System.currentTimeMillis()
+                val uniqueName = if (ext.isNotEmpty()) "$baseName-$timestamp.$ext" else "$baseName-$timestamp"
+                tracker.trackEvent(
+                    "mediastore_insert_retry_unique_name",
+                    mapOf("original" to displayName, "unique" to uniqueName)
+                )
+                values.put(MediaStore.MediaColumns.DISPLAY_NAME, uniqueName)
+                runCatching { cr.insert(collection, values) }.getOrNull()
+            } else {
+                findExistingRingtoneUri(context, displayName)
+            }
         } ?: run {
             tracker.trackEvent("mediastore_insert_failed", mapOf("name" to displayName))
             return@withContext null
@@ -274,18 +296,34 @@ internal class ContactRingtoneUpdateHelper(
                 tracker.trackEvent("non_persistable_uri_skipped", scrubUriForTelemetry(uri))
                 return
             }
+            val persistedUris = context.contentResolver.persistedUriPermissions
+            val isAlreadyPersisted = persistedUris.any { it.uri == uri }
+            if (isAlreadyPersisted) {
+                tracker.trackEvent("uri_already_persisted", scrubUriForTelemetry(uri))
+                return
+            }
             context.contentResolver.takePersistableUriPermission(
                 uri,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or
                         Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             )
+            tracker.trackEvent("uri_persisted_success", scrubUriForTelemetry(uri))
         } catch (e: SecurityException) {
-            tracker.trackError(e)
+            tracker.trackEvent(
+                "uri_persist_failed_not_granted",
+                scrubUriForTelemetry(uri) + ("reason" to (e.message ?: e::class.java.simpleName))
+            )
         }
     }
 
     private fun getNormalizedFileName(context: Context, uri: Uri): String {
+        // Note: "mp4" removed - video MP4 files are not supported as ringtones
+        // M4A files use "audio/mp4" MIME type but have .m4a extension
         val allowed = setOf("mp3", "wav", "ogg", "m4a", "aac")
+        val actualMimeType = runCatching {
+            context.contentResolver.getType(uri)
+        }.getOrNull()
+        
         val meta = runCatching {
             if ("content".equals(uri.scheme, ignoreCase = true)) {
                 context.contentResolver.query(
@@ -307,21 +345,40 @@ internal class ContactRingtoneUpdateHelper(
                 ).replace(Regex("[^a-zA-Z0-9._-]"), "_")
 
         val dot = base.lastIndexOf('.')
-        val hasExt = dot > 0 && base.substring(dot + 1).lowercase() in allowed
-        if (hasExt) return base
+        val currentExt = if (dot > 0) base.substring(dot + 1).lowercase() else null
+        val hasAllowedExt = currentExt != null && currentExt in allowed
+        
+        if (hasAllowedExt && actualMimeType != null) {
+            val mimeExt = MimeTypeMap.getSingleton().getExtensionFromMimeType(actualMimeType)?.lowercase()
+            if (mimeExt != null && mimeExt != currentExt && mimeExt in allowed) {
+                val baseWithoutExt = base.substring(0, dot)
+                tracker.trackEvent(
+                    "ringtone_extension_corrected",
+                    mapOf(
+                        "original_ext" to currentExt,
+                        "corrected_ext" to mimeExt,
+                        "mime_type" to actualMimeType
+                    )
+                )
+                return "$baseWithoutExt.$mimeExt"
+            }
+            return base
+        }
 
         val guessed = runCatching {
-            context.contentResolver.getType(uri)
-                ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+            actualMimeType?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
         }.getOrNull()
-        val ext = (guessed?.lowercase()).takeUnless { it.isNullOrBlank() } ?: "mp3"
-        return "$base.$ext"
+        val ext = (guessed?.lowercase()).takeUnless { it.isNullOrBlank() || it !in allowed } ?: "mp3"
+        val baseWithoutExt = if (dot > 0) base.substring(0, dot) else base
+        return "$baseWithoutExt.$ext"
     }
 
     private fun generateFallbackFileName(context: Context, uri: Uri): String {
+        val allowed = setOf("mp3", "wav", "ogg", "m4a", "aac", "mp4")
         val guessedExt = runCatching {
             context.contentResolver.getType(uri)
-                ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+                ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it)?.lowercase() }
+                ?.takeIf { it in allowed }
         }.getOrNull() ?: "mp3"
         val sig = (uri.authority.orEmpty() + ":" + (uri.lastPathSegment ?: uri.toString()))
             .hashCode().toUInt().toString(16)
@@ -334,7 +391,7 @@ internal class ContactRingtoneUpdateHelper(
             n.endsWith(".mp3") -> "audio/mpeg"
             n.endsWith(".wav") -> "audio/wav"
             n.endsWith(".ogg") -> "audio/ogg"
-            n.endsWith(".m4a") -> "audio/mp4"
+            n.endsWith(".m4a") -> "audio/mp4"  // M4A uses audio/mp4 MIME type
             n.endsWith(".aac") -> "audio/aac"
             else -> "audio/mpeg"
         }

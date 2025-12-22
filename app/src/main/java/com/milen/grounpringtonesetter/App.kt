@@ -56,8 +56,26 @@ class App : Application() {
         })
 
         billingManager = BillingEntitlementManager(this, tracker)
-        CoroutineScope(SupervisorJob() + DispatchersProvider.io).launch {
-            runCatching { billingManager.start() }.onFailure { tracker.trackError(it) }
+        tracker.trackEvent("billing_manager_created", mapOf("app_onCreate_complete" to true))
+        val billingScope = CoroutineScope(SupervisorJob() + DispatchersProvider.io)
+        billingScope.launch {
+            tracker.trackEvent("billing_start_launched", mapOf("coroutine_started" to true))
+            val startResult = runCatching { 
+                billingManager.start() 
+            }
+            startResult.onSuccess {
+                tracker.trackEvent("billing_start_completed_success", mapOf("result" to "success"))
+            }.onFailure { e ->
+                tracker.trackEvent(
+                    "billing_start_completed_failure",
+                    mapOf(
+                        "error_type" to e::class.java.simpleName,
+                        "error_message" to (e.message ?: "unknown"),
+                        "is_cancellation" to (e is kotlinx.coroutines.CancellationException)
+                    )
+                )
+                tracker.trackError(e)
+            }
         }
     }
 

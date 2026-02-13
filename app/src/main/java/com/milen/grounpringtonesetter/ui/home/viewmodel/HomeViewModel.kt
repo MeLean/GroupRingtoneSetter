@@ -170,7 +170,11 @@ internal class HomeViewModel(
         }
     }
 
-    fun onRingtoneChosen(uri: Uri, fileName: String) {
+    fun onRingtoneChosen(
+        uri: Uri,
+        fileName: String,
+        shouldValidateFormat: Boolean = true,
+    ) {
         tracker.trackEvent("onRingtoneChosen")
         val group = _selectingGroup ?: return
 
@@ -189,25 +193,27 @@ internal class HomeViewModel(
                 return@launch
             }
             
-            val errorResId = withContext(DispatchersProvider.io) {
-                RingtoneFormatValidator.validateRingtoneFormat(
-                    context = activity,
-                    uri = uri
-                )
-            }
-            
-            if (errorResId != null) {
-                val mimeType = runCatching { activity.contentResolver.getType(uri) }.getOrNull() ?: "unknown"
-                tracker.trackEvent(
-                    "ringtone_format_rejected",
-                    mapOf(
-                        "mime_type" to mimeType,
-                        "file_name" to fileName
+            if (shouldValidateFormat) {
+                val errorResId = withContext(DispatchersProvider.io) {
+                    RingtoneFormatValidator.validateRingtoneFormat(
+                        context = activity,
+                        uri = uri
                     )
-                )
-                _events.send(HomeEvent.ShowErrorById(errorResId))
-                _selectingGroup = null
-                return@launch
+                }
+
+                if (errorResId != null) {
+                    val mimeType = runCatching { activity.contentResolver.getType(uri) }.getOrNull() ?: "unknown"
+                    tracker.trackEvent(
+                        "ringtone_format_rejected",
+                        mapOf(
+                            "mime_type" to mimeType,
+                            "file_name" to fileName
+                        )
+                    )
+                    _events.send(HomeEvent.ShowErrorById(errorResId))
+                    _selectingGroup = null
+                    return@launch
+                }
             }
 
             showLoading()

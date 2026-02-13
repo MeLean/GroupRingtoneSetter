@@ -58,5 +58,8 @@
     <string name="billing_product_not_found">Das Produkt ist nicht verfügbar. Bitte kontaktieren Sie den Support, wenn das Problem weiterhin besteht.</string>
     <string name="item_not_available">Dieser Artikel ist derzeit nicht zum Kauf verfügbar.</string>
     <string name="validating_purchases">Kauf wird überprüft…</string>
+    <string name="select_ringtone_source">Klingeltonquelle auswählen</string>
+    <string name="ringtone_source_system">Systemklingeltöne</string>
+    <string name="ringtone_source_file">Dateien auf dem Gerät</string>
     <string name="ringtone_format_not_supported">Das ausgewählte Dateiformat kann nicht als Klingelton verwendet werden. Bitte wählen Sie eine Audiodatei im Format MP3, M4A, OGG, WAV oder AAC.</string>
 </resources>

@@ -58,5 +58,8 @@
     <string name="billing_product_not_found">商品が利用できません。問題が続く場合は、サポートにお問い合わせください。</string>
     <string name="item_not_available">このアイテムは現在購入できません。</string>
     <string name="validating_purchases">購入を確認しています…</string>
+    <string name="select_ringtone_source">着信音のソースを選択</string>
+    <string name="ringtone_source_system">システムの着信音</string>
+    <string name="ringtone_source_file">端末内のファイル</string>
     <string name="ringtone_format_not_supported">選択したファイル形式は着信音として使用できません。MP3、M4A、OGG、WAV、または AAC 形式のオーディオファイルを選択してください。</string>
 </resources>

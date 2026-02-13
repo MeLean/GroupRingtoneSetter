@@ -58,5 +58,8 @@
     <string name="billing_product_not_found">该产品不可用。如果问题持续存在，请联系支持。</string>
     <string name="item_not_available">此商品目前无法购买。</string>
     <string name="validating_purchases">正在验证您的购买…</string>
+    <string name="select_ringtone_source">选择铃声来源</string>
+    <string name="ringtone_source_system">系统铃声</string>
+    <string name="ringtone_source_file">设备上的文件</string>
     <string name="ringtone_format_not_supported">所选文件格式不能用作铃声。请选择 MP3、M4A、OGG、WAV 或 AAC 格式的音频文件。</string>
 </resources>

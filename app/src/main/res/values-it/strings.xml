@@ -58,5 +58,8 @@
     <string name="billing_product_not_found">Il prodotto non è disponibile. Contatta il supporto se il problema persiste.</string>
     <string name="item_not_available">Questo articolo non è attualmente disponibile per l\'acquisto.</string>
     <string name="validating_purchases">Verifica dell\'acquisto in corso…</string>
+    <string name="select_ringtone_source">Seleziona origine suoneria</string>
+    <string name="ringtone_source_system">Suonerie di sistema</string>
+    <string name="ringtone_source_file">File sul dispositivo</string>
     <string name="ringtone_format_not_supported">Il formato del file selezionato non può essere utilizzato come suoneria. Scegli un file audio in formato MP3, M4A, OGG, WAV o AAC.</string>
 </resources>

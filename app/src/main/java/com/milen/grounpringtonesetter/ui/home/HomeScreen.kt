@@ -4,13 +4,19 @@ package com.milen.grounpringtonesetter.ui.home
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Rect
+import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.net.toUri
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -56,6 +62,10 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private companion object {
         private const val GROUP_SEARCH_DEBOUNCE_MS = 500L
         private const val SEARCH_ANIMATION_MS = 220L
+        private const val SYSTEM_SOUNDS_TYPE =
+            RingtoneManager.TYPE_RINGTONE or
+                    RingtoneManager.TYPE_NOTIFICATION or
+                    RingtoneManager.TYPE_ALARM
     }
 
     private lateinit var binding: FragmentHomeScreenBinding
@@ -89,6 +99,19 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             uri?.let { viewModel.onRingtoneChosen(it, it.getFileNameOrEmpty(requireContext())) }
         }
 
+    private val pickSystemRingtoneLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+            val pickedUri = result.data
+                ?.getParcelableUriExtraCompat(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+                ?: return@registerForActivityResult
+            viewModel.onRingtoneChosen(
+                uri = pickedUri,
+                fileName = resolveRingtoneName(pickedUri),
+                shouldValidateFormat = false
+            )
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         groupsAdapter = GroupsAdapter(this)
@@ -97,7 +120,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
+        savedInstanceState: Bundle?,
     ): View {
         binding = FragmentHomeScreenBinding.inflate(inflater, container, false)
         return binding.root
@@ -448,10 +471,68 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     override fun onChoseRingtoneIntent(labelItem: LabelItem) {
         if (requireContext().areAllPermissionsGranted(permissions = permissions)) {
-            viewModel.selectingGroup = labelItem
-            pickAudioFileLauncher.launch(RingtoneFormatValidator.getMimeTypeFilter())
+            showRingtoneSourcePicker(labelItem)
         } else {
             viewModel.onNoPermissions()
+        }
+    }
+
+    private fun showRingtoneSourcePicker(labelItem: LabelItem) {
+        requireActivity().showAlertDialog(
+            titleResId = R.string.select_ringtone_source,
+            message = "",
+            cancelButtonData = ButtonData(R.string.ringtone_source_file) {
+                launchFileRingtonePicker(labelItem)
+            },
+            confirmButtonData = ButtonData(R.string.ringtone_source_system) {
+                launchSystemRingtonePicker(labelItem)
+            }
+        )
+    }
+
+    private fun launchFileRingtonePicker(labelItem: LabelItem) {
+        viewModel.selectingGroup = labelItem
+        pickAudioFileLauncher.launch(RingtoneFormatValidator.getMimeTypeFilter())
+    }
+
+    private fun launchSystemRingtonePicker(labelItem: LabelItem) {
+        viewModel.selectingGroup = labelItem
+        val existingRingtoneUri = labelItem.ringtoneUriList
+            .firstOrNull()
+            ?.let { uriStr -> runCatching { uriStr.toUri() }.getOrNull() }
+        val pickerIntent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, SYSTEM_SOUNDS_TYPE)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+            putExtra(
+                RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI,
+                Settings.System.DEFAULT_RINGTONE_URI
+            )
+            existingRingtoneUri?.let { uri ->
+                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, uri)
+            }
+        }
+        pickSystemRingtoneLauncher.launch(pickerIntent)
+    }
+
+    private fun resolveRingtoneName(uri: Uri): String {
+        val context = requireContext()
+        val title =
+            runCatching { RingtoneManager.getRingtone(context, uri)?.getTitle(context) }.getOrNull()
+        if (!title.isNullOrBlank()) return title
+
+        val fileName = uri.getFileNameOrEmpty(context)
+        if (fileName.isNotBlank()) return fileName
+
+        return getString(R.string.file_name_not_accessible)
+    }
+
+    private fun Intent.getParcelableUriExtraCompat(key: String): Uri? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            getParcelableExtra(key, Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            getParcelableExtra(key)
         }
     }
 }

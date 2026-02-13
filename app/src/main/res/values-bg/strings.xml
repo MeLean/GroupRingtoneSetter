@@ -58,5 +58,8 @@
     <string name="billing_product_not_found">Продуктът не е наличен. Моля, свържете се с поддръжката, ако проблемът продължава.</string>
     <string name="item_not_available">Този продукт в момента не е наличен за закупуване.</string>
     <string name="validating_purchases">Проверяваме покупките ви…</string>
+    <string name="select_ringtone_source">Изберете източник на мелодия</string>
+    <string name="ringtone_source_system">Системни мелодии</string>
+    <string name="ringtone_source_file">Файлове на устройството</string>
     <string name="ringtone_format_not_supported">Избраният файлов формат не може да се използва като звънец. Моля, изберете аудио файл във формат MP3, M4A, OGG, WAV или AAC.</string>
 </resources>

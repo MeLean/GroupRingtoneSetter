@@ -58,5 +58,8 @@
     <string name="billing_product_not_found">The product is not available. Please contact support if this persists.</string>
     <string name="item_not_available">This item is currently not available for purchase.</string>
     <string name="validating_purchases">Validating your purchase…</string>
+    <string name="select_ringtone_source">Select ringtone source</string>
+    <string name="ringtone_source_system">System ringtones</string>
+    <string name="ringtone_source_file">Files on device</string>
     <string name="ringtone_format_not_supported">The selected file format cannot be used as a ringtone. Please choose an audio file in MP3, M4A, OGG, WAV, or AAC format.</string>
 </resources>

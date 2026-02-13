@@ -58,5 +58,8 @@
     <string name="billing_product_not_found">Товар недоступен. Пожалуйста, свяжитесь со службой поддержки, если проблема сохраняется.</string>
     <string name="item_not_available">Этот товар сейчас недоступен для покупки.</string>
     <string name="validating_purchases">Проверяем вашу покупку…</string>
+    <string name="select_ringtone_source">Выберите источник рингтона</string>
+    <string name="ringtone_source_system">Системные рингтоны</string>
+    <string name="ringtone_source_file">Файлы на устройстве</string>
     <string name="ringtone_format_not_supported">Выбранный формат файла не может быть использован в качестве рингтона. Пожалуйста, выберите аудиофайл в формате MP3, M4A, OGG, WAV или AAC.</string>
 </resources>

@@ -58,5 +58,8 @@
     <string name="billing_product_not_found">उत्पाद उपलब्ध नहीं है। यदि समस्या बनी रहती है, तो कृपया सहायता से संपर्क करें।</string>
     <string name="item_not_available">यह आइटम फिलहाल खरीद के लिए उपलब्ध नहीं है।</string>
     <string name="validating_purchases">आपकी खरीद का सत्यापन हो रहा है…</string>
+    <string name="select_ringtone_source">रिंगटोन स्रोत चुनें</string>
+    <string name="ringtone_source_system">सिस्टम रिंगटोन</string>
+    <string name="ringtone_source_file">डिवाइस की फ़ाइलें</string>
     <string name="ringtone_format_not_supported">चयनित फ़ाइल प्रारूप को रिंगटोन के रूप में उपयोग नहीं किया जा सकता। कृपया MP3, M4A, OGG, WAV, या AAC प्रारूप में एक ऑडियो फ़ाइल चुनें।</string>
 </resources>

@@ -5,6 +5,7 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
+import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.textfield.TextInputEditText
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.CustomInputViewBinding
@@ -69,5 +70,10 @@ internal class CustomInputView @JvmOverloads constructor(
             } else false
         }
     }
-}
 
+    fun setOnTextChangedListener(listener: (String) -> Unit) {
+        editText.doAfterTextChanged { editable ->
+            listener(editable?.toString().orEmpty())
+        }
+    }
+}

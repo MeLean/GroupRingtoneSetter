@@ -1,12 +1,17 @@
 // main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
 package com.milen.grounpringtonesetter.ui.home
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -41,10 +46,18 @@ import com.milen.grounpringtonesetter.utils.log
 import com.milen.grounpringtonesetter.utils.manageVisibility
 import com.milen.grounpringtonesetter.utils.navigateSingleTop
 import com.milen.grounpringtonesetter.utils.parcelableOrNull
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
+
+    private companion object {
+        private const val GROUP_SEARCH_DEBOUNCE_MS = 500L
+        private const val SEARCH_ANIMATION_MS = 220L
+    }
+
     private lateinit var binding: FragmentHomeScreenBinding
     private lateinit var groupsAdapter: GroupsAdapter
     private val viewModel: HomeViewModel by activityViewModels {
@@ -52,6 +65,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     }
 
     private lateinit var dialogHandler: DialogHandler
+    private var groupSearchJob: Job? = null
+    private var renderedSearchVisibility = false
+    private var searchRevealAnimator: ValueAnimator? = null
 
     private val permissions = mutableListOf(
         android.Manifest.permission.READ_CONTACTS,
@@ -93,9 +109,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 requireContext()
-                    .connectivityFlow() // defined below in this same file
+                    .connectivityFlow()
                     .collectLatest { isOnline ->
-                        // Guard: fragment must be attached + navController available
                         viewModel.onConnectionChanged(isOnline)
                     }
             }
@@ -103,6 +118,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
         binding.apply {
             rwGroupItems.adapter = groupsAdapter
+            setupGroupSearch()
         }
 
         dialogHandler = DialogHandler(requireActivity())
@@ -130,18 +146,42 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                 }
 
                 noItemDisclaimer.isVisible =
-                    state.labelItems.isEmpty()
-                            && !state.isLoading
-                            && state.arePermissionsGranted
+                    state.labelItems.isEmpty() &&
+                        !state.isLoading &&
+                        state.arePermissionsGranted
 
-                btnAddGroup.apply {
-                    isVisible = !state.isLoading
-                    setOnClickListener { viewModel.setUpGroupCreateRequest() }
+                val currentQuery = civGroupSearch.getText()
+                if (currentQuery != state.groupSearchQuery) {
+                    civGroupSearch.setText(state.groupSearchQuery)
                 }
 
-                btnSelectAccount.apply {
-                    isVisible = !state.isLoading && state.canChangeAccount
-                    setOnClickListener { viewModel.onSelectAccountClicked() }
+                if (state.isLoading) {
+                    searchRevealAnimator?.cancel()
+                    flGroupSearchOverlay.clipBounds = null
+                    flGroupSearchOverlay.isVisible = false
+                    ctcibToggleSearch.isVisible = false
+                    btnAddGroup.isVisible = false
+                    btnSelectAccount.isVisible = false
+                    btnAddGroup.translationX = 0f
+                    btnSelectAccount.translationX = 0f
+                    renderedSearchVisibility = false
+                } else {
+                    ctcibToggleSearch.apply {
+                        isVisible = true
+                        setOnClickListener {
+                            viewModel.onGroupSearchVisibilityChanged(!state.isGroupSearchVisible)
+                        }
+                    }
+                    updateSearchToggleIcon(state.isGroupSearchVisible)
+
+                    btnAddGroup.setOnClickListener { viewModel.setUpGroupCreateRequest() }
+                    btnSelectAccount.setOnClickListener { viewModel.onSelectAccountClicked() }
+
+                    renderGroupSearchVisibility(
+                        isVisible = state.isGroupSearchVisible,
+                        canShowAccountButton = state.canChangeAccount,
+                        animate = state.isGroupSearchVisible != renderedSearchVisibility
+                    )
                 }
 
                 abHome.manageVisibility(state.entitlement)
@@ -202,6 +242,12 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         }
     }
 
+    override fun onStop() {
+        groupSearchJob?.cancel()
+        searchRevealAnimator?.cancel()
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
         changeMainTitle(getString(R.string.app_name))
@@ -211,8 +257,169 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         when {
             requireContext().areAllPermissionsGranted(permissions = permissions) ->
                 viewModel.onPermissionsGranted()
+
             else -> viewModel.onNoPermissions()
         }
+    }
+
+    private fun setupGroupSearch() {
+        binding.civGroupSearch.setSoftDoneCLicked {
+            submitSearchImmediately()
+        }
+
+        binding.civGroupSearch.setOnTextChangedListener { query ->
+            if (!renderedSearchVisibility) return@setOnTextChangedListener
+            groupSearchJob?.cancel()
+            groupSearchJob = viewLifecycleOwner.lifecycleScope.launch {
+                delay(GROUP_SEARCH_DEBOUNCE_MS)
+                viewModel.onGroupSearchQueryUpdated(query)
+            }
+        }
+    }
+
+    private fun submitSearchImmediately() {
+        groupSearchJob?.cancel()
+        viewModel.onGroupSearchQueryUpdated(binding.civGroupSearch.getText())
+        binding.civGroupSearch.clearFocus()
+    }
+
+    private fun renderGroupSearchVisibility(
+        isVisible: Boolean,
+        canShowAccountButton: Boolean,
+        animate: Boolean,
+    ) {
+        renderedSearchVisibility = isVisible
+        if (!animate) {
+            applySearchStateInstant(isVisible, canShowAccountButton)
+            return
+        }
+        animateSearchTransition(isVisible, canShowAccountButton)
+    }
+
+    private fun applySearchStateInstant(
+        isVisible: Boolean,
+        canShowAccountButton: Boolean,
+    ) {
+        val searchView = binding.flGroupSearchOverlay
+        val finalFraction = if (isVisible) 1f else 0f
+        if (isVisible) {
+            searchView.isVisible = true
+        } else {
+            binding.civGroupSearch.clearFocus()
+            searchView.isVisible = false
+            searchView.clipBounds = null
+        }
+        applySearchClipFraction(finalFraction)
+        val pushDistance = calculateButtonsPushDistance(canShowAccountButton)
+        val translationX = -pushDistance * finalFraction
+        binding.btnAddGroup.translationX = translationX
+        binding.btnSelectAccount.translationX = translationX
+        binding.btnAddGroup.isVisible = true
+        binding.btnSelectAccount.isVisible = canShowAccountButton
+    }
+
+    private fun animateSearchTransition(
+        expand: Boolean,
+        canShowAccountButton: Boolean,
+    ) {
+        val searchView = binding.flGroupSearchOverlay
+        val addButton = binding.btnAddGroup
+        val accountButton = binding.btnSelectAccount
+
+        addButton.isVisible = true
+        accountButton.isVisible = canShowAccountButton
+        if (expand) {
+            searchView.isVisible = true
+            applySearchClipFraction(0f)
+        }
+
+        val runAnimation = {
+            val startFraction = if (expand) 0f else 1f
+            val endFraction = if (expand) 1f else 0f
+            val pushDistance = calculateButtonsPushDistance(canShowAccountButton)
+
+            searchRevealAnimator?.cancel()
+            val animator = ValueAnimator.ofFloat(startFraction, endFraction)
+            searchRevealAnimator = animator
+            animator.duration = SEARCH_ANIMATION_MS
+            animator.addUpdateListener { valueAnimator ->
+                val fraction = valueAnimator.animatedValue as Float
+                applySearchClipFraction(fraction)
+                val translationX = -pushDistance * fraction
+                addButton.translationX = translationX
+                accountButton.translationX = translationX
+            }
+            animator.addListener(object : AnimatorListenerAdapter() {
+                private var cancelled = false
+
+                override fun onAnimationCancel(animation: Animator) {
+                    cancelled = true
+                }
+
+                override fun onAnimationEnd(animation: Animator) {
+                    searchRevealAnimator = null
+                    if (cancelled) return
+                    if (!expand) {
+                        binding.civGroupSearch.clearFocus()
+                        searchView.isVisible = false
+                        searchView.clipBounds = null
+                        addButton.translationX = 0f
+                        accountButton.translationX = 0f
+                    } else {
+                        searchView.clipBounds = null
+                    }
+                }
+            })
+            animator.start()
+        }
+
+        if (searchView.width == 0 || searchView.height == 0) {
+            searchView.doOnLayout { runAnimation() }
+        } else {
+            runAnimation()
+        }
+    }
+
+    private fun applySearchClipFraction(fraction: Float) {
+        val searchView = binding.flGroupSearchOverlay
+        val width = searchView.width
+        val height = searchView.height
+        if (width <= 0 || height <= 0) return
+
+        if (fraction <= 0f) {
+            searchView.clipBounds = Rect(width, 0, width, height)
+            return
+        }
+        if (fraction >= 1f) {
+            searchView.clipBounds = null
+            return
+        }
+
+        val visibleWidth = (width * fraction).toInt().coerceIn(0, width)
+        val left = (width - visibleWidth).coerceIn(0, width)
+        searchView.clipBounds = Rect(left, 0, width, height)
+    }
+
+    private fun calculateButtonsPushDistance(canShowAccountButton: Boolean): Float {
+        val addButton = binding.btnAddGroup
+        val accountButton = binding.btnSelectAccount
+        val rightMost = if (canShowAccountButton && accountButton.width > 0) {
+            maxOf(addButton.right, accountButton.right)
+        } else {
+            addButton.right
+        }
+        val buffer = (resources.displayMetrics.density * 16f).toInt()
+        return (rightMost + buffer).toFloat()
+    }
+
+    private fun updateSearchToggleIcon(isSearchVisible: Boolean) {
+        if (isSearchVisible) {
+            binding.ctcibToggleSearch.setIcon(R.drawable.ic_close_24)
+            binding.ctcibToggleSearch.contentDescription = getString(R.string.close)
+            return
+        }
+        binding.ctcibToggleSearch.setIcon(R.drawable.ic_search_24)
+        binding.ctcibToggleSearch.contentDescription = getString(R.string.search_group_hint)
     }
 
     override fun onManageContacts(labelItem: LabelItem): Unit =
@@ -242,8 +449,6 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     override fun onChoseRingtoneIntent(labelItem: LabelItem) {
         if (requireContext().areAllPermissionsGranted(permissions = permissions)) {
             viewModel.selectingGroup = labelItem
-            // Use supported MIME type filter (MP3 is most common)
-            // Validation will still accept other supported formats (M4A, OGG, WAV, AAC)
             pickAudioFileLauncher.launch(RingtoneFormatValidator.getMimeTypeFilter())
         } else {
             viewModel.onNoPermissions()

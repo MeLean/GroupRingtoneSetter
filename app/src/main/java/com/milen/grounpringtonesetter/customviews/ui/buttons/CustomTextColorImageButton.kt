@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.FrameLayout
+import androidx.annotation.DrawableRes
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.CustomTextColorButtonBinding
 
@@ -35,5 +36,9 @@ internal class CustomTextColorImageButton @JvmOverloads constructor(
 
     override fun setOnClickListener(listener: OnClickListener?) {
         binding.imageButton.setOnClickListener(listener)
+    }
+
+    fun setIcon(@DrawableRes drawableRes: Int) {
+        binding.imageButton.setImageResource(drawableRes)
     }
 }

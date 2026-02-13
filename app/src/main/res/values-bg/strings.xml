@@ -17,6 +17,7 @@
     <string name="close">Затвори</string>
     <string name="done">Готово</string>
     <string name="cancel">Отказ</string>
+    <string name="search_group_hint">Търсене на групи по име</string>
     <string name="confirm">Потвърди</string>
     <string name="home">Начало</string>
     <string name="enter_group_name">Въведете име на групата</string>

@@ -17,6 +17,7 @@
     <string name="close">बंद करें</string>
     <string name="done">हो गया</string>
     <string name="cancel">रद्द करें</string>
+    <string name="search_group_hint">नाम से समूह खोजें</string>
     <string name="confirm">पुष्टि करें</string>
     <string name="home">होम</string>
     <string name="enter_group_name">समूह का नाम दर्ज करें</string>

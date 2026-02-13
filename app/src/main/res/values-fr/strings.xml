@@ -17,6 +17,7 @@
     <string name="close">Fermer</string>
     <string name="done">Terminé</string>
     <string name="cancel">Annuler</string>
+    <string name="search_group_hint">Rechercher des groupes par nom</string>
     <string name="confirm">Confirmer</string>
     <string name="home">Accueil</string>
     <string name="enter_group_name">Entrez le nom du groupe</string>

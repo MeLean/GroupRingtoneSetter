@@ -17,6 +17,7 @@
     <string name="close">关闭</string>
     <string name="done">完成</string>
     <string name="cancel">取消</string>
+    <string name="search_group_hint">按名称搜索群组</string>
     <string name="confirm">确认</string>
     <string name="home">主页</string>
     <string name="enter_group_name">输入组名</string>

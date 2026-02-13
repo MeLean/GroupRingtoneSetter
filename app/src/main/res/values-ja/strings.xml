@@ -17,6 +17,7 @@
     <string name="close">閉じる</string>
     <string name="done">完了</string>
     <string name="cancel">キャンセル</string>
+    <string name="search_group_hint">名前でグループを検索</string>
     <string name="confirm">確認</string>
     <string name="home">ホーム</string>
     <string name="enter_group_name">グループ名を入力</string>

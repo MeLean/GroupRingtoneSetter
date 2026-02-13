@@ -5,38 +5,79 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <TextView
-        android:id="@+id/tvTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:text="@string/home"
-        android:textAppearance="?attr/textAppearanceHeadline6"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:textColor="@color/white" />
-
-
-    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
-        android:id="@+id/btnAddGroup"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/clTopActions"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
-        app:buttonLabel="@string/add_group"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvTitle" />
-
-    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
-        android:id="@+id/btnSelectAccount"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="16dp"
-        app:buttonLabel="@string/pick_account_btn_label"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tvTitle" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+            android:id="@+id/btnAddGroup"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="8dp"
+            app:buttonLabel="@string/add_group"
+            app:layout_constraintEnd_toStartOf="@+id/btnSelectAccount"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+            android:id="@+id/btnSelectAccount"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            app:buttonLabel="@string/pick_account_btn_label"
+            app:layout_constraintBottom_toBottomOf="@+id/btnAddGroup"
+            app:layout_constraintEnd_toStartOf="@+id/ctcibToggleSearch"
+            app:layout_constraintStart_toEndOf="@+id/btnAddGroup"
+            app:layout_constraintTop_toTopOf="@+id/btnAddGroup" />
+
+        <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomTextColorImageButton
+            android:id="@+id/ctcibToggleSearch"
+            android:layout_width="@dimen/icon_btn_size"
+            android:layout_height="@dimen/icon_btn_size"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="16dp"
+            android:contentDescription="@string/search_group_hint"
+            app:iconDrawable="@drawable/ic_search_24"
+            app:layout_constraintBottom_toBottomOf="@+id/btnSelectAccount"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/btnSelectAccount"
+            app:layout_constraintTop_toTopOf="@+id/btnSelectAccount" />
+
+        <androidx.constraintlayout.widget.Barrier
+            android:id="@+id/buttonsBottomBarrier"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:barrierAllowsGoneWidgets="false"
+            app:barrierDirection="bottom"
+            app:constraint_referenced_ids="btnAddGroup,btnSelectAccount,ctcibToggleSearch,flGroupSearchOverlay" />
+
+        <FrameLayout
+            android:id="@+id/flGroupSearchOverlay"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="@+id/btnAddGroup"
+            app:layout_constraintEnd_toStartOf="@+id/ctcibToggleSearch"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@+id/btnAddGroup">
+
+            <com.milen.grounpringtonesetter.customviews.ui.texts.CustomInputView
+                android:id="@+id/civGroupSearch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/search_group_hint" />
+        </FrameLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 
     <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
@@ -64,7 +105,7 @@
         app:layout_constraintBottom_toTopOf="@+id/llBillingsActions"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btnAddGroup"
+        app:layout_constraintTop_toBottomOf="@+id/clTopActions"
         tools:itemCount="12"
         tools:listitem="@layout/item_group_entity" />
 

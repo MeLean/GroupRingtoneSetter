@@ -17,6 +17,7 @@
     <string name="close">Close</string>
     <string name="done">Done</string>
     <string name="cancel">Cancel</string>
+    <string name="search_group_hint">Search groups by name</string>
     <string name="confirm">Confirm</string>
     <string name="home">Home</string>
     <string name="enter_group_name">Enter group name</string>

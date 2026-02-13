@@ -54,9 +54,17 @@ internal class HomeViewModel(
             accountRepo.available,
             contactsRepo.labelsFlow
         ) { base, entitlement, selectedAcc, availableAccounts, labels ->
+            val normalizedQuery = base.groupSearchQuery.normalizeForSearch()
+            val filteredLabels = if (normalizedQuery.isBlank()) {
+                labels
+            } else {
+                labels.filter { label ->
+                    label.groupName.normalizeForSearch().contains(normalizedQuery)
+                }
+            }
             base.copy(
                 isLoading = base.isLoading,
-                labelItems = labels,
+                labelItems = filteredLabels,
                 entitlement = entitlement,
                 selectedAccount = selectedAcc,
                 canChangeAccount = availableAccounts.size > 1,
@@ -107,6 +115,20 @@ internal class HomeViewModel(
 
     fun onSelectAccountClicked() =
         showAccountPicker(accountRepo.getAccountsAvailable())
+
+    fun onGroupSearchQueryUpdated(query: String) {
+        _state.update { it.copy(groupSearchQuery = query) }
+    }
+
+    fun onGroupSearchVisibilityChanged(isVisible: Boolean) {
+        _state.update { state ->
+            if (isVisible) {
+                state.copy(isGroupSearchVisible = true)
+            } else {
+                state.copy(isGroupSearchVisible = false, groupSearchQuery = "")
+            }
+        }
+    }
 
     fun onAccountsSelected(selected: AccountId?) {
         tracker.trackEvent("onAccountsSelected", mapOf("account" to "$selected"))
@@ -161,7 +183,7 @@ internal class HomeViewModel(
         // Validate ringtone format before processing
         viewModelScope.launch {
             val activity = adHelper.activity
-            if (activity == null || activity.isDestroyed) {
+            if (activity.isDestroyed) {
                 tracker.trackEvent("ringtone_validation_activity_unavailable")
                 _selectingGroup = null
                 return@launch
@@ -460,3 +482,6 @@ internal class HomeViewModel(
         _events.trySend(HomeEvent.ShowInfoText(R.string.everything_set))
     }
 }
+
+private fun String.normalizeForSearch(): String =
+    trim().lowercase()

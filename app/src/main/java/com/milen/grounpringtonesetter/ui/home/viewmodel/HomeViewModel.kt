@@ -22,6 +22,7 @@ import com.milen.grounpringtonesetter.utils.Tracker
 import com.milen.grounpringtonesetter.utils.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class HomeViewModel(
@@ -41,6 +43,12 @@ internal class HomeViewModel(
     private val contactsRepo: ContactsRepository,
     private val accountRepo: AccountRepository,
 ) : ViewModel() {
+    private companion object {
+        const val PURCHASE_UI_GUARD_TIMEOUT_MS = 180_000L
+    }
+
+    private val purchaseStartGuard = AtomicBoolean(false)
+    private var purchaseUiGuardTimeoutJob: Job? = null
 
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
     val events: Flow<HomeEvent> = _events.receiveAsFlow()
@@ -254,9 +262,16 @@ internal class HomeViewModel(
     }
 
     fun startPurchase(activity: Activity) {
+        if (!purchaseStartGuard.compareAndSet(false, true)) {
+            tracker.trackEvent("billing_purchase_ui_ignored_already_in_progress")
+            return
+        }
+        _state.update { it.copy(isPurchaseInProgress = true) }
+
         launch {
             val startTime = System.currentTimeMillis()
             _state.update { it.copy(isLoading = true) }
+            var waitForResumeToRelease = false
             tracker.trackEvent(
                 "billing_purchase_ui_started",
                 mapOf("activity" to activity::class.java.simpleName)
@@ -272,6 +287,10 @@ internal class HomeViewModel(
                     )
                 )
                 handleBillingResult(result)
+                if (result == BillingClient.BillingResponseCode.OK) {
+                    waitForResumeToRelease = true
+                    startPurchaseUiGuardTimeout()
+                }
             } catch (e: CancellationException) {
                 tracker.trackEvent(
                     "billing_purchase_ui_cancelled",
@@ -291,8 +310,34 @@ internal class HomeViewModel(
                 _events.trySend(HomeEvent.ShowErrorText(e.localizedMessage ?: "Purchase failed"))
             } finally {
                 _state.update { it.copy(isLoading = false) }
+                if (!waitForResumeToRelease) {
+                    releasePurchaseUiGuard("purchase_flow_finished")
+                }
             }
         }
+    }
+
+    fun onHomeResumed() {
+        if (_state.value.isPurchaseInProgress) {
+            releasePurchaseUiGuard("home_resumed")
+        }
+    }
+
+    private fun startPurchaseUiGuardTimeout() {
+        purchaseUiGuardTimeoutJob?.cancel()
+        purchaseUiGuardTimeoutJob = viewModelScope.launch {
+            delay(PURCHASE_UI_GUARD_TIMEOUT_MS)
+            releasePurchaseUiGuard("timeout")
+        }
+    }
+
+    private fun releasePurchaseUiGuard(reason: String) {
+        purchaseUiGuardTimeoutJob?.cancel()
+        purchaseUiGuardTimeoutJob = null
+        if (purchaseStartGuard.compareAndSet(true, false)) {
+            tracker.trackEvent("billing_purchase_ui_guard_release", mapOf("reason" to reason))
+        }
+        _state.update { it.copy(isPurchaseInProgress = false) }
     }
 
     private fun handleBillingResult(code: Int) {

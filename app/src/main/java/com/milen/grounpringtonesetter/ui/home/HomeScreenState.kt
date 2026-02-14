@@ -16,6 +16,7 @@ internal data class HomeScreenState(
     val accountPickerAccounts: List<String>? = null,
     val selectedAccount: AccountId? = null,
     val canChangeAccount: Boolean = true,
+    val isPurchaseInProgress: Boolean = false,
     val loadingVisible: Boolean = false,
 )
 

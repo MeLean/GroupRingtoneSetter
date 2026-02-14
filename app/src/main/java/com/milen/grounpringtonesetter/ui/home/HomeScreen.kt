@@ -213,10 +213,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
                 btnRemoveAds.apply {
                     isVisible = state.entitlement == EntitlementState.NOT_OWNED
+                    isEnabled = !state.isPurchaseInProgress
                     setOnClickListener {
+                        if (state.isPurchaseInProgress) return@setOnClickListener
                         isEnabled = false
                         viewModel.startPurchase(requireActivity())
-                        postDelayed({ isEnabled = true }, 500)
                     }
                 }
 
@@ -273,6 +274,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     override fun onResume() {
         super.onResume()
+        viewModel.onHomeResumed()
         changeMainTitle(getString(R.string.app_name))
     }
 

@@ -324,10 +324,27 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         canShowAccountButton: Boolean,
     ) {
         val searchView = binding.flGroupSearchOverlay
-        val finalFraction = if (isVisible) 1f else 0f
         if (isVisible) {
             searchView.isVisible = true
-        } else {
+        }
+
+        if (isVisible && (
+                searchView.width == 0 ||
+                    binding.btnAddGroup.width == 0 ||
+                    (canShowAccountButton && binding.btnSelectAccount.width == 0)
+                )
+        ) {
+            binding.clTopActions.doOnLayout {
+                applySearchStateInstant(
+                    isVisible = isVisible,
+                    canShowAccountButton = canShowAccountButton
+                )
+            }
+            return
+        }
+
+        val finalFraction = if (isVisible) 1f else 0f
+        if (!isVisible) {
             binding.civGroupSearch.clearFocus()
             searchView.isVisible = false
             searchView.clipBounds = null

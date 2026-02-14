@@ -310,13 +310,71 @@ internal class ContactsHelper(
         tracker.trackEvent("deleteLabel successful", mapOf("labelId" to labelId.toString()))
     }
 
-    fun addAllContactsToLabel(labelId: Long, includedContacts: List<Contact>): Unit =
-        includedContacts.forEach {
-            addSingleContactToLabel(labelId = labelId, contactId = it.id)
-        }.also {
-            triggerSyncForAllAccounts()
-            tracker.trackEvent("addAllContactsToGroup called")
+    fun reassignContactsToLabelForAppVisibleGroups(
+        targetLabelId: Long,
+        contactIds: List<Long>,
+        appVisibleEditableLabelIds: Set<Long>,
+    ) {
+        val distinctContactIds = contactIds.distinct()
+        if (distinctContactIds.isEmpty()) return
+
+        tracker.trackEvent(
+            "reassignContactsToLabelForAppVisibleGroups called",
+            mapOf(
+                "targetLabelId" to targetLabelId.toString(),
+                "contactCount" to distinctContactIds.size.toString(),
+                "groupCount" to appVisibleEditableLabelIds.size.toString()
+            )
+        )
+
+        val removableGroupIds = appVisibleEditableLabelIds
+            .asSequence()
+            .filter { it != targetLabelId }
+            .distinct()
+            .toList()
+
+        val removedRows = if (removableGroupIds.isEmpty()) {
+            0
+        } else {
+            val contactPlaceholders = distinctContactIds.joinToString(",") { "?" }
+            val groupPlaceholders = removableGroupIds.joinToString(",") { "?" }
+            val selection =
+                "${ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID} IN ($contactPlaceholders) AND " +
+                        "${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} IN ($groupPlaceholders) AND " +
+                        "${ContactsContract.Data.MIMETYPE} = ?"
+            val selectionArgs =
+                (distinctContactIds.map { it.toString() } +
+                        removableGroupIds.map { it.toString() } +
+                        ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE)
+                    .toTypedArray()
+
+            appContext.contentResolver.delete(
+                ContactsContract.Data.CONTENT_URI,
+                selection,
+                selectionArgs
+            )
         }
+
+        distinctContactIds.forEach { contactId ->
+            if (isContactAlreadyAssignedToLabel(targetLabelId, contactId)) return@forEach
+            runCatching {
+                addSingleContactToLabel(labelId = targetLabelId, contactId = contactId)
+            }.onFailure { throwable ->
+                tracker.trackError(throwable)
+            }
+        }
+
+        triggerSyncForAllAccounts()
+
+        tracker.trackEvent(
+            "reassignContactsToLabelForAppVisibleGroups successful",
+            mapOf(
+                "targetLabelId" to targetLabelId.toString(),
+                "contactCount" to distinctContactIds.size.toString(),
+                "removedRows" to removedRows.toString()
+            )
+        )
+    }
 
     fun removeAllContactsFromLabel(labelId: Long, excludedContacts: List<Contact>) {
         tracker.trackEvent(
@@ -720,6 +778,31 @@ internal class ContactsHelper(
         }
 
         appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+    }
+
+    private fun isContactAlreadyAssignedToLabel(labelId: Long, contactId: Long): Boolean {
+        val projection = arrayOf(ContactsContract.Data._ID)
+        val selection =
+            "${ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID} = ? AND " +
+                    "${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} = ? AND " +
+                    "${ContactsContract.Data.MIMETYPE} = ?"
+        val selectionArgs = arrayOf(
+            contactId.toString(),
+            labelId.toString(),
+            ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE
+        )
+
+        appContext.contentResolver.query(
+            ContactsContract.Data.CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )?.use { cursor ->
+            return cursor.moveToFirst()
+        }
+
+        return false
     }
 
     private fun getRawContactIdForContact(contactId: Long): Long? {

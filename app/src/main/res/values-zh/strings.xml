@@ -27,6 +27,8 @@
     <string name="delete_group_desc">您是否要删除此组？这样做将取消分配给该组的联系人，但其分配的铃声将保持不变。</string>
     <string name="manage_contacts_group_name">管理组联系人</string>
     <string name="manage_contacts_group_name_desc">您是否要向此组添加或删除联系人？通过这样做，联系人将被分配/取消分配到该组。更改铃声将在进程完成后生效！</string>
+    <string name="choose_ringtone_for_new_contacts_title">为新添加的联系人选择铃声</string>
+    <string name="choose_ringtone_for_new_contacts_description">此群组有多个铃声。请选择一个铃声应用到新添加的联系人。</string>
     <string name="something_went_wrong">出了些问题</string>
     <string name="loading">加载中…</string>
     <string name="error">错误</string>

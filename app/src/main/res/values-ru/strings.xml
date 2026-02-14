@@ -27,6 +27,8 @@
     <string name="delete_group_desc">Хотите удалить эту группу? Это действие удалит контакты из группы, но их назначенные мелодии звонка останутся неизменными.</string>
     <string name="manage_contacts_group_name">Управление контактами группы</string>
     <string name="manage_contacts_group_name_desc">Хотите добавить или удалить контакты из этой группы? Это действие присвоит/удалит контакты из группы. Изменение мелодии звонка вступит в силу после завершения процесса!</string>
+    <string name="choose_ringtone_for_new_contacts_title">Выберите рингтон для новых добавленных контактов</string>
+    <string name="choose_ringtone_for_new_contacts_description">В этой группе несколько рингтонов. Выберите один рингтон, который нужно применить к новым добавленным контактам.</string>
     <string name="something_went_wrong">Что-то пошло не так</string>
     <string name="loading">Загрузка. . .</string>
     <string name="error">Ошибка</string>

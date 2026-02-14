@@ -14,6 +14,7 @@ import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
+import com.milen.grounpringtonesetter.customviews.dialog.showRequiredSingleChoiceDialog
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.FragmentPickerScreenBinding
@@ -104,6 +105,11 @@ internal class PickerScreenFragment : Fragment() {
             when (event) {
                 is PickerEvent.Close -> findNavController().popBackStack()
                 is PickerEvent.DoneDialog -> showDoneDialog()
+                is PickerEvent.AskNewContactsRingtoneChoice ->
+                    showRequiredRingtoneChoiceDialog(event.options.map { it.displayName }) { index ->
+                        val selected = event.options.getOrNull(index) ?: return@showRequiredRingtoneChoiceDialog
+                        viewModel.onRequiredRingtoneChosen(selected.uri)
+                    }
                 is PickerEvent.ShowErrorById -> dialogHandler.showErrorById(event.strRes)
                 is PickerEvent.ShowErrorText -> dialogHandler.showError(event.message)
                 is PickerEvent.ShowInfoText -> dialogHandler.showInfo(event.strRes)
@@ -208,6 +214,19 @@ internal class PickerScreenFragment : Fragment() {
                 R.string.ok,
                 onClick = { viewModel.close() } // emits Close event
             )
+        )
+    }
+
+    private fun showRequiredRingtoneChoiceDialog(
+        options: List<String>,
+        onSelected: (Int) -> Unit,
+    ) {
+        if (options.isEmpty()) return
+        requireActivity().showRequiredSingleChoiceDialog(
+            titleResId = R.string.choose_ringtone_for_new_contacts_title,
+            message = getString(R.string.choose_ringtone_for_new_contacts_description),
+            options = options,
+            onSelected = onSelected
         )
     }
 

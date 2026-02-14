@@ -27,6 +27,8 @@
     <string name="delete_group_desc">Do you wish to delete this group? Doing so will unassigned contacts from the group, yet their assigned ringtones will remain unchanged.</string>
     <string name="manage_contacts_group_name">Manage contacts to the group</string>
     <string name="manage_contacts_group_name_desc">Would you like to add or remove contacts to this group? By doing so, the contacts will be assigned/unassigned to the group. Changing the ringtone change will take effect once the process is completed!</string>
+    <string name="choose_ringtone_for_new_contacts_title">Choose ringtone for newly added contacts</string>
+    <string name="choose_ringtone_for_new_contacts_description">This group has multiple ringtones. Select one ringtone to apply to newly added contacts.</string>
     <string name="something_went_wrong">Something went wrong</string>
     <string name="loading">Loading. . .</string>
     <string name="error">Error</string>

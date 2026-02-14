@@ -28,6 +28,11 @@ internal class PickerViewModel(
     private val tracker: Tracker,
     private val contactsRepo: ContactsRepository,
 ) : ViewModel() {
+    private data class PendingManageContactsSave(
+        val group: LabelItem,
+        val newSelected: List<Contact>,
+        val oldSelected: List<Contact>,
+    )
 
     private val _state = MutableStateFlow(PickerScreenState())
     val state: StateFlow<PickerScreenState> =
@@ -57,9 +62,11 @@ internal class PickerViewModel(
 
     private val _events = Channel<PickerEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
+    private var pendingManageContactsSave: PendingManageContactsSave? = null
 
     fun startRename(group: LabelItem) {
         tracker.trackEvent("Picker_startRename")
+        pendingManageContactsSave = null
         _state.update {
             PickerScreenState(
                 isLoading = false,
@@ -98,6 +105,7 @@ internal class PickerViewModel(
 
     fun startManageContacts(group: LabelItem) {
         tracker.trackEvent("Picker_startManageContacts")
+        pendingManageContactsSave = null
         _state.update {
             PickerScreenState(
                 isLoading = false,
@@ -128,6 +136,7 @@ internal class PickerViewModel(
 
     fun startCreateGroup() {
         tracker.trackEvent("Picker_startCreateGroup")
+        pendingManageContactsSave = null
         _state.update {
             PickerScreenState(
                 isLoading = false,
@@ -162,23 +171,76 @@ internal class PickerViewModel(
 
     fun confirmManageContacts(group: LabelItem) {
         val cur = _state.value.pikerResultData as? PickerResultData.ManageGroupContacts ?: return
-        val newSelected = cur.selectedContacts
-        showLoading()
+        val newSelected = cur.selectedContacts.distinctBy { it.id }
+        val oldSelected = group.contacts.distinctBy { it.id }
+        val toAdd = calculateContactsToAdd(
+            newSelected = newSelected,
+            oldSelected = oldSelected
+        )
 
-        viewModelScope.launch {
-            val result = runCatching {
-                withContext(DispatchersProvider.io) {
-                    contactsRepo.updateGroupMembers(group.id, newSelected, group.contacts)
+        if (toAdd.isEmpty()) {
+            runManageContactsSave(
+                group = group,
+                newSelected = newSelected,
+                oldSelected = oldSelected,
+                ringtoneForNewContactsUri = null
+            )
+            return
+        }
+
+        val groupRingtoneUris = group.ringtoneUriList
+            .asSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .toList()
+
+        when (groupRingtoneUris.size) {
+            0 -> runManageContactsSave(
+                group = group,
+                newSelected = newSelected,
+                oldSelected = oldSelected,
+                ringtoneForNewContactsUri = null
+            )
+
+            1 -> runManageContactsSave(
+                group = group,
+                newSelected = newSelected,
+                oldSelected = oldSelected,
+                ringtoneForNewContactsUri = groupRingtoneUris.first()
+            )
+
+            else -> {
+                val options = contactsRepo.getRingtoneChoiceOptions(groupRingtoneUris)
+                if (options.isEmpty()) {
+                    runManageContactsSave(
+                        group = group,
+                        newSelected = newSelected,
+                        oldSelected = oldSelected,
+                        ringtoneForNewContactsUri = null
+                    )
+                    return
                 }
-            }
-            result.onSuccess {
-                tracker.trackEvent("Picker_manageContacts_success")
-                closeScreen()
-            }.onFailure { e ->
-                if (e is CancellationException) throw e
-                handleError(e)
+
+                pendingManageContactsSave = PendingManageContactsSave(
+                    group = group,
+                    newSelected = newSelected,
+                    oldSelected = oldSelected
+                )
+                _events.trySend(PickerEvent.AskNewContactsRingtoneChoice(options))
             }
         }
+    }
+
+    fun onRequiredRingtoneChosen(uri: String) {
+        val pending = pendingManageContactsSave ?: return
+        pendingManageContactsSave = null
+        runManageContactsSave(
+            group = pending.group,
+            newSelected = pending.newSelected,
+            oldSelected = pending.oldSelected,
+            ringtoneForNewContactsUri = uri
+        )
     }
 
     fun confirmCreateGroup(nameRaw: String) {
@@ -223,6 +285,7 @@ internal class PickerViewModel(
     }
 
     fun close() {
+        pendingManageContactsSave = null
         viewModelScope.launch { _events.send(PickerEvent.Close) }
     }
 
@@ -241,8 +304,46 @@ internal class PickerViewModel(
     }
 
     private fun closeScreen() {
+        pendingManageContactsSave = null
         // reset state
         _state.update { PickerScreenState(isLoading = false) }
         _events.trySend(PickerEvent.Close)
+    }
+
+    private fun runManageContactsSave(
+        group: LabelItem,
+        newSelected: List<Contact>,
+        oldSelected: List<Contact>,
+        ringtoneForNewContactsUri: String?,
+    ) {
+        showLoading()
+
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(DispatchersProvider.io) {
+                    contactsRepo.updateGroupMembers(
+                        groupId = group.id,
+                        newSelected = newSelected,
+                        oldSelected = oldSelected,
+                        ringtoneForNewContactsUri = ringtoneForNewContactsUri
+                    )
+                }
+            }
+            result.onSuccess {
+                tracker.trackEvent("Picker_manageContacts_success")
+                closeScreen()
+            }.onFailure { e ->
+                if (e is CancellationException) throw e
+                handleError(e)
+            }
+        }
+    }
+
+    private fun calculateContactsToAdd(
+        newSelected: List<Contact>,
+        oldSelected: List<Contact>,
+    ): List<Contact> {
+        val oldIds = oldSelected.mapTo(hashSetOf()) { it.id }
+        return newSelected.filter { it.id !in oldIds }
     }
 }

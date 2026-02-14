@@ -71,8 +71,41 @@ internal fun Activity.showCustomViewAlertDialog(
     }
 }
 
+internal fun Activity.showRequiredSingleChoiceDialog(
+    @StringRes titleResId: Int,
+    message: String,
+    options: List<String>,
+    onSelected: (Int) -> Unit,
+): AlertDialog? {
+    if (options.isEmpty()) return null
+    var selectedIndex = 0
+
+    return showDialogSafe(
+        configureDialog = { dialog ->
+            dialog.setCancelable(false)
+            dialog.setCanceledOnTouchOutside(false)
+        }
+    ) {
+        setTitle(titleResId)
+        if (message.isNotBlank()) {
+            setMessage(message)
+        }
+        setSingleChoiceItems(options.toTypedArray(), selectedIndex) { _, which ->
+            selectedIndex = which
+        }
+        setPositiveButton(R.string.confirm) { d, _ ->
+            try {
+                onSelected(selectedIndex)
+            } finally {
+                d.dismiss()
+            }
+        }
+    }
+}
+
 /** Shared, lifecycle-safe dialog runner to avoid BadTokenException + window leaks. */
 private fun Activity.showDialogSafe(
+    configureDialog: (AlertDialog) -> Unit = {},
     build: AlertDialog.Builder.() -> Unit,
 ): AlertDialog? {
     if (isFinishing || isDestroyed) return null
@@ -80,6 +113,7 @@ private fun Activity.showDialogSafe(
     val dialog = AlertDialog.Builder(this, R.style.AlertDialogCustom)
         .apply(build)
         .create()
+    configureDialog(dialog)
 
     if (isFinishing || isDestroyed) return null
 

@@ -27,6 +27,8 @@
     <string name="delete_group_desc">Möchten Sie diese Gruppe löschen? Dadurch werden Kontakte aus der Gruppe entfernt, ihre zugewiesenen Klingeltöne bleiben jedoch unverändert.</string>
     <string name="manage_contacts_group_name">Kontakte der Gruppe verwalten</string>
     <string name="manage_contacts_group_name_desc">Möchten Sie Kontakte zu dieser Gruppe hinzufügen oder entfernen? Dadurch werden die Kontakte der Gruppe zugewiesen bzw. entzogen. Die Änderung des Klingeltons wird wirksam, sobald der Vorgang abgeschlossen ist!</string>
+    <string name="choose_ringtone_for_new_contacts_title">Klingelton für neu hinzugefügte Kontakte auswählen</string>
+    <string name="choose_ringtone_for_new_contacts_description">Diese Gruppe hat mehrere Klingeltöne. Wählen Sie einen Klingelton aus, der auf neu hinzugefügte Kontakte angewendet wird.</string>
     <string name="something_went_wrong">Etwas ist schiefgelaufen</string>
     <string name="loading">Wird geladen …</string>
     <string name="error">Fehler</string>

@@ -17,6 +17,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+internal data class RingtoneChoiceOption(
+    val uri: String,
+    val displayName: String,
+)
+
 internal interface ContactsRepository {
     val labelsFlow: StateFlow<List<LabelItem>>
     val allContacts: StateFlow<List<Contact>?>
@@ -39,6 +44,7 @@ internal interface ContactsRepository {
         groupId: Long,
         newSelected: List<Contact>,
         oldSelected: List<Contact>,
+        ringtoneForNewContactsUri: String?,
     )
 
     suspend fun clearAllRingtones()
@@ -46,6 +52,8 @@ internal interface ContactsRepository {
     suspend fun getContactsByIdsPreferCache(ids: List<Long>, batchSize: Int = 200): List<Contact>
 
     suspend fun enrichGroupContactsBasics(labelId: Long, batchSize: Int = 200)
+
+    fun getRingtoneChoiceOptions(uriList: List<String>): List<RingtoneChoiceOption>
 }
 
 
@@ -181,6 +189,7 @@ internal class ContactsRepositoryImpl(
         groupId: Long,
         newSelected: List<Contact>,
         oldSelected: List<Contact>,
+        ringtoneForNewContactsUri: String?,
     ) {
         val oldIds =
             HashSet<Long>(oldSelected.size).apply { oldSelected.forEach { add(it.id) } }
@@ -192,15 +201,63 @@ internal class ContactsRepositoryImpl(
         val toRemove =
             if (oldSelected.isEmpty()) emptyList() else oldSelected.filter { it.id !in newIds }
 
-        if (toAdd.isNotEmpty()) helper.addAllContactsToLabel(groupId, toAdd)
+        if (toAdd.isNotEmpty()) {
+            helper.reassignContactsToLabelForAppVisibleGroups(
+                targetLabelId = groupId,
+                contactIds = toAdd.map { it.id },
+                appVisibleEditableLabelIds = _labels.value.map { it.id }.toSet()
+            )
+        }
         if (toRemove.isNotEmpty()) helper.removeAllContactsFromLabel(groupId, toRemove)
+        if (ringtoneForNewContactsUri != null && toAdd.isNotEmpty()) {
+            helper.setRingtoneToLabelContacts(
+                labelContacts = toAdd,
+                newRingtoneUriStr = ringtoneForNewContactsUri
+            )
+        }
 
         tracker.trackEvent("update_group_members")
+        val movedContactIds = toAdd.map { it.id }.toHashSet()
+        val selectedWithRingtoneApplied = if (
+            ringtoneForNewContactsUri == null || movedContactIds.isEmpty()
+        ) {
+            newSelected.distinctBy { it.id }
+        } else {
+            newSelected
+                .distinctBy { it.id }
+                .map { contact ->
+                    if (contact.id in movedContactIds) {
+                        contact.copy(ringtoneUriStr = ringtoneForNewContactsUri)
+                    } else {
+                        contact
+                    }
+                }
+        }
+
         _labels.update { labels ->
             labels.map { label ->
                 if (label.id == groupId) {
-                    label.copy(contacts = newSelected.distinctBy { it.id })
+                    label.withContactsSummary(selectedWithRingtoneApplied)
+                } else if (movedContactIds.isNotEmpty()) {
+                    val filteredContacts = label.contacts.filterNot { it.id in movedContactIds }
+                    if (filteredContacts.size == label.contacts.size) {
+                        label
+                    } else {
+                        label.withContactsSummary(filteredContacts)
+                    }
                 } else label
+            }
+        }
+
+        if (ringtoneForNewContactsUri != null && movedContactIds.isNotEmpty()) {
+            _contacts.update { list ->
+                list?.map { contact ->
+                    if (contact.id in movedContactIds) {
+                        contact.copy(ringtoneUriStr = ringtoneForNewContactsUri)
+                    } else {
+                        contact
+                    }
+                }
             }
         }
     }
@@ -291,6 +348,30 @@ internal class ContactsRepositoryImpl(
         }
     }
 
+    override fun getRingtoneChoiceOptions(uriList: List<String>): List<RingtoneChoiceOption> {
+        val uniqueUris = uriList
+            .asSequence()
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .toList()
+        if (uniqueUris.isEmpty()) return emptyList()
+
+        return uniqueUris.map { uriStr ->
+            val displayName = prefs.getString(uriStr)
+                ?.takeIf { it.isNotBlank() }
+                ?: runCatching { uriStr.toUri().lastPathSegment }
+                    .getOrNull()
+                    ?.takeIf { it.isNotBlank() }
+                ?: uriStr
+
+            RingtoneChoiceOption(
+                uri = uriStr,
+                displayName = displayName
+            )
+        }
+    }
+
     private fun updateGroupRingtone(
         groupId: Long,
         uriStr: String,
@@ -326,5 +407,14 @@ internal class ContactsRepositoryImpl(
 
         // 3) Join for display (or empty if nothing resolved)
         return if (names.isEmpty()) "" else names.joinToString(", ")
+    }
+
+    private fun LabelItem.withContactsSummary(updatedContacts: List<Contact>): LabelItem {
+        val distinctUris = updatedContacts.mapNotNull { it.ringtoneUriStr }.distinct()
+        return copy(
+            contacts = updatedContacts,
+            ringtoneUriList = distinctUris,
+            ringtoneFileName = deriveGroupRingtoneFileName(distinctUris)
+        )
     }
 }

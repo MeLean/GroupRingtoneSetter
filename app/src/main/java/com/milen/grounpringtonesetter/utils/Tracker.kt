@@ -5,6 +5,7 @@ import androidx.core.os.bundleOf
 import com.google.firebase.Firebase
 import com.google.firebase.analytics.analytics
 import com.google.firebase.crashlytics.crashlytics
+import kotlin.coroutines.cancellation.CancellationException
 
 
 internal class Tracker {
@@ -30,6 +31,11 @@ internal class Tracker {
     }
 
     fun trackError(error: Throwable) {
+        if (error.isCancellationLike()) {
+            "Ignored cancellation: ${error.message}".log()
+            return
+        }
+
         "Error: ${error.message}".log()
 
         try {
@@ -39,6 +45,10 @@ internal class Tracker {
         }
     }
 }
+
+private fun Throwable.isCancellationLike(): Boolean =
+    generateSequence(this as Throwable?) { it.cause }
+        .any { it is CancellationException }
 
 private fun Map<String, Any>?.toBundle(): Bundle? = this?.let {
     val safePairs = it.map { (k, v) ->

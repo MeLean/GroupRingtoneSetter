@@ -64,4 +64,8 @@
     <string name="ringtone_source_system">सिस्टम रिंगटोन</string>
     <string name="ringtone_source_file">डिवाइस की फ़ाइलें</string>
     <string name="ringtone_format_not_supported">चयनित फ़ाइल प्रारूप को रिंगटोन के रूप में उपयोग नहीं किया जा सकता। कृपया MP3, M4A, OGG, WAV, या AAC प्रारूप में एक ऑडियो फ़ाइल चुनें।</string>
+    <string name="blocked_contacts_reassignment_title">कुछ संपर्क पुनः असाइन नहीं किए जा सकते</string>
+    <string name="blocked_contacts_reassignment_message">इन संपर्कों को अभी पुनः असाइन नहीं किया जा सकता:\n%1$s\n\nक्या इन संपर्कों के बिना जारी रखें या रद्द करें?</string>
+    <string name="continue_action">जारी रखें</string>
+    <string name="abort_action">रद्द करें</string>
 </resources>

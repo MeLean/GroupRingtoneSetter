@@ -105,6 +105,8 @@ internal class PickerScreenFragment : Fragment() {
             when (event) {
                 is PickerEvent.Close -> findNavController().popBackStack()
                 is PickerEvent.DoneDialog -> showDoneDialog()
+                is PickerEvent.AskBlockedContactsContinueOrAbort ->
+                    showBlockedContactsContinueOrAbortDialog(event.blockedNames)
                 is PickerEvent.AskNewContactsRingtoneChoice ->
                     showRequiredRingtoneChoiceDialog(event.options.map { it.displayName }) { index ->
                         val selected = event.options.getOrNull(index) ?: return@showRequiredRingtoneChoiceDialog
@@ -227,6 +229,27 @@ internal class PickerScreenFragment : Fragment() {
             message = getString(R.string.choose_ringtone_for_new_contacts_description),
             options = options,
             onSelected = onSelected
+        )
+    }
+
+    private fun showBlockedContactsContinueOrAbortDialog(
+        blockedNames: List<String>,
+    ) {
+        if (blockedNames.isEmpty()) return
+        val blockedList = blockedNames.joinToString(separator = "\n") { "- $it" }
+        val message = getString(
+            R.string.blocked_contacts_reassignment_message,
+            blockedList
+        )
+        requireActivity().showAlertDialog(
+            titleResId = R.string.blocked_contacts_reassignment_title,
+            message = message,
+            cancelButtonData = ButtonData(R.string.abort_action) {
+                viewModel.onBlockedContactsAbort()
+            },
+            confirmButtonData = ButtonData(R.string.continue_action) {
+                viewModel.onBlockedContactsContinue()
+            }
         )
     }
 

@@ -22,6 +22,11 @@ internal data class RingtoneChoiceOption(
     val displayName: String,
 )
 
+internal data class GroupReassignmentValidation(
+    val allowed: List<Contact>,
+    val blocked: List<Contact>,
+)
+
 internal interface ContactsRepository {
     val labelsFlow: StateFlow<List<LabelItem>>
     val allContacts: StateFlow<List<Contact>?>
@@ -46,6 +51,11 @@ internal interface ContactsRepository {
         oldSelected: List<Contact>,
         ringtoneForNewContactsUri: String?,
     )
+
+    suspend fun validateGroupReassignment(
+        groupId: Long,
+        candidates: List<Contact>,
+    ): GroupReassignmentValidation
 
     suspend fun clearAllRingtones()
 
@@ -260,6 +270,32 @@ internal class ContactsRepositoryImpl(
                 }
             }
         }
+    }
+
+    override suspend fun validateGroupReassignment(
+        groupId: Long,
+        candidates: List<Contact>,
+    ): GroupReassignmentValidation {
+        val distinctCandidates = candidates.distinctBy { it.id }
+        if (distinctCandidates.isEmpty()) {
+            return GroupReassignmentValidation(
+                allowed = emptyList(),
+                blocked = emptyList()
+            )
+        }
+
+        val blockedIds = helper.findBlockedContactsForLabelReassignment(
+            targetLabelId = groupId,
+            contactIds = distinctCandidates.map { it.id },
+            appVisibleEditableLabelIds = labelsFlow.value.map { it.id }.toSet()
+        )
+
+        val blocked = distinctCandidates.filter { it.id in blockedIds }
+        val allowed = distinctCandidates.filterNot { it.id in blockedIds }
+        return GroupReassignmentValidation(
+            allowed = allowed,
+            blocked = blocked
+        )
     }
 
     override suspend fun clearAllRingtones() = withContext(DispatchersProvider.io) {

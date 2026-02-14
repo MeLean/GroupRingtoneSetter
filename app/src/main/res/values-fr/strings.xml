@@ -64,4 +64,8 @@
     <string name="ringtone_source_system">Sonneries système</string>
     <string name="ringtone_source_file">Fichiers de l\'appareil</string>
     <string name="ringtone_format_not_supported">Le format de fichier sélectionné ne peut pas être utilisé comme sonnerie. Veuillez choisir un fichier audio au format MP3, M4A, OGG, WAV ou AAC.</string>
+    <string name="blocked_contacts_reassignment_title">Certains contacts ne peuvent pas être réaffectés</string>
+    <string name="blocked_contacts_reassignment_message">Ces contacts ne peuvent pas être réaffectés pour le moment :\n%1$s\n\nContinuer sans ces contacts ou annuler ?</string>
+    <string name="continue_action">Continuer</string>
+    <string name="abort_action">Annuler</string>
 </resources>

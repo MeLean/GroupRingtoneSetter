@@ -21,6 +21,9 @@ internal sealed interface PickerEvent {
     data class AskNewContactsRingtoneChoice(
         val options: List<RingtoneChoiceOption>,
     ) : PickerEvent
+    data class AskBlockedContactsContinueOrAbort(
+        val blockedNames: List<String>,
+    ) : PickerEvent
     data class ShowErrorById(@param:StringRes val strRes: Int) : PickerEvent
     data class ShowInfoText(@param:StringRes val strRes: Int) : PickerEvent
     data class ShowErrorText(val message: String?) : PickerEvent

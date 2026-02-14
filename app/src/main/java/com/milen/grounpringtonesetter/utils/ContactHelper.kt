@@ -310,6 +310,26 @@ internal class ContactsHelper(
         tracker.trackEvent("deleteLabel successful", mapOf("labelId" to labelId.toString()))
     }
 
+    fun findBlockedContactsForLabelReassignment(
+        targetLabelId: Long,
+        contactIds: List<Long>,
+        appVisibleEditableLabelIds: Set<Long>,
+    ): Set<Long> {
+        val distinctContactIds = contactIds.distinct()
+        if (distinctContactIds.isEmpty()) return emptySet()
+
+        val blocked = LinkedHashSet<Long>()
+        distinctContactIds.forEach { contactId ->
+            if (isContactAlreadyAssignedToLabel(targetLabelId, contactId)) return@forEach
+            val rawContactId =
+                resolveRawContactIdForTargetInsert(contactId, appVisibleEditableLabelIds)
+            if (rawContactId == null) {
+                blocked.add(contactId)
+            }
+        }
+        return blocked
+    }
+
     fun reassignContactsToLabelForAppVisibleGroups(
         targetLabelId: Long,
         contactIds: List<Long>,
@@ -327,41 +347,70 @@ internal class ContactsHelper(
             )
         )
 
+        val blockedContactIds = findBlockedContactsForLabelReassignment(
+            targetLabelId = targetLabelId,
+            contactIds = distinctContactIds,
+            appVisibleEditableLabelIds = appVisibleEditableLabelIds
+        )
+        if (blockedContactIds.isNotEmpty()) {
+            val errorMessage = "Failed to reassign contacts without raw-contact mapping: " +
+                    blockedContactIds.joinToString(",")
+            throw IllegalStateException(errorMessage)
+        }
+
         val removableGroupIds = appVisibleEditableLabelIds
             .asSequence()
             .filter { it != targetLabelId }
             .distinct()
             .toList()
 
-        val removedRows = if (removableGroupIds.isEmpty()) {
-            0
-        } else {
-            val contactPlaceholders = distinctContactIds.joinToString(",") { "?" }
-            val groupPlaceholders = removableGroupIds.joinToString(",") { "?" }
-            val selection =
-                "${ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID} IN ($contactPlaceholders) AND " +
-                        "${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} IN ($groupPlaceholders) AND " +
-                        "${ContactsContract.Data.MIMETYPE} = ?"
-            val selectionArgs =
-                (distinctContactIds.map { it.toString() } +
+        val ops = ArrayList<ContentProviderOperation>()
+        distinctContactIds.forEach { contactId ->
+            if (!isContactAlreadyAssignedToLabel(targetLabelId, contactId)) {
+                val rawContactId = resolveRawContactIdForTargetInsert(
+                    contactId = contactId,
+                    appVisibleEditableLabelIds = appVisibleEditableLabelIds
+                ) ?: throw IllegalStateException(
+                    "Failed to resolve raw-contact mapping for contactId: $contactId"
+                )
+
+                ops.add(
+                    ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                        .withValue(
+                            ContactsContract.Data.MIMETYPE,
+                            ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE
+                        )
+                        .withValue(
+                            ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID,
+                            targetLabelId
+                        )
+                        .build()
+                )
+            }
+
+            if (removableGroupIds.isNotEmpty()) {
+                val groupPlaceholders = removableGroupIds.joinToString(",") { "?" }
+                val selection =
+                    "${ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID} = ? AND " +
+                            "${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} IN ($groupPlaceholders) AND " +
+                            "${ContactsContract.Data.MIMETYPE} = ?"
+                val selectionArgs = (listOf(contactId.toString()) +
                         removableGroupIds.map { it.toString() } +
                         ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE)
                     .toTypedArray()
-
-            appContext.contentResolver.delete(
-                ContactsContract.Data.CONTENT_URI,
-                selection,
-                selectionArgs
-            )
+                ops.add(
+                    ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                        .withSelection(selection, selectionArgs)
+                        .build()
+                )
+            }
         }
 
-        distinctContactIds.forEach { contactId ->
-            if (isContactAlreadyAssignedToLabel(targetLabelId, contactId)) return@forEach
-            runCatching {
-                addSingleContactToLabel(labelId = targetLabelId, contactId = contactId)
-            }.onFailure { throwable ->
-                tracker.trackError(throwable)
-            }
+        val batchResults = if (ops.isEmpty()) {
+            emptyArray()
+        } else {
+            appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
         }
 
         triggerSyncForAllAccounts()
@@ -371,7 +420,8 @@ internal class ContactsHelper(
             mapOf(
                 "targetLabelId" to targetLabelId.toString(),
                 "contactCount" to distinctContactIds.size.toString(),
-                "removedRows" to removedRows.toString()
+                "operationsCount" to ops.size.toString(),
+                "batchResultsCount" to batchResults.size.toString()
             )
         )
     }
@@ -748,38 +798,6 @@ internal class ContactsHelper(
         )
     }
 
-    private fun addSingleContactToLabel(labelId: Long, contactId: Long) {
-        tracker.trackEvent(
-            "addSingleContactToLabel called",
-            mapOf("labelId" to labelId.toString(), "contactId" to contactId.toString())
-        )
-
-        // Get the RAW_CONTACT_ID from CONTACT_ID
-        val rawContactId = getRawContactIdForContact(contactId)
-            ?: throw IllegalArgumentException("raw_contact_id is required and could not be found for contactId: $contactId")
-
-        val ops = ArrayList<ContentProviderOperation>().apply {
-            add(
-                ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                    .withValue(
-                        ContactsContract.Data.RAW_CONTACT_ID, // Use RAW_CONTACT_ID instead
-                        rawContactId
-                    )
-                    .withValue(
-                        ContactsContract.Data.MIMETYPE,
-                        ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE // Group membership MIME type
-                    )
-                    .withValue(
-                        ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID, // Link to the label
-                        labelId
-                    )
-                    .build()
-            )
-        }
-
-        appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
-    }
-
     private fun isContactAlreadyAssignedToLabel(labelId: Long, contactId: Long): Boolean {
         val projection = arrayOf(ContactsContract.Data._ID)
         val selection =
@@ -805,13 +823,69 @@ internal class ContactsHelper(
         return false
     }
 
+    private fun resolveRawContactIdForTargetInsert(
+        contactId: Long,
+        appVisibleEditableLabelIds: Set<Long>,
+    ): Long? {
+        val preferredRawId = getRawContactIdForContactInGroups(
+            contactId = contactId,
+            appVisibleEditableLabelIds = appVisibleEditableLabelIds
+        )
+        if (preferredRawId != null) {
+            return preferredRawId
+        }
+        return getRawContactIdForContact(contactId)
+    }
+
+    private fun getRawContactIdForContactInGroups(
+        contactId: Long,
+        appVisibleEditableLabelIds: Set<Long>,
+    ): Long? {
+        val groupIds = appVisibleEditableLabelIds.distinct()
+        if (groupIds.isEmpty()) return null
+
+        val projection = arrayOf(ContactsContract.Data.RAW_CONTACT_ID)
+        val groupPlaceholders = groupIds.joinToString(",") { "?" }
+        val selection =
+            "${ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID} = ? AND " +
+                    "${ContactsContract.CommonDataKinds.GroupMembership.GROUP_ROW_ID} IN ($groupPlaceholders) AND " +
+                    "${ContactsContract.Data.MIMETYPE} = ? AND " +
+                    "${ContactsContract.Data.RAW_CONTACT_ID} IS NOT NULL"
+        val selectionArgs = (listOf(contactId.toString()) +
+                groupIds.map { it.toString() } +
+                ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE)
+            .toTypedArray()
+
+        appContext.contentResolver.query(
+            ContactsContract.Data.CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                return cursor.getLong(
+                    cursor.getColumnIndexOrThrow(ContactsContract.Data.RAW_CONTACT_ID)
+                )
+            }
+        }
+        return null
+    }
+
     private fun getRawContactIdForContact(contactId: Long): Long? {
         val uri = ContactsContract.RawContacts.CONTENT_URI
         val projection = arrayOf(ContactsContract.RawContacts._ID)
-        val selection = "${ContactsContract.RawContacts.CONTACT_ID} = ?"
+        val selection = "${ContactsContract.RawContacts.CONTACT_ID} = ? AND " +
+                "${ContactsContract.RawContacts.DELETED} = 0"
         val selectionArgs = arrayOf(contactId.toString())
 
-        appContext.contentResolver.query(uri, projection, selection, selectionArgs, null)
+        appContext.contentResolver.query(
+            uri,
+            projection,
+            selection,
+            selectionArgs,
+            "${ContactsContract.RawContacts._ID} ASC"
+        )
             ?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     return cursor.getLong(cursor.getColumnIndexOrThrow(ContactsContract.RawContacts._ID))

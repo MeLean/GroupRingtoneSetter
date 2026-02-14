@@ -64,4 +64,8 @@
     <string name="ringtone_source_system">Системные рингтоны</string>
     <string name="ringtone_source_file">Файлы на устройстве</string>
     <string name="ringtone_format_not_supported">Выбранный формат файла не может быть использован в качестве рингтона. Пожалуйста, выберите аудиофайл в формате MP3, M4A, OGG, WAV или AAC.</string>
+    <string name="blocked_contacts_reassignment_title">Некоторые контакты нельзя переназначить</string>
+    <string name="blocked_contacts_reassignment_message">Эти контакты сейчас нельзя переназначить:\n%1$s\n\nПродолжить без этих контактов или прервать?</string>
+    <string name="continue_action">Продолжить</string>
+    <string name="abort_action">Прервать</string>
 </resources>

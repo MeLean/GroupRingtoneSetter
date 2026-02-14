@@ -872,7 +872,11 @@ internal class BillingEntitlementManager(
         connectingRef.get()?.let { existing ->
             tracker.trackEvent("billing_connect_wait_existing")
             val waitStart = System.currentTimeMillis()
-            existing.await()
+            awaitConnectionWithTimeout(
+                deferred = existing,
+                connectStartTime = connectStartTime,
+                source = "existing"
+            )
             tracker.trackEvent(
                 "billing_connect_wait_completed",
                 mapOf("wait_ms" to (System.currentTimeMillis() - waitStart))
@@ -881,8 +885,17 @@ internal class BillingEntitlementManager(
         }
         val created = CompletableDeferred<Unit>()
         if (!connectingRef.compareAndSet(null, created)) {
-            connectingRef.get()!!.await()
-            return
+            val winner = connectingRef.get()
+            if (winner != null) {
+                awaitConnectionWithTimeout(
+                    deferred = winner,
+                    connectStartTime = connectStartTime,
+                    source = "raced_existing"
+                )
+                return
+            }
+            if (client.isReady) return
+            throw IllegalStateException("Billing connect state changed during acquisition.")
         }
         tracker.trackEvent(
             "billing_connect_start",
@@ -991,30 +1004,36 @@ internal class BillingEntitlementManager(
             }
         }
         client.startConnection(listener)
+        awaitConnectionWithTimeout(
+            deferred = created,
+            connectStartTime = connectStartTime,
+            source = "created"
+        )
+    }
+
+    private suspend fun awaitConnectionWithTimeout(
+        deferred: CompletableDeferred<Unit>,
+        connectStartTime: Long,
+        source: String,
+    ) {
         val result = withTimeoutOrNull(CONNECTION_TIMEOUT_MS) {
-        created.await()
+            deferred.await()
         }
-        if (result == null) {
-            val currentRef = connectingRef.get()
-            if (currentRef == created) {
-                connectingRef.set(null)
-                if (!created.isCompleted) {
-                    created.cancel()
-                }
-            }
-            tracker.trackEvent(
-                "billing_connect_timeout",
-                mapOf(
-                    "timeout_ms" to CONNECTION_TIMEOUT_MS,
-                    "elapsed_ms" to (System.currentTimeMillis() - connectStartTime),
-                    "client_ready" to client.isReady
-                )
+        if (result != null) return
+
+        tracker.trackEvent(
+            "billing_connect_timeout",
+            mapOf(
+                "timeout_ms" to CONNECTION_TIMEOUT_MS,
+                "elapsed_ms" to (System.currentTimeMillis() - connectStartTime),
+                "client_ready" to client.isReady,
+                "source" to source
             )
-            val timeoutError =
-                IllegalStateException("Billing connection timeout after ${CONNECTION_TIMEOUT_MS}ms")
-            tracker.trackError(timeoutError)
-            throw timeoutError
-        }
+        )
+        val timeoutError =
+            IllegalStateException("Billing connection timeout after ${CONNECTION_TIMEOUT_MS}ms")
+        tracker.trackError(timeoutError)
+        throw timeoutError
     }
 
     private suspend fun getAdFree(): EntitlementState = suspendCancellableCoroutine { cont ->
@@ -1444,4 +1463,3 @@ internal class BillingEntitlementManager(
         else -> "UNKNOWN_$code"
     }
 }
-

@@ -23,6 +23,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -32,7 +33,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 
 internal class BillingEntitlementManager(
@@ -61,7 +61,6 @@ internal class BillingEntitlementManager(
 
     private val client: BillingClient = BillingClient.newBuilder(app)
         .enablePendingPurchases(PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
-        .enableAutoServiceReconnection()
         .setListener(this)
         .build()
 
@@ -805,7 +804,7 @@ internal class BillingEntitlementManager(
         var lastDelay = INITIAL_RETRY_DELAY_MS
 
         while (attempt <= MAX_RETRY_ATTEMPTS) {
-            coroutineContext.ensureActive()
+            currentCoroutineContext().ensureActive()
             try {
                 ensureConnected()
                 if (attempt > 1) {
@@ -1128,7 +1127,7 @@ internal class BillingEntitlementManager(
         var lastDelay = INITIAL_RETRY_DELAY_MS
 
         while (attempt <= MAX_RETRY_ATTEMPTS) {
-            coroutineContext.ensureActive()
+            currentCoroutineContext().ensureActive()
             if (!client.isReady) {
                 tracker.trackEvent(
                     "billing_pd_query_client_not_ready",

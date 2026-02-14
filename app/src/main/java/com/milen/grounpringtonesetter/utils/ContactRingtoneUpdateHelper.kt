@@ -26,7 +26,11 @@ internal class ContactRingtoneUpdateHelper(
     suspend fun scanAndUpdate(context: Context, ringtoneStr: String, contactId: Long) {
         val src = ringtoneStr.toUri()
         if (ringtoneStr.isBlank() || src == Uri.EMPTY) {
-            tracker.trackError(IllegalArgumentException("Invalid ringtone URI: $ringtoneStr"))
+            tracker.trackError(IllegalArgumentException("Invalid ringtone URI"))
+            tracker.trackEvent(
+                "invalid_ringtone_uri",
+                mapOf("uri_sig" to ringtoneStringSignature(ringtoneStr))
+            )
             return
         }
 
@@ -270,8 +274,8 @@ internal class ContactRingtoneUpdateHelper(
                         tracker.trackEvent(
                             "custom_ringtone_mismatch",
                             mapOf(
-                                "expected" to expected,
-                                "actual" to (actual ?: "null")
+                                "expected_sig" to ringtoneStringSignature(expected),
+                                "actual_sig" to ringtoneStringSignature(actual)
                             )
                         )
                     }
@@ -406,5 +410,10 @@ internal class ContactRingtoneUpdateHelper(
             "authority" to auth,
             "uri_sig" to sig
         )
+    }
+
+    private fun ringtoneStringSignature(value: String?): String {
+        if (value.isNullOrBlank()) return "empty"
+        return value.hashCode().toUInt().toString(16)
     }
 }

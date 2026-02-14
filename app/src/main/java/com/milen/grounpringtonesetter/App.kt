@@ -87,7 +87,10 @@ class App : Application() {
     private fun patchOrKillBadProxy(a: Activity) {
         if (a.javaClass.name != "com.android.billingclient.api.ProxyBillingActivity") return
 
-        tracker.trackEvent("patchOrKillBadProxy called ${a::javaClass.name}")
+        tracker.trackEvent(
+            "billing_proxy_guard_entered",
+            mapOf("activity_class" to a::javaClass.name)
+        )
 
 
         val launchedByUs = BillingGuard.isExpecting()

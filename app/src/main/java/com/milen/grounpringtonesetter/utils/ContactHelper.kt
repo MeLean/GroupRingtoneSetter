@@ -530,8 +530,12 @@ internal class ContactsHelper(
     ) {
         withContext(DispatchersProvider.io) {
             tracker.trackEvent(
-                "setRingtoneToLabelContacts called",
-                mapOf("labelId" to "label_contacts", "ringtoneUri" to newRingtoneUriStr)
+                "set_ringtone_to_label_contacts_start",
+                mapOf(
+                    "label_id" to "label_contacts",
+                    "contact_count" to labelContacts.size.toString(),
+                    "ringtone_uri_sig" to ringtoneUriSignature(newRingtoneUriStr)
+                )
             )
 
             labelContacts.forEach { contact ->
@@ -543,18 +547,21 @@ internal class ContactsHelper(
             }
 
             tracker.trackEvent(
-                "setRingtoneToLabelContacts completed",
+                "set_ringtone_to_label_contacts_result",
                 mapOf("contactCount" to labelContacts.size.toString())
             )
         }
     }
 
     fun clearAllRingtoneUris() {
-        tracker.trackEvent("clearAllRingtoneUris called")
+        tracker.trackEvent("clear_all_ringtone_uris_start")
 
         // 1. Clear ringtones for ALL contacts (without filtering by account type)
         val contactIds = getAllContactIds()
-        tracker.trackEvent("Found ${contactIds.size} contacts to update")
+        tracker.trackEvent(
+            "clear_all_ringtone_uris_contacts_loaded",
+            mapOf("count" to contactIds.size.toString())
+        )
 
         if (contactIds.isNotEmpty()) {
             val contactSelection =
@@ -570,23 +577,35 @@ internal class ContactsHelper(
                     null
                 )
                 tracker.trackEvent(
-                    "clearAllRingtoneUris - Contacts updated",
+                    "clear_all_ringtone_uris_contacts_updated",
                     mapOf("clearedCount" to contactRowsUpdated.toString())
                 )
             } catch (e: SecurityException) {
                 tracker.trackError(e)
-                tracker.trackEvent("clearAllRingtoneUris - Failed due to SecurityException")
+                tracker.trackEvent(
+                    "clear_all_ringtone_uris_failed_security",
+                    mapOf("stage" to "contacts")
+                )
             } catch (e: Exception) {
                 tracker.trackError(e)
-                tracker.trackEvent("clearAllRingtoneUris - Unexpected error: ${e.message}")
+                tracker.trackEvent(
+                    "clear_all_ringtone_uris_failed_unexpected",
+                    mapOf(
+                        "stage" to "contacts",
+                        "error_type" to e::class.java.simpleName
+                    )
+                )
             }
         } else {
-            tracker.trackEvent("No contacts found for ringtone removal")
+            tracker.trackEvent("clear_all_ringtone_uris_contacts_empty")
         }
 
         // 2. Clear ringtones for ALL raw contacts (no account type filtering)
         val rawContactIds = getAllRawContactIds()
-        tracker.trackEvent("Found ${rawContactIds.size} raw contacts to update")
+        tracker.trackEvent(
+            "clear_all_ringtone_uris_raw_contacts_loaded",
+            mapOf("count" to rawContactIds.size.toString())
+        )
 
         if (rawContactIds.isNotEmpty()) {
             val rawContactSelection =
@@ -602,18 +621,27 @@ internal class ContactsHelper(
                     null
                 )
                 tracker.trackEvent(
-                    "clearAllRingtoneUris - RawContacts updated",
+                    "clear_all_ringtone_uris_raw_contacts_updated",
                     mapOf("clearedCount" to rawContactRowsUpdated.toString())
                 )
             } catch (e: SecurityException) {
                 tracker.trackError(e)
-                tracker.trackEvent("clearAllRingtoneUris - Failed due to SecurityException")
+                tracker.trackEvent(
+                    "clear_all_ringtone_uris_failed_security",
+                    mapOf("stage" to "raw_contacts")
+                )
             } catch (e: Exception) {
                 tracker.trackError(e)
-                tracker.trackEvent("clearAllRingtoneUris - Unexpected error: ${e.message}")
+                tracker.trackEvent(
+                    "clear_all_ringtone_uris_failed_unexpected",
+                    mapOf(
+                        "stage" to "raw_contacts",
+                        "error_type" to e::class.java.simpleName
+                    )
+                )
             }
         } else {
-            tracker.trackEvent("No raw contacts found for ringtone removal")
+            tracker.trackEvent("clear_all_ringtone_uris_raw_contacts_empty")
         }
     }
 
@@ -988,6 +1016,11 @@ internal class ContactsHelper(
 
             return@withContext all.filter { it.id in allowedGroupIds }
         }
+
+    private fun ringtoneUriSignature(uri: String): String {
+        if (uri.isBlank()) return "empty"
+        return uri.hashCode().toUInt().toString(16)
+    }
 }
 
 internal fun Context.getPrimaryPhoneNumberForContact(contactId: Long): String? {

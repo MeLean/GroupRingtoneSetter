@@ -168,7 +168,10 @@ internal class ContactsRepositoryImpl(
     }
 
     override suspend fun deleteGroup(groupId: Long) {
-        tracker.trackEvent("delete_group: $groupId")
+        tracker.trackEvent(
+            "delete_group",
+            mapOf("group_id" to groupId.toString())
+        )
         helper.deleteLabel(groupId)
 
         val updated = _labels.value.filter { it.id != groupId }
@@ -314,7 +317,13 @@ internal class ContactsRepositoryImpl(
 
     override suspend fun refreshAllPhoneContacts() {
         val accountId = accountsProvider()
-        tracker.trackEvent("getAllPhoneContacts: $accountId")
+        tracker.trackEvent(
+            "get_all_phone_contacts",
+            mapOf(
+                "has_account" to (accountId != null),
+                "account_sig" to accountSignature(accountId)
+            )
+        )
         val contacts = helper.getAllPhoneContacts(accountId)
         _contacts.update { contacts }
     }
@@ -452,5 +461,11 @@ internal class ContactsRepositoryImpl(
             ringtoneUriList = distinctUris,
             ringtoneFileName = deriveGroupRingtoneFileName(distinctUris)
         )
+    }
+
+    private fun accountSignature(accountId: AccountId?): String {
+        val raw = accountId?.raw.orEmpty()
+        if (raw.isBlank()) return "none"
+        return raw.hashCode().toUInt().toString(16)
     }
 }

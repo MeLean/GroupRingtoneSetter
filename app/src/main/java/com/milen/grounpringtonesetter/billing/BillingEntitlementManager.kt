@@ -231,7 +231,6 @@ internal class BillingEntitlementManager(
                     "product_id" to productId
                 )
             )
-            tracker.trackError(IllegalStateException("Purchase already in progress"))
             return errorCode
         }
 
@@ -686,7 +685,7 @@ internal class BillingEntitlementManager(
                         }
                         tracker.trackEvent(
                             "billing_ack_attempt",
-                            mapOf("purchaseToken" to token.take(12) + "…")
+                            mapOf("purchase_token_sig" to purchaseTokenSignature(token))
                         )
                         ackOnce { ackRes ->
                             try {
@@ -705,7 +704,7 @@ internal class BillingEntitlementManager(
                                                 "rc" to rcName(ackRes.responseCode),
                                                 "rc_code" to ackRes.responseCode,
                                                 "msg" to (ackRes.debugMessage),
-                                                "purchase_token_prefix" to token.take(20)
+                                                "purchase_token_sig" to purchaseTokenSignature(token)
                                             )
                                         )
                                         ackOnce { ackRes2 ->
@@ -718,7 +717,7 @@ internal class BillingEntitlementManager(
                                                         "rc_code" to ackRes2.responseCode,
                                                         "msg" to (ackRes2.debugMessage),
                                                         "error_category" to billingError2.category.name,
-                                                        "purchase_token_prefix" to token.take(20)
+                                                        "purchase_token_sig" to purchaseTokenSignature(token)
                                                     )
                                                 )
                                                 if (ackRes2.responseCode != BillingClient.BillingResponseCode.OK) {
@@ -746,7 +745,7 @@ internal class BillingEntitlementManager(
                                                 "rc_code" to ackRes.responseCode,
                                                 "msg" to (ackRes.debugMessage),
                                                 "error_category" to billingErrorAck.category.name,
-                                                "purchase_token_prefix" to token.take(20)
+                                                "purchase_token_sig" to purchaseTokenSignature(token)
                                             )
                                         )
                                         tracker.trackError(IllegalStateException("Billing acknowledgment failed: ${ackRes.responseCode} ${ackRes.debugMessage}"))
@@ -1389,7 +1388,7 @@ internal class BillingEntitlementManager(
             purchases.filter { it.products.contains(productId) && !it.isAcknowledged }.forEach {
                 tracker.trackEvent(
                     "billing_ack_attempt_on_query",
-                    mapOf("token" to it.purchaseToken.take(12) + "…")
+                    mapOf("purchase_token_sig" to purchaseTokenSignature(it.purchaseToken))
                 )
                 client.acknowledgePurchase(
                     AcknowledgePurchaseParams.newBuilder().setPurchaseToken(it.purchaseToken)
@@ -1404,7 +1403,7 @@ internal class BillingEntitlementManager(
                                 "rc_code" to ackRes.responseCode,
                                 "msg" to (ackRes.debugMessage),
                                 "error_category" to billingErrorAck.category.name,
-                                "purchase_token_prefix" to it.purchaseToken.take(20)
+                                "purchase_token_sig" to purchaseTokenSignature(it.purchaseToken)
                             )
                         )
                         if (ackRes.responseCode != BillingClient.BillingResponseCode.OK) {
@@ -1461,5 +1460,10 @@ internal class BillingEntitlementManager(
         BillingClient.BillingResponseCode.ITEM_NOT_OWNED -> "ITEM_NOT_OWNED"
         BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> "SERVICE_DISCONNECTED"
         else -> "UNKNOWN_$code"
+    }
+
+    private fun purchaseTokenSignature(token: String): String {
+        if (token.isBlank()) return "empty"
+        return token.hashCode().toUInt().toString(16)
     }
 }

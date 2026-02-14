@@ -115,7 +115,10 @@ internal class HomeViewModel(
     }
 
     fun onConnectionChanged(isOnline: Boolean) {
-        tracker.trackEvent("onConnectionChanged isOnline: $isOnline")
+        tracker.trackEvent(
+            "on_connection_changed",
+            mapOf("is_online" to isOnline)
+        )
         if (!isOnline && state.value.entitlement != EntitlementState.OWNED) {
             launch { _events.send(HomeEvent.ConnectionLost) }
         }
@@ -139,7 +142,13 @@ internal class HomeViewModel(
     }
 
     fun onAccountsSelected(selected: AccountId?) {
-        tracker.trackEvent("onAccountsSelected", mapOf("account" to "$selected"))
+        tracker.trackEvent(
+            "on_accounts_selected",
+            mapOf(
+                "has_account" to (selected != null),
+                "account_sig" to accountSignature(selected)
+            )
+        )
         selected?.let {
             showLoading()
             viewModelScope.launch {
@@ -415,6 +424,12 @@ internal class HomeViewModel(
         BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> "ITEM_ALREADY_OWNED"
         BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> "SERVICE_DISCONNECTED"
         else -> "UNKNOWN_$code"
+    }
+
+    private fun accountSignature(accountId: AccountId?): String {
+        val raw = accountId?.raw.orEmpty()
+        if (raw.isBlank()) return "none"
+        return raw.hashCode().toUInt().toString(16)
     }
 
     private fun updateGroupList() {

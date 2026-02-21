@@ -20,8 +20,13 @@ internal fun Activity.showAlertDialog(
     message: String,
     cancelButtonData: ButtonData? = null,
     confirmButtonData: ButtonData,
+    isCancelableOnTouchOutside: Boolean = true,
 ) {
-    showDialogSafe {
+    showDialogSafe(
+        configureDialog = { dialog ->
+            dialog.setCanceledOnTouchOutside(isCancelableOnTouchOutside)
+        }
+    ) {
         setTitle(titleResId)
         setMessage(message)
         setPositiveButton(confirmButtonData.textId) { d, _ ->

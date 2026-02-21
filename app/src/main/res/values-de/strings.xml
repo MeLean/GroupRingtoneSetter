@@ -3,7 +3,7 @@
     <string name="items_not_found">Keine Elemente gefunden</string>
     <string name="everything_set">Alles ist eingerichtet!</string>
     <string name="permission_required">Berechtigung erforderlich</string>
-    <string name="need_permission_to_run">Bitte erteilen Sie die erforderlichen Berechtigungen, um die Anwendung zu verwenden. Starten Sie die App neu oder erteilen Sie sie manuell in den Geräteeinstellungen.</string>
+    <string name="need_permission_to_run">Bitte erteilen Sie die erforderlichen Berechtigungen, um die Anwendung zu verwenden. Installieren Sie die App neu oder erteilen Sie sie manuell in den Geräteeinstellungen.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Klingelton\nauswählen</string>
     <string name="apply_ringtone">Klingelton\nfestlegen</string>

@@ -3,7 +3,7 @@
     <string name="items_not_found">項目が見つかりません</string>
     <string name="everything_set">すべて準備完了！</string>
     <string name="permission_required">権限が必要です</string>
-    <string name="need_permission_to_run">アプリを使用するには権限が必要です。アプリを再起動するか、端末の設定から手動で付与してください。</string>
+    <string name="need_permission_to_run">アプリを使用するには権限が必要です。アプリを再インストールするか、端末の設定から手動で付与してください。</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">着信音を\n選択</string>
     <string name="apply_ringtone">着信音を\n適用</string>

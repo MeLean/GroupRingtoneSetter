@@ -3,7 +3,7 @@
     <string name="items_not_found">कोई आइटम नहीं मिला</string>
     <string name="everything_set">सब कुछ सेट है!</string>
     <string name="permission_required">अनुमति आवश्यक है</string>
-    <string name="need_permission_to_run">कृपया ऐप्लिकेशन का उपयोग करने के लिए अनुमति प्रदान करें। ऐप को फिर से आरंभ करें या उपकरण सेटिंग्स से मैन्युअल रूप से दें।</string>
+    <string name="need_permission_to_run">कृपया ऐप्लिकेशन का उपयोग करने के लिए अनुमति प्रदान करें। ऐप को फिर से इंस्टॉल करें या उपकरण सेटिंग्स से मैन्युअल रूप से दें।</string>
     <string name="ok">ठीक है</string>
     <string name="choose_ringtone">रिंगटोन चुनें\n</string>
     <string name="apply_ringtone">रिंगटोन\nलागू करें</string>

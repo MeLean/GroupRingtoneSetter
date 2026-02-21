@@ -3,7 +3,7 @@
     <string name="items_not_found">Элементы не найдены</string>
     <string name="everything_set">Все настроено!</string>
     <string name="permission_required">Требуется разрешение</string>
-    <string name="need_permission_to_run">Пожалуйста, предоставьте разрешение на использование приложения. Перезапустите приложение или предоставьте их вручную в настройках устройства.</string>
+    <string name="need_permission_to_run">Пожалуйста, предоставьте разрешение на использование приложения. Переустановите приложение или предоставьте их вручную в настройках устройства.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Выберите\nМелодию звонка</string>
     <string name="apply_ringtone">Применить\nМелодию</string>

@@ -3,7 +3,7 @@
     <string name="items_not_found">No items found</string>
     <string name="everything_set">Everything is set!</string>
     <string name="permission_required">Permission required</string>
-    <string name="need_permission_to_run">Please grant permission to use the application. Restart the app or give them manually from device settings.</string>
+    <string name="need_permission_to_run">Please grant permission to use the application. Reinstall the app or grant them manually from device settings.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Choose\nRingtone</string>
     <string name="apply_ringtone">Apply\nRingtone</string>

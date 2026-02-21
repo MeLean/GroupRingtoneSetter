@@ -3,7 +3,7 @@
     <string name="items_not_found">Nessun elemento trovato</string>
     <string name="everything_set">È tutto pronto!</string>
     <string name="permission_required">Autorizzazione necessaria</string>
-    <string name="need_permission_to_run">Concedi le autorizzazioni per usare l\'applicazione. Riavvia l\'app oppure concedile manualmente dalle impostazioni del dispositivo.</string>
+    <string name="need_permission_to_run">Concedi le autorizzazioni per usare l\'applicazione. Reinstalla l\'app oppure concedile manualmente dalle impostazioni del dispositivo.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Scegli\nsuoneria</string>
     <string name="apply_ringtone">Applica\nsuoneria</string>

@@ -461,18 +461,34 @@ internal class BillingEntitlementManager(
                 )
             )
 
-            if (immediate.responseCode == BillingClient.BillingResponseCode.OK && (!postLaunchResumed || !postLaunchFocus)) {
-                tracker.trackEvent(
-                    "billing_launch_ok_but_activity_backgrounded",
-                    mapOf(
-                        "rc" to rcName(immediate.responseCode),
-                        "rc_code" to immediate.responseCode,
-                        "post_launch_resumed" to postLaunchResumed,
-                        "post_launch_focus" to postLaunchFocus,
-                        "product_id" to productId
+            if (immediate.responseCode == BillingClient.BillingResponseCode.OK) {
+                // Normal handoff to Play purchase UI typically backgrounds/pauses current activity.
+                if (postLaunchResumed && postLaunchFocus) {
+                    tracker.trackEvent(
+                        "billing_launch_ok_but_activity_still_foreground",
+                        mapOf(
+                            "rc" to rcName(immediate.responseCode),
+                            "rc_code" to immediate.responseCode,
+                            "post_launch_resumed" to postLaunchResumed,
+                            "post_launch_focus" to postLaunchFocus,
+                            "product_id" to productId
+                        )
                     )
-                )
-                tracker.trackError(IllegalStateException("Billing launch returned OK but activity was backgrounded: resumed=$postLaunchResumed, focus=$postLaunchFocus"))
+                    tracker.trackError(
+                        IllegalStateException(
+                            "Billing launch returned OK but activity stayed foregrounded: resumed=$postLaunchResumed, focus=$postLaunchFocus"
+                        )
+                    )
+                } else {
+                    tracker.trackEvent(
+                        "billing_launch_ok_handoff_started",
+                        mapOf(
+                            "post_launch_resumed" to postLaunchResumed,
+                            "post_launch_focus" to postLaunchFocus,
+                            "product_id" to productId
+                        )
+                    )
+                }
             }
 
             if (immediate.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {

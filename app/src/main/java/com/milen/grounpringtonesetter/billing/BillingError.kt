@@ -9,10 +9,16 @@ sealed class BillingError(
     val category: ErrorCategory
 ) {
     enum class ErrorCategory {
+        NONE,
         CONFIGURATION,
         TEMPORARY,
         FATAL
     }
+
+    data class NonError(
+        val code: Int,
+        val message: String?
+    ) : BillingError(code, message, ErrorCategory.NONE)
 
     data class ConfigurationError(
         val code: Int,
@@ -32,6 +38,14 @@ sealed class BillingError(
     companion object {
         fun fromBillingResult(result: BillingResult): BillingError {
             return when (result.responseCode) {
+                BillingClient.BillingResponseCode.OK -> NonError(
+                    result.responseCode,
+                    result.debugMessage
+                )
+                BillingClient.BillingResponseCode.USER_CANCELED -> NonError(
+                    result.responseCode,
+                    result.debugMessage
+                )
                 BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> ConfigurationError(
                     result.responseCode,
                     result.debugMessage
@@ -65,6 +79,8 @@ sealed class BillingError(
 
         fun fromResponseCode(code: Int, message: String? = null): BillingError {
             return when (code) {
+                BillingClient.BillingResponseCode.OK -> NonError(code, message)
+                BillingClient.BillingResponseCode.USER_CANCELED -> NonError(code, message)
                 BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> ConfigurationError(code, message)
                 BillingClient.BillingResponseCode.DEVELOPER_ERROR -> ConfigurationError(code, message)
                 BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> ConfigurationError(code, message)
@@ -76,4 +92,3 @@ sealed class BillingError(
         }
     }
 }
-

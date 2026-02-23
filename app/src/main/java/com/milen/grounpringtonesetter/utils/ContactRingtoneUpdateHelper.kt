@@ -121,6 +121,14 @@ internal class ContactRingtoneUpdateHelper(
         src: Uri,
         displayName: String,
     ): Uri? = withContext(dispatcherProvider.io) {
+        if (!hasLegacyMediaWritePermission(context)) {
+            tracker.trackEvent(
+                "mediastore_insert_permission_missing",
+                mapOf("sdk_int" to Build.VERSION.SDK_INT.toString())
+            )
+            return@withContext findExistingRingtoneUri(context, displayName)
+        }
+
         val cr = context.contentResolver
         val collection = if (Build.VERSION.SDK_INT >= 29) {
             MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
@@ -149,6 +157,16 @@ internal class ContactRingtoneUpdateHelper(
 
         val dest = try {
             cr.insert(collection, values)
+        } catch (e: SecurityException) {
+            tracker.trackEvent(
+                "mediastore_insert_permission_denied",
+                mapOf(
+                    "name" to displayName,
+                    "sdk_int" to Build.VERSION.SDK_INT.toString(),
+                    "reason" to (e.message ?: e::class.java.simpleName)
+                )
+            )
+            findExistingRingtoneUri(context, displayName)
         } catch (e: IllegalStateException) {
             val errorMsg = e.message ?: e::class.java.simpleName
             tracker.trackEvent(
@@ -198,6 +216,12 @@ internal class ContactRingtoneUpdateHelper(
         }.getOrDefault(false)
 
         if (ok) dest else null
+    }
+
+    private fun hasLegacyMediaWritePermission(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= 29) return true
+        return context.checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED
     }
 
     private fun findExistingRingtoneUri(context: Context, fileName: String): Uri? {

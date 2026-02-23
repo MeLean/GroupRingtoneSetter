@@ -39,8 +39,12 @@ internal fun Uri.getFileNameOrEmpty(context: Context): String {
     return errorMsg
 }
 
-internal fun audioPermissionSdkBased() =
+internal fun audioPermissionsSdkBased(): List<String> =
     when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> Manifest.permission.READ_MEDIA_AUDIO
-        else -> Manifest.permission.READ_EXTERNAL_STORAGE
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> listOf(Manifest.permission.READ_MEDIA_AUDIO)
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        else -> listOf(
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        )
     }

@@ -1,13 +1,16 @@
 package com.milen.grounpringtonesetter.utils
 
+import android.Manifest
 import android.app.Application
 import android.content.ContentProviderOperation
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.ContactsContract
+import androidx.core.content.ContextCompat
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
@@ -21,6 +24,13 @@ internal class ContactsHelper(
     private val contactRingtoneUpdateHelper: ContactRingtoneUpdateHelper,
     private val tracker: Tracker,
 ) {
+
+    private fun hasReadContactsPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            appContext,
+            Manifest.permission.READ_CONTACTS
+        ) == PackageManager.PERMISSION_GRANTED
+    }
 
     private fun getContactIdsForLabel(labelId: Long): List<Long> {
         val ids = LinkedHashSet<Long>() // dedupe if multiple raw contacts map to same CONTACT_ID
@@ -44,6 +54,10 @@ internal class ContactsHelper(
     suspend fun getAllLabelItemsShallow(
         includeDeviceContacts: Boolean = true,
     ): List<LabelItem> = withContext(DispatchersProvider.io) {
+        if (!hasReadContactsPermission()) {
+            tracker.trackEvent("contacts_permission_missing_labels_shallow")
+            return@withContext emptyList()
+        }
         tracker.trackEvent("getAllLabels SHALLOW called")
         val out = ArrayList<LabelItem>()
         val uri = ContactsContract.Groups.CONTENT_URI
@@ -63,49 +77,63 @@ internal class ContactsHelper(
         }
         val selectionArgs = if (includeDeviceContacts) null else arrayOf("com.google")
 
-        appContext.contentResolver.query(uri, projection, selection, selectionArgs, null)
-            ?.use { c ->
-                val idxId = c.getColumnIndexOrThrow(ContactsContract.Groups._ID)
-                val idxTitle = c.getColumnIndexOrThrow(ContactsContract.Groups.TITLE)
-                while (c.moveToNext()) {
-                    val gid = c.getLong(idxId)
-                    val gname = c.getString(idxTitle) ?: ""
-                    val ids = getContactIdsForLabel(gid)
-                    val contacts = ids.map { id ->
-                        Contact(id = id, name = "", phone = null, ringtoneUriStr = null)
-                    }
-                    out.add(
-                        LabelItem(
-                            id = gid,
-                            groupName = gname,
-                            contacts = contacts,
-                            ringtoneUriList = emptyList(),
-                            ringtoneFileName = ""
+        try {
+            appContext.contentResolver.query(uri, projection, selection, selectionArgs, null)
+                ?.use { c ->
+                    val idxId = c.getColumnIndexOrThrow(ContactsContract.Groups._ID)
+                    val idxTitle = c.getColumnIndexOrThrow(ContactsContract.Groups.TITLE)
+                    while (c.moveToNext()) {
+                        val gid = c.getLong(idxId)
+                        val gname = c.getString(idxTitle) ?: ""
+                        val ids = getContactIdsForLabel(gid)
+                        val contacts = ids.map { id ->
+                            Contact(id = id, name = "", phone = null, ringtoneUriStr = null)
+                        }
+                        out.add(
+                            LabelItem(
+                                id = gid,
+                                groupName = gname,
+                                contacts = contacts,
+                                ringtoneUriList = emptyList(),
+                                ringtoneFileName = ""
+                            )
                         )
-                    )
+                    }
                 }
-            }
+        } catch (_: SecurityException) {
+            tracker.trackEvent("contacts_permission_missing_labels_shallow")
+            return@withContext emptyList()
+        }
         out
     }
 
     suspend fun getAllLabelItemsForAccountsShallow(
         selectedAccounts: AccountId,
     ): List<LabelItem> = withContext(DispatchersProvider.io) {
+        if (!hasReadContactsPermission()) {
+            tracker.trackEvent("contacts_permission_missing_labels_for_account")
+            return@withContext emptyList()
+        }
         val allowed = mutableSetOf<Long>()
         val where =
             "${ContactsContract.Groups.DELETED}=0 AND " +
                     "${ContactsContract.Groups.ACCOUNT_TYPE}=? AND " +
                     "${ContactsContract.Groups.ACCOUNT_NAME}=?"
         val args = arrayOf(selectedAccounts.type, selectedAccounts.name)
-        appContext.contentResolver.query(
-            ContactsContract.Groups.CONTENT_URI,
-            arrayOf(ContactsContract.Groups._ID),
-            where,
-            args,
-            null
-        )?.use { c ->
-            val idx = c.getColumnIndexOrThrow(ContactsContract.Groups._ID)
-            while (c.moveToNext()) allowed.add(c.getLong(idx))
+        try {
+            appContext.contentResolver.query(
+                ContactsContract.Groups.CONTENT_URI,
+                arrayOf(ContactsContract.Groups._ID),
+                where,
+                args,
+                null
+            )?.use { c ->
+                val idx = c.getColumnIndexOrThrow(ContactsContract.Groups._ID)
+                while (c.moveToNext()) allowed.add(c.getLong(idx))
+            }
+        } catch (_: SecurityException) {
+            tracker.trackEvent("contacts_permission_missing_labels_for_account")
+            return@withContext emptyList()
         }
         if (allowed.isEmpty()) return@withContext emptyList()
 

@@ -41,7 +41,7 @@ import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModelFactory
 import com.milen.grounpringtonesetter.ui.picker.PickerScreenFragment
 import com.milen.grounpringtonesetter.utils.RingtoneFormatValidator
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
-import com.milen.grounpringtonesetter.utils.audioPermissionSdkBased
+import com.milen.grounpringtonesetter.utils.audioPermissionsSdkBased
 import com.milen.grounpringtonesetter.utils.changeMainTitle
 import com.milen.grounpringtonesetter.utils.collectEventsIn
 import com.milen.grounpringtonesetter.utils.collectStateIn
@@ -82,7 +82,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private val permissions = mutableListOf(
         android.Manifest.permission.READ_CONTACTS,
         android.Manifest.permission.WRITE_CONTACTS
-    ).also { it.add(audioPermissionSdkBased()) }
+    ).also { it.addAll(audioPermissionsSdkBased()) }
 
     private val requestMultiplePermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->

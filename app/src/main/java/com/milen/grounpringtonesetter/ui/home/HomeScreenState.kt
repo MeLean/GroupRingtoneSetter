@@ -10,7 +10,7 @@ internal data class HomeScreenState(
     val labelItems: List<LabelItem> = emptyList(),
     val groupSearchQuery: String = "",
     val isGroupSearchVisible: Boolean = false,
-    val arePermissionsGranted: Boolean = true,
+    val arePermissionsGranted: Boolean = false,
     val scrollToBottom: Boolean = false,
     val entitlement: EntitlementState = EntitlementState.UNKNOWN,
     val accountPickerAccounts: List<String>? = null,

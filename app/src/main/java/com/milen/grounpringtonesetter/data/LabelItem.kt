@@ -11,4 +11,5 @@ internal data class LabelItem(
     val contacts: List<Contact>,
     val ringtoneUriList: List<String> = emptyList(),
     val ringtoneFileName: String = "",
+    val canDelete: Boolean = true,
 ) : Parcelable

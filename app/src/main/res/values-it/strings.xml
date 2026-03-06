@@ -25,6 +25,7 @@
     <string name="edit_group_name_desc">Vuoi modificare il nome del gruppo? Questa azione riassegnerà i contatti al nuovo nome del gruppo mantenendo le suonerie assegnate.</string>
     <string name="delete_group">Elimina gruppo</string>
     <string name="delete_group_desc">Vuoi eliminare questo gruppo? In tal caso i contatti verranno rimossi dal gruppo, ma le suonerie assegnate rimarranno invariate.</string>
+    <string name="group_cannot_be_deleted">Questo gruppo non può essere eliminato.</string>
     <string name="manage_contacts_group_name">Gestisci i contatti del gruppo</string>
     <string name="manage_contacts_group_name_desc">Vuoi aggiungere o rimuovere contatti da questo gruppo? In tal caso i contatti verranno assegnati/rimossi dal gruppo. Le modifiche alla suoneria avranno effetto al termine del processo.</string>
     <string name="choose_ringtone_for_new_contacts_title">Scegli la suoneria per i nuovi contatti aggiunti</string>

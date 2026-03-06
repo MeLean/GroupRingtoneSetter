@@ -25,6 +25,7 @@
     <string name="edit_group_name_desc">Would you like to edit the group\'s name? This action will reassign the contacts to the newly named group while preserving their assigned ringtones.</string>
     <string name="delete_group">Delete the group</string>
     <string name="delete_group_desc">Do you wish to delete this group? Doing so will unassigned contacts from the group, yet their assigned ringtones will remain unchanged.</string>
+    <string name="group_cannot_be_deleted">This group cannot be deleted.</string>
     <string name="manage_contacts_group_name">Manage contacts to the group</string>
     <string name="manage_contacts_group_name_desc">Would you like to add or remove contacts to this group? By doing so, the contacts will be assigned/unassigned to the group. Changing the ringtone change will take effect once the process is completed!</string>
     <string name="choose_ringtone_for_new_contacts_title">Choose ringtone for newly added contacts</string>

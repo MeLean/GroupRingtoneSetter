@@ -25,6 +25,7 @@
     <string name="edit_group_name_desc">您是否要编辑组名？此操作将重新分配联系人到新命名的组，同时保留其分配的铃声。</string>
     <string name="delete_group">删除组</string>
     <string name="delete_group_desc">您是否要删除此组？这样做将取消分配给该组的联系人，但其分配的铃声将保持不变。</string>
+    <string name="group_cannot_be_deleted">无法删除此组。</string>
     <string name="manage_contacts_group_name">管理组联系人</string>
     <string name="manage_contacts_group_name_desc">您是否要向此组添加或删除联系人？通过这样做，联系人将被分配/取消分配到该组。更改铃声将在进程完成后生效！</string>
     <string name="choose_ringtone_for_new_contacts_title">为新添加的联系人选择铃声</string>

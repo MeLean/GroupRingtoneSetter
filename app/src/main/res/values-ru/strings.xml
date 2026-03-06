@@ -25,6 +25,7 @@
     <string name="edit_group_name_desc">Хотите отредактировать имя группы? Это действие переназначит контакты в вновь названную группу, сохраняя их назначенные мелодии звонка.</string>
     <string name="delete_group">Удалить группу</string>
     <string name="delete_group_desc">Хотите удалить эту группу? Это действие удалит контакты из группы, но их назначенные мелодии звонка останутся неизменными.</string>
+    <string name="group_cannot_be_deleted">Эту группу нельзя удалить.</string>
     <string name="manage_contacts_group_name">Управление контактами группы</string>
     <string name="manage_contacts_group_name_desc">Хотите добавить или удалить контакты из этой группы? Это действие присвоит/удалит контакты из группы. Изменение мелодии звонка вступит в силу после завершения процесса!</string>
     <string name="choose_ringtone_for_new_contacts_title">Выберите рингтон для новых добавленных контактов</string>

@@ -2,6 +2,7 @@ package com.milen.grounpringtonesetter.ui.home
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -35,8 +36,18 @@ internal class GroupsAdapter(
                     ctcibManageContacts.setOnClickListener {
                         interactor.onManageContacts(labelItem = this@run)
                     }
-                    ctcibDelete.setOnClickListener {
-                        interactor.onGroupDelete(labelItem = this@run)
+                    if (canDelete) {
+                        ctcibDelete.isVisible = true
+                        ctcibDelete.isEnabled = true
+                        ctcibDelete.setOnClickListener {
+                            interactor.onGroupDelete(labelItem = this@run)
+                        }
+                        ctcibDelete.contentDescription =
+                            binding.root.context.getString(R.string.delete_group)
+                    } else {
+                        ctcibDelete.isVisible = false
+                        ctcibDelete.isEnabled = false
+                        ctcibDelete.setOnClickListener(null)
                     }
                     ctcibEdit.setOnClickListener {
                         interactor.onEditName(labelItem = this@run)

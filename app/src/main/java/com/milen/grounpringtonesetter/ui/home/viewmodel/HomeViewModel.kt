@@ -13,6 +13,8 @@ import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.data.accounts.AccountRepository
+import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelException
+import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelFailureReason
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
@@ -507,7 +509,14 @@ internal class HomeViewModel(
         tracker.trackError(error)
         hideLoading()
         launch {
-            _events.trySend(HomeEvent.ShowErrorText(error.localizedMessage))
+            val messageResId = when (error) {
+                is DeleteLabelException -> when (error.reason) {
+                    DeleteLabelFailureReason.GROUP_PROTECTED -> R.string.group_cannot_be_deleted
+                    DeleteLabelFailureReason.DELETE_FAILED -> R.string.something_went_wrong
+                }
+                else -> R.string.something_went_wrong
+            }
+            _events.trySend(HomeEvent.ShowErrorById(messageResId))
         }
     }
 

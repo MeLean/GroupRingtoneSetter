@@ -25,6 +25,7 @@
     <string name="edit_group_name_desc">グループ名を変更しますか？この操作により、割り当て済みの着信音は保持したまま、連絡先が新しいグループ名に再割り当てされます。</string>
     <string name="delete_group">グループを削除</string>
     <string name="delete_group_desc">このグループを削除しますか？削除しても連絡先の着信音設定はそのまま残りますが、連絡先はグループから外されます。</string>
+    <string name="group_cannot_be_deleted">このグループは削除できません。</string>
     <string name="manage_contacts_group_name">グループの連絡先を管理</string>
     <string name="manage_contacts_group_name_desc">このグループに連絡先を追加または削除しますか？実行すると連絡先はグループに割り当て/解除されます。着信音の変更は処理完了後に反映されます。</string>
     <string name="choose_ringtone_for_new_contacts_title">新しく追加した連絡先の着信音を選択</string>

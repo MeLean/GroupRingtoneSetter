@@ -14,6 +14,8 @@ import androidx.core.content.ContextCompat
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
+import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelException
+import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelFailureReason
 import com.milen.grounpringtonesetter.data.exceptions.NoContactsFoundException
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import kotlinx.coroutines.withContext
@@ -24,6 +26,80 @@ internal class ContactsHelper(
     private val contactRingtoneUpdateHelper: ContactRingtoneUpdateHelper,
     private val tracker: Tracker,
 ) {
+    private companion object {
+        private val GROUPS_LIST_PROJECTION = arrayOf(
+            ContactsContract.Groups._ID,
+            ContactsContract.Groups.TITLE,
+            ContactsContract.Groups.ACCOUNT_TYPE,
+            ContactsContract.Groups.ACCOUNT_NAME,
+            ContactsContract.Groups.GROUP_IS_READ_ONLY,
+            ContactsContract.Groups.DELETED,
+            ContactsContract.Groups.SYSTEM_ID
+        )
+
+        private val GROUP_DELETE_CHECK_PROJECTION = arrayOf(
+            ContactsContract.Groups._ID,
+            ContactsContract.Groups.GROUP_IS_READ_ONLY,
+            ContactsContract.Groups.DELETED,
+            ContactsContract.Groups.SYSTEM_ID
+        )
+    }
+
+    private data class GroupMetadata(
+        val id: Long,
+        val isReadOnly: Boolean,
+        val isDeleted: Boolean,
+        val systemId: String?,
+    )
+
+    private fun GroupMetadata.toDeletionCapability(): GroupDeletionCapability = GroupDeletionCapability(
+        isDeleted = isDeleted,
+        isReadOnly = isReadOnly,
+        systemId = systemId
+    )
+
+    private fun resolveGroupCanDelete(
+        isReadOnly: Boolean,
+        isDeleted: Boolean,
+        systemId: String?,
+    ): Boolean = canDeleteGroup(
+        GroupDeletionCapability(
+            isDeleted = isDeleted,
+            isReadOnly = isReadOnly,
+            systemId = systemId
+        )
+    )
+
+    private fun queryGroupMetadata(labelId: Long): GroupMetadata? {
+        val selection = "${ContactsContract.Groups._ID} = ?"
+        val args = arrayOf(labelId.toString())
+        appContext.contentResolver.query(
+            ContactsContract.Groups.CONTENT_URI,
+            GROUP_DELETE_CHECK_PROJECTION,
+            selection,
+            args,
+            null
+        )?.use { cursor ->
+            if (!cursor.moveToFirst()) return null
+            val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups._ID)
+            val isReadOnlyIndex =
+                cursor.getColumnIndexOrThrow(ContactsContract.Groups.GROUP_IS_READ_ONLY)
+            val isDeletedIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups.DELETED)
+            val systemIdIndex = cursor.getColumnIndex(ContactsContract.Groups.SYSTEM_ID)
+            val systemId = if (systemIdIndex >= 0 && !cursor.isNull(systemIdIndex)) {
+                cursor.getString(systemIdIndex)
+            } else {
+                null
+            }
+            return GroupMetadata(
+                id = cursor.getLong(idIndex),
+                isReadOnly = cursor.getInt(isReadOnlyIndex) != 0,
+                isDeleted = cursor.getInt(isDeletedIndex) != 0,
+                systemId = systemId
+            )
+        }
+        return null
+    }
 
     private fun hasReadContactsPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
@@ -61,14 +137,7 @@ internal class ContactsHelper(
         tracker.trackEvent("getAllLabels SHALLOW called")
         val out = ArrayList<LabelItem>()
         val uri = ContactsContract.Groups.CONTENT_URI
-        val projection = arrayOf(
-            ContactsContract.Groups._ID,
-            ContactsContract.Groups.TITLE,
-            ContactsContract.Groups.ACCOUNT_TYPE,
-            ContactsContract.Groups.ACCOUNT_NAME,
-            ContactsContract.Groups.GROUP_IS_READ_ONLY,
-            ContactsContract.Groups.DELETED
-        )
+        val projection = GROUPS_LIST_PROJECTION
         val selection = if (includeDeviceContacts) {
             "${ContactsContract.Groups.DELETED}=0 AND ${ContactsContract.Groups.GROUP_IS_READ_ONLY}=0"
         } else {
@@ -82,9 +151,18 @@ internal class ContactsHelper(
                 ?.use { c ->
                     val idxId = c.getColumnIndexOrThrow(ContactsContract.Groups._ID)
                     val idxTitle = c.getColumnIndexOrThrow(ContactsContract.Groups.TITLE)
+                    val idxReadOnly =
+                        c.getColumnIndexOrThrow(ContactsContract.Groups.GROUP_IS_READ_ONLY)
+                    val idxDeleted = c.getColumnIndexOrThrow(ContactsContract.Groups.DELETED)
+                    val idxSystemId = c.getColumnIndexOrThrow(ContactsContract.Groups.SYSTEM_ID)
                     while (c.moveToNext()) {
                         val gid = c.getLong(idxId)
                         val gname = c.getString(idxTitle) ?: ""
+                        val canDelete = resolveGroupCanDelete(
+                            isReadOnly = c.getInt(idxReadOnly) != 0,
+                            isDeleted = c.getInt(idxDeleted) != 0,
+                            systemId = c.getString(idxSystemId)
+                        )
                         val ids = getContactIdsForLabel(gid)
                         val contacts = ids.map { id ->
                             Contact(id = id, name = "", phone = null, ringtoneUriStr = null)
@@ -95,7 +173,8 @@ internal class ContactsHelper(
                                 groupName = gname,
                                 contacts = contacts,
                                 ringtoneUriList = emptyList(),
-                                ringtoneFileName = ""
+                                ringtoneFileName = "",
+                                canDelete = canDelete
                             )
                         )
                     }
@@ -319,6 +398,24 @@ internal class ContactsHelper(
     fun deleteLabel(labelId: Long) {
         tracker.trackEvent("deleteLabel called", mapOf("labelId" to labelId.toString()))
 
+        val metadataBeforeDelete = queryGroupMetadata(labelId)
+        if (metadataBeforeDelete == null || metadataBeforeDelete.isDeleted) {
+            tracker.trackEvent(
+                "deleteLabel no-op because group missing/deleted",
+                mapOf("labelId" to labelId.toString())
+            )
+            return
+        }
+
+        if (!canDeleteGroup(metadataBeforeDelete.toDeletionCapability())) {
+            val failure = DeleteLabelException(
+                labelId = metadataBeforeDelete.id,
+                reason = DeleteLabelFailureReason.GROUP_PROTECTED
+            )
+            tracker.trackError(failure)
+            throw failure
+        }
+
         // Remove label associations from all contacts
         removeAllContactsFromLabel(labelId)
 
@@ -328,9 +425,21 @@ internal class ContactsHelper(
         val rowsDeleted = appContext.contentResolver.delete(labelUri, null, null)
 
         if (rowsDeleted <= 0) {
-            val errorMessage = "Failed to delete label with ID: $labelId"
-            tracker.trackError(IllegalStateException(errorMessage))
-            throw IllegalStateException(errorMessage)
+            val metadataAfterDelete = queryGroupMetadata(labelId)
+            if (metadataAfterDelete == null || metadataAfterDelete.isDeleted) {
+                triggerSyncForAllAccounts()
+                tracker.trackEvent(
+                    "deleteLabel successful after metadata recheck",
+                    mapOf("labelId" to labelId.toString())
+                )
+                return
+            }
+            val failure = DeleteLabelException(
+                labelId = metadataAfterDelete.id,
+                reason = DeleteLabelFailureReason.DELETE_FAILED
+            )
+            tracker.trackError(failure)
+            throw failure
         }
 
         triggerSyncForAllAccounts()
@@ -498,14 +607,7 @@ internal class ContactsHelper(
             tracker.trackEvent("getAllLabels called")
             val labels = mutableListOf<LabelItem>()
             val uri = ContactsContract.Groups.CONTENT_URI
-            val projection = arrayOf(
-                ContactsContract.Groups._ID,
-                ContactsContract.Groups.TITLE,
-                ContactsContract.Groups.ACCOUNT_TYPE,
-                ContactsContract.Groups.ACCOUNT_NAME,
-                ContactsContract.Groups.GROUP_IS_READ_ONLY,
-                ContactsContract.Groups.DELETED
-            )
+            val projection = GROUPS_LIST_PROJECTION
 
             // Build selection query based on user preference
             val selection = if (includeDeviceContacts) {
@@ -521,11 +623,21 @@ internal class ContactsHelper(
                 ?.use { cursor ->
                     val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups._ID)
                     val titleIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups.TITLE)
+                    val readOnlyIndex =
+                        cursor.getColumnIndexOrThrow(ContactsContract.Groups.GROUP_IS_READ_ONLY)
+                    val deletedIndex = cursor.getColumnIndexOrThrow(ContactsContract.Groups.DELETED)
+                    val systemIdIndex =
+                        cursor.getColumnIndexOrThrow(ContactsContract.Groups.SYSTEM_ID)
 
                     while (cursor.moveToNext()) {
                         val id = cursor.getLong(idIndex)
                         val title = cursor.getString(titleIndex).orEmpty()
                         if (title.isBlank()) continue
+                        val canDelete = resolveGroupCanDelete(
+                            isReadOnly = cursor.getInt(readOnlyIndex) != 0,
+                            isDeleted = cursor.getInt(deletedIndex) != 0,
+                            systemId = cursor.getString(systemIdIndex)
+                        )
 
                         // Fetch contacts for the label
                         val contacts = getContactsForLabel(id)
@@ -543,7 +655,8 @@ internal class ContactsHelper(
                                 groupName = title,
                                 contacts = contacts,
                                 ringtoneUriList = ringtoneUris,
-                                ringtoneFileName = ringtoneFileName
+                                ringtoneFileName = ringtoneFileName,
+                                canDelete = canDelete
                             )
                         )
                     }
@@ -1049,6 +1162,19 @@ internal class ContactsHelper(
         if (uri.isBlank()) return "empty"
         return uri.hashCode().toUInt().toString(16)
     }
+}
+
+internal data class GroupDeletionCapability(
+    val isDeleted: Boolean,
+    val isReadOnly: Boolean,
+    val systemId: String?,
+)
+
+internal fun canDeleteGroup(capability: GroupDeletionCapability): Boolean {
+    if (capability.isDeleted) return false
+    if (capability.isReadOnly) return false
+    if (!capability.systemId.isNullOrBlank()) return false
+    return true
 }
 
 internal fun Context.getPrimaryPhoneNumberForContact(contactId: Long): String? {

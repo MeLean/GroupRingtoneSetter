@@ -21,34 +21,35 @@
             android:layout_marginTop="10dp"
             android:layout_marginEnd="8dp"
             app:buttonLabel="@string/add_group"
-            app:layout_constraintEnd_toStartOf="@+id/btnSelectAccount"
+            app:layout_constraintEnd_toStartOf="@+id/ctcibToggleSearch"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
-        <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
-            android:id="@+id/btnSelectAccount"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            app:buttonLabel="@string/pick_account_btn_label"
-            app:layout_constraintBottom_toBottomOf="@+id/btnAddGroup"
-            app:layout_constraintEnd_toStartOf="@+id/ctcibToggleSearch"
-            app:layout_constraintStart_toEndOf="@+id/btnAddGroup"
-            app:layout_constraintTop_toTopOf="@+id/btnAddGroup" />
 
         <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomTextColorImageButton
             android:id="@+id/ctcibToggleSearch"
             android:layout_width="@dimen/icon_btn_size"
             android:layout_height="@dimen/icon_btn_size"
             android:layout_marginStart="8dp"
-            android:layout_marginEnd="16dp"
+            android:layout_marginEnd="8dp"
             android:contentDescription="@string/search_group_hint"
             app:iconDrawable="@drawable/ic_search_24"
-            app:layout_constraintBottom_toBottomOf="@+id/btnSelectAccount"
+            app:layout_constraintBottom_toBottomOf="@+id/btnAddGroup"
+            app:layout_constraintEnd_toStartOf="@+id/ctcibActionsMenu"
+            app:layout_constraintStart_toEndOf="@+id/btnAddGroup"
+            app:layout_constraintTop_toTopOf="@+id/btnAddGroup" />
+
+        <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomTextColorImageButton
+            android:id="@+id/ctcibActionsMenu"
+            android:layout_width="@dimen/icon_btn_size"
+            android:layout_height="@dimen/icon_btn_size"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="16dp"
+            android:contentDescription="@string/home_actions"
+            app:iconDrawable="@drawable/ic_settings_24"
+            app:layout_constraintBottom_toBottomOf="@+id/ctcibToggleSearch"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/btnSelectAccount"
-            app:layout_constraintTop_toTopOf="@+id/btnSelectAccount" />
+            app:layout_constraintStart_toEndOf="@+id/ctcibToggleSearch"
+            app:layout_constraintTop_toTopOf="@+id/ctcibToggleSearch" />
 
         <androidx.constraintlayout.widget.Barrier
             android:id="@+id/buttonsBottomBarrier"
@@ -56,7 +57,7 @@
             android:layout_height="wrap_content"
             app:barrierAllowsGoneWidgets="false"
             app:barrierDirection="bottom"
-            app:constraint_referenced_ids="btnAddGroup,btnSelectAccount,ctcibToggleSearch,flGroupSearchOverlay" />
+            app:constraint_referenced_ids="btnAddGroup,ctcibToggleSearch,ctcibActionsMenu,flGroupSearchOverlay" />
 
         <FrameLayout
             android:id="@+id/flGroupSearchOverlay"
@@ -78,7 +79,6 @@
         </FrameLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 
     <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
         android:id="@+id/no_item_disclaimer"

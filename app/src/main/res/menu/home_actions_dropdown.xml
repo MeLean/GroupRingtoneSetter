@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/actionSetDeviceDefaultTones"
+        android:icon="@drawable/ic_brand_awareness_24"
+        android:title="@string/set_device_default_tones" />
+    <item
+        android:id="@+id/actionChangeAccount"
+        android:icon="@drawable/ic_attribution_24"
+        android:title="@string/pick_account_btn_label" />
+</menu>

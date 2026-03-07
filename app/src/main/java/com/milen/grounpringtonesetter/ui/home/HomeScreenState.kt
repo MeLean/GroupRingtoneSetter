@@ -23,6 +23,7 @@ internal data class HomeScreenState(
 internal sealed interface HomeEvent {
     object ConnectionLost : HomeEvent
     data object NavigateToCreateGroup : HomeEvent
+    data object NavigateToDeviceDefaultTones : HomeEvent
     data class ShowErrorById(@param:StringRes val strRes: Int) : HomeEvent
     data class ShowInfoText(@param:StringRes val strRes: Int) : HomeEvent
     data class ShowErrorText(val message: String?) : HomeEvent

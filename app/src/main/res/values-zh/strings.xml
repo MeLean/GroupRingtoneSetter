@@ -8,6 +8,18 @@
     <string name="choose_ringtone">选择\n铃声</string>
     <string name="apply_ringtone">应用\n铃声</string>
     <string name="add_group">添加新组</string>
+    <string name="set_device_default_tones">设置设备默认铃声</string>
+    <string name="device_default_tones_title">设备默认铃声</string>
+    <string name="default_tone_ringtone_label">默认来电铃声</string>
+    <string name="default_tone_notification_label">默认通知铃声</string>
+    <string name="default_tone_alarm_label">默认闹钟铃声</string>
+    <string name="default_tone_change_action">更改</string>
+    <string name="default_tone_write_settings_rationale">要设置设备默认铃声，请允许此应用修改系统设置。</string>
+    <string name="default_tone_open_settings_action">打开设置</string>
+    <string name="default_tone_open_sound_settings">打开声音设置</string>
+    <string name="default_tone_apply_failed">无法在此设备上设置所选默认铃声。</string>
+    <string name="default_tone_silent">静音</string>
+    <string name="default_tone_unknown">未知铃声</string>
     <string name="do_the_magic">应用所有铃声</string>
     <string name="file_name_not_accessible">文件名不可访问</string>
     <string name="contacts">联系人</string>
@@ -20,6 +32,7 @@
     <string name="search_group_hint">按名称搜索群组</string>
     <string name="confirm">确认</string>
     <string name="home">主页</string>
+    <string name="home_actions">更多操作</string>
     <string name="enter_group_name">输入组名</string>
     <string name="edit_group_name">编辑组名</string>
     <string name="edit_group_name_desc">您是否要编辑组名？此操作将重新分配联系人到新命名的组，同时保留其分配的铃声。</string>
@@ -65,6 +78,9 @@
     <string name="ringtone_source_system">系统铃声</string>
     <string name="ringtone_source_file">设备上的文件</string>
     <string name="ringtone_format_not_supported">所选文件格式不能用作铃声。请选择 MP3、M4A、OGG、WAV 或 AAC 格式的音频文件。</string>
+    <string name="default_tone_notification_too_long">通知音长度必须不超过 10 秒。</string>
+    <string name="default_tone_notification_duration_unknown">无法验证该文件时长，因此不能将其用作通知音。</string>
+    <string name="default_tone_import_failed">无法将该音频文件导入为系统铃声。</string>
     <string name="blocked_contacts_reassignment_title">部分联系人无法重新分配</string>
     <string name="blocked_contacts_reassignment_message">以下联系人当前无法重新分配：\n%1$s\n\n是否在不包含这些联系人的情况下继续，还是中止？</string>
     <string name="continue_action">继续</string>

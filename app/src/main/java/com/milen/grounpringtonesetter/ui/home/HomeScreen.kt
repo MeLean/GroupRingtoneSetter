@@ -1,24 +1,31 @@
 // main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
 package com.milen.grounpringtonesetter.ui.home
 
+import android.Manifest
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.widget.PopupMenu
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.doOnLayout
+import androidx.core.view.get
 import androidx.core.view.isVisible
+import androidx.core.view.size
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -78,11 +85,13 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private var groupSearchJob: Job? = null
     private var renderedSearchVisibility = false
     private var searchRevealAnimator: ValueAnimator? = null
+    private var pendingAudioPermissionGroup: LabelItem? = null
+    private var pendingLegacyPermissionGroup: LabelItem? = null
 
     private val permissions = mutableListOf(
-        android.Manifest.permission.READ_CONTACTS,
-        android.Manifest.permission.WRITE_CONTACTS
-    ).also { it.addAll(audioPermissionsSdkBased()) }
+        Manifest.permission.READ_CONTACTS,
+        Manifest.permission.WRITE_CONTACTS
+    )
 
     private val requestMultiplePermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -90,6 +99,17 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             when {
                 allPermissionsGranted -> viewModel.onPermissionsGranted()
                 else -> viewModel.onPermissionsRefused()
+            }
+        }
+
+    private val requestAudioPermissions =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissionResults ->
+            val labelItem = pendingAudioPermissionGroup ?: return@registerForActivityResult
+            pendingAudioPermissionGroup = null
+            if (permissionResults.values.all { it }) {
+                showRingtoneSourcePicker(labelItem)
+            } else {
+                dialogHandler.showErrorById(R.string.need_permission_to_run)
             }
         }
 
@@ -110,6 +130,19 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                 fileName = resolveRingtoneName(pickedUri),
                 shouldValidateFormat = false
             )
+        }
+
+    private val legacyStoragePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            val labelItem = pendingLegacyPermissionGroup ?: return@registerForActivityResult
+            pendingLegacyPermissionGroup = null
+
+            if (!granted) {
+                dialogHandler.showErrorById(R.string.need_permission_to_run)
+                return@registerForActivityResult
+            }
+
+            launchFileRingtonePickerInternal(labelItem)
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -183,10 +216,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     flGroupSearchOverlay.clipBounds = null
                     flGroupSearchOverlay.isVisible = false
                     ctcibToggleSearch.isVisible = false
+                    ctcibActionsMenu.isVisible = false
                     btnAddGroup.isVisible = false
-                    btnSelectAccount.isVisible = false
                     btnAddGroup.translationX = 0f
-                    btnSelectAccount.translationX = 0f
                     renderedSearchVisibility = false
                 } else {
                     ctcibToggleSearch.apply {
@@ -195,14 +227,16 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                             viewModel.onGroupSearchVisibilityChanged(!state.isGroupSearchVisible)
                         }
                     }
+                    ctcibActionsMenu.apply {
+                        isVisible = true
+                        setOnClickListener { showActionsMenu(state.canChangeAccount) }
+                    }
                     updateSearchToggleIcon(state.isGroupSearchVisible)
 
                     btnAddGroup.setOnClickListener { viewModel.setUpGroupCreateRequest() }
-                    btnSelectAccount.setOnClickListener { viewModel.onSelectAccountClicked() }
 
                     renderGroupSearchVisibility(
                         isVisible = state.isGroupSearchVisible,
-                        canShowAccountButton = state.canChangeAccount,
                         animate = state.isGroupSearchVisible != renderedSearchVisibility
                     )
                 }
@@ -250,6 +284,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                         R.id.action_home_to_picker,
                         PickerScreenFragment.argsForCreate()
                     )
+
+                is HomeEvent.NavigateToDeviceDefaultTones ->
+                    findNavController().navigate(R.id.action_home_to_deviceDefaultTones)
 
                 is HomeEvent.ShowErrorById -> dialogHandler.showErrorById(event.strRes)
                 is HomeEvent.ShowErrorText -> dialogHandler.showError(event.message)
@@ -310,20 +347,18 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     private fun renderGroupSearchVisibility(
         isVisible: Boolean,
-        canShowAccountButton: Boolean,
         animate: Boolean,
     ) {
         renderedSearchVisibility = isVisible
         if (!animate) {
-            applySearchStateInstant(isVisible, canShowAccountButton)
+            applySearchStateInstant(isVisible)
             return
         }
-        animateSearchTransition(isVisible, canShowAccountButton)
+        animateSearchTransition(isVisible)
     }
 
     private fun applySearchStateInstant(
         isVisible: Boolean,
-        canShowAccountButton: Boolean,
     ) {
         val searchView = binding.flGroupSearchOverlay
         if (isVisible) {
@@ -332,14 +367,12 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
         if (isVisible && (
                 searchView.width == 0 ||
-                    binding.btnAddGroup.width == 0 ||
-                    (canShowAccountButton && binding.btnSelectAccount.width == 0)
+                        binding.btnAddGroup.width == 0
                 )
         ) {
             binding.clTopActions.doOnLayout {
                 applySearchStateInstant(
-                    isVisible = isVisible,
-                    canShowAccountButton = canShowAccountButton
+                    isVisible = isVisible
                 )
             }
             return
@@ -352,24 +385,19 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             searchView.clipBounds = null
         }
         applySearchClipFraction(finalFraction)
-        val pushDistance = calculateButtonsPushDistance(canShowAccountButton)
+        val pushDistance = calculateButtonsPushDistance()
         val translationX = -pushDistance * finalFraction
         binding.btnAddGroup.translationX = translationX
-        binding.btnSelectAccount.translationX = translationX
         binding.btnAddGroup.isVisible = true
-        binding.btnSelectAccount.isVisible = canShowAccountButton
     }
 
     private fun animateSearchTransition(
         expand: Boolean,
-        canShowAccountButton: Boolean,
     ) {
         val searchView = binding.flGroupSearchOverlay
         val addButton = binding.btnAddGroup
-        val accountButton = binding.btnSelectAccount
 
         addButton.isVisible = true
-        accountButton.isVisible = canShowAccountButton
         if (expand) {
             searchView.isVisible = true
             applySearchClipFraction(0f)
@@ -378,7 +406,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         val runAnimation = {
             val startFraction = if (expand) 0f else 1f
             val endFraction = if (expand) 1f else 0f
-            val pushDistance = calculateButtonsPushDistance(canShowAccountButton)
+            val pushDistance = calculateButtonsPushDistance()
 
             searchRevealAnimator?.cancel()
             val animator = ValueAnimator.ofFloat(startFraction, endFraction)
@@ -389,7 +417,6 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                 applySearchClipFraction(fraction)
                 val translationX = -pushDistance * fraction
                 addButton.translationX = translationX
-                accountButton.translationX = translationX
             }
             animator.addListener(object : AnimatorListenerAdapter() {
                 private var cancelled = false
@@ -406,7 +433,6 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                         searchView.isVisible = false
                         searchView.clipBounds = null
                         addButton.translationX = 0f
-                        accountButton.translationX = 0f
                     } else {
                         searchView.clipBounds = null
                     }
@@ -442,16 +468,54 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         searchView.clipBounds = Rect(left, 0, width, height)
     }
 
-    private fun calculateButtonsPushDistance(canShowAccountButton: Boolean): Float {
+    private fun calculateButtonsPushDistance(): Float {
         val addButton = binding.btnAddGroup
-        val accountButton = binding.btnSelectAccount
-        val rightMost = if (canShowAccountButton && accountButton.width > 0) {
-            maxOf(addButton.right, accountButton.right)
-        } else {
-            addButton.right
-        }
         val buffer = (resources.displayMetrics.density * 16f).toInt()
-        return (rightMost + buffer).toFloat()
+        return (addButton.right + buffer).toFloat()
+    }
+
+    private fun showActionsMenu(canChangeAccount: Boolean) {
+        val popup = PopupMenu(requireContext(), binding.ctcibActionsMenu)
+        popup.menuInflater.inflate(R.menu.home_actions_dropdown, popup.menu)
+        popup.setForceShowIcon(true)
+        val iconColor = resolvePopupTextColor()
+        repeat(popup.menu.size) { index ->
+            popup.menu[index].icon?.mutate()?.setTint(iconColor)
+        }
+        popup.menu.findItem(R.id.actionChangeAccount)?.isVisible = canChangeAccount
+        popup.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.actionSetDeviceDefaultTones -> {
+                    viewModel.onDeviceDefaultTonesClicked()
+                    true
+                }
+
+                R.id.actionChangeAccount -> {
+                    viewModel.onSelectAccountClicked()
+                    true
+                }
+
+                else -> false
+            }
+        }
+        popup.show()
+    }
+
+    private fun resolvePopupTextColor(): Int {
+        val typedValue = TypedValue()
+        val resolved = requireContext().theme.resolveAttribute(
+            android.R.attr.textColorPrimary,
+            typedValue,
+            true
+        )
+        if (!resolved) {
+            return ContextCompat.getColor(requireContext(), R.color.textColor)
+        }
+        return if (typedValue.resourceId != 0) {
+            ContextCompat.getColor(requireContext(), typedValue.resourceId)
+        } else {
+            typedValue.data
+        }
     }
 
     private fun updateSearchToggleIcon(isSearchVisible: Boolean) {
@@ -490,7 +554,15 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     override fun onChoseRingtoneIntent(labelItem: LabelItem) {
         if (requireContext().areAllPermissionsGranted(permissions = permissions)) {
-            showRingtoneSourcePicker(labelItem)
+            val audioPermissions = audioPermissionsSdkBased()
+            if (audioPermissions.isEmpty() ||
+                requireContext().areAllPermissionsGranted(audioPermissions)
+            ) {
+                showRingtoneSourcePicker(labelItem)
+            } else {
+                pendingAudioPermissionGroup = labelItem
+                requestAudioPermissions.launch(audioPermissions.toTypedArray())
+            }
         } else {
             viewModel.onNoPermissions()
         }
@@ -510,6 +582,15 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     }
 
     private fun launchFileRingtonePicker(labelItem: LabelItem) {
+        if (requiresLegacyStoragePermission() && !hasLegacyStoragePermission()) {
+            pendingLegacyPermissionGroup = labelItem
+            legacyStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            return
+        }
+        launchFileRingtonePickerInternal(labelItem)
+    }
+
+    private fun launchFileRingtonePickerInternal(labelItem: LabelItem) {
         viewModel.selectingGroup = labelItem
         pickAudioFileLauncher.launch(RingtoneFormatValidator.getMimeTypeFilter())
     }
@@ -554,4 +635,13 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             getParcelableExtra(key)
         }
     }
+
+    private fun requiresLegacyStoragePermission(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
+
+    private fun hasLegacyStoragePermission(): Boolean =
+        ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
 }

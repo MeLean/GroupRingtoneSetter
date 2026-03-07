@@ -272,6 +272,13 @@ internal class HomeViewModel(
         }
     }
 
+    fun onDeviceDefaultTonesClicked() {
+        tracker.trackEvent("onDeviceDefaultTonesClicked")
+        viewModelScope.launch {
+            _events.send(HomeEvent.NavigateToDeviceDefaultTones)
+        }
+    }
+
     fun startPurchase(activity: Activity) {
         if (!purchaseStartGuard.compareAndSet(false, true)) {
             tracker.trackEvent("billing_purchase_ui_ignored_already_in_progress")

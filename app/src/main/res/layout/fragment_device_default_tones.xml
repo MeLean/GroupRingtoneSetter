@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:id="@+id/svDefaultTonesContent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@+id/adBannerDefaultTones"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/rounded_border_textcolored_border"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvDefaultRingtoneLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/default_tone_ringtone_label"
+                    android:textSize="18sp" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvDefaultRingtoneValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:maxLines="2"
+                    android:text="@string/loading"
+                    tools:text="Classic Bell" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+                    android:id="@+id/crbChangeDefaultRingtone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    app:buttonLabel="@string/default_tone_change_action" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/rounded_border_textcolored_border"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvDefaultNotificationLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/default_tone_notification_label"
+                    android:textSize="18sp" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvDefaultNotificationValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:maxLines="2"
+                    android:text="@string/loading"
+                    tools:text="Popcorn" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+                    android:id="@+id/crbChangeDefaultNotification"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    app:buttonLabel="@string/default_tone_change_action" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_border_textcolored_border"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvDefaultAlarmLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/default_tone_alarm_label"
+                    android:textSize="18sp" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvDefaultAlarmValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:maxLines="2"
+                    android:text="@string/loading"
+                    tools:text="Morning Flower" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+                    android:id="@+id/crbChangeDefaultAlarm"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    app:buttonLabel="@string/default_tone_change_action" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <com.milen.grounpringtonesetter.customviews.ui.ads.AdBannerView
+        android:id="@+id/adBannerDefaultTones"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

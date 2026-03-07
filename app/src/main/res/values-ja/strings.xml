@@ -69,7 +69,6 @@
     <string name="my_song_please_promo_text">あなただけ、または大切な人のための着信音を作成しましょう — 音楽アプリを試すには %1$s。</string>
     <string name="ringtone_lable">着信音</string>
     <string name="purchase_unavailable">購入は利用できません</string>
-    <string name="billing_not_available_on_device">この端末では Google Play の課金は利用できません。</string>
     <string name="billing_service_unavailable">課金サービスは一時的に利用できません。後でもう一度お試しください。</string>
     <string name="billing_configuration_error">Google Play の課金が正しく設定されていません。Google Play ストアアプリを確認して、もう一度お試しください。</string>
     <string name="billing_temporary_unavailable">課金サービスは一時的に利用できません。しばらくしてからもう一度お試しください。</string>

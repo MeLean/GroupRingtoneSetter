@@ -75,12 +75,30 @@ internal class DeviceDefaultTonesViewModel(
     }
 
     fun onTonePicked(type: DeviceDefaultToneType, pickedUri: Uri?) {
-        pendingToneSelection = PendingToneSelection(
-            toneType = type,
-            uri = pickedUri,
-            cleanupImportedOnDiscard = false
-        )
-        applyPendingSelectionIfAllowed()
+        viewModelScope.launch {
+            val validationResult = runCatching {
+                withContext(dispatchers.io) {
+                    toneManager.validateToneSelection(type, pickedUri).getOrThrow()
+                }
+            }
+
+            validationResult.onSuccess {
+                pendingToneSelection = PendingToneSelection(
+                    toneType = type,
+                    uri = pickedUri,
+                    cleanupImportedOnDiscard = false
+                )
+                applyPendingSelectionIfAllowed()
+            }.onFailure { error ->
+                val messageResId = mapToneErrorToMessage(error)
+                if (error !is DefaultToneImportException ||
+                    error.reason == DefaultToneImportFailureReason.IMPORT_FAILED
+                ) {
+                    onError(error)
+                }
+                _events.trySend(DeviceDefaultTonesEvent.ShowErrorById(messageResId))
+            }
+        }
     }
 
     fun onCustomTonePicked(type: DeviceDefaultToneType, sourceUri: Uri) {
@@ -103,7 +121,7 @@ internal class DeviceDefaultTonesViewModel(
                 )
                 applyPendingSelectionIfAllowed()
             }.onFailure { error ->
-                val messageResId = mapImportErrorToMessage(error)
+                val messageResId = mapToneErrorToMessage(error)
                 if (error !is DefaultToneImportException ||
                     error.reason == DefaultToneImportFailureReason.IMPORT_FAILED
                 ) {
@@ -236,7 +254,7 @@ internal class DeviceDefaultTonesViewModel(
         _state.update { it.copy(isLoading = false) }
     }
 
-    private fun mapImportErrorToMessage(error: Throwable): Int {
+    private fun mapToneErrorToMessage(error: Throwable): Int {
         val reason = (error as? DefaultToneImportException)?.reason
         return when (reason) {
             DefaultToneImportFailureReason.INVALID_FORMAT -> R.string.ringtone_format_not_supported

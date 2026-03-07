@@ -9,7 +9,7 @@
         android:id="@+id/svDefaultTonesContent"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/adBannerDefaultTones"
+        app:layout_constraintBottom_toTopOf="@+id/crbDoneDefaultTones"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -118,6 +118,19 @@
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
+
+    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+        android:id="@+id/crbDoneDefaultTones"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        app:buttonLabel="@string/done"
+        app:layout_constraintBottom_toTopOf="@+id/adBannerDefaultTones"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <com.milen.grounpringtonesetter.customviews.ui.ads.AdBannerView
         android:id="@+id/adBannerDefaultTones"

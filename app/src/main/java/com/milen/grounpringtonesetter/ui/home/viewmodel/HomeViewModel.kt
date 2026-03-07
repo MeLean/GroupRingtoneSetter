@@ -386,7 +386,7 @@ internal class HomeViewModel(
                     )
                 )
                 when (code) {
-                    BillingClient.BillingResponseCode.DEVELOPER_ERROR -> R.string.billing_not_available_on_device
+                    BillingClient.BillingResponseCode.DEVELOPER_ERROR -> R.string.billing_service_unavailable
                     BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> R.string.billing_product_not_found
                     BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> R.string.billing_configuration_error
                     else -> R.string.billing_configuration_error

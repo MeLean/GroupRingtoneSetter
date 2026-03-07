@@ -47,6 +47,7 @@ internal interface DeviceDefaultToneManager {
     fun createSoundSettingsIntent(): Intent
     fun getCurrentDefaultUri(type: DeviceDefaultToneType): Uri?
     fun getCurrentDisplayName(type: DeviceDefaultToneType): String
+    fun validateToneSelection(type: DeviceDefaultToneType, uriOrNull: Uri?): Result<Unit>
     fun importCustomTone(type: DeviceDefaultToneType, sourceUri: Uri): Result<ImportedCustomTone>
     fun deleteImportedTone(uri: Uri)
     fun setDefaultTone(type: DeviceDefaultToneType, uriOrNull: Uri?): Result<Unit>
@@ -88,6 +89,21 @@ internal class AndroidDeviceDefaultToneManager(
             ?: appContext.getString(R.string.default_tone_unknown)
     }
 
+    override fun validateToneSelection(
+        type: DeviceDefaultToneType,
+        uriOrNull: Uri?
+    ): Result<Unit> = runCatching {
+        if (type != DeviceDefaultToneType.NOTIFICATION || uriOrNull == null) {
+            return@runCatching
+        }
+
+        val durationMs = readDurationMs(uriOrNull)
+        val durationFailure = NotificationToneDurationPolicy.getFailureReason(durationMs)
+        if (durationFailure != null) {
+            throw DefaultToneImportException(durationFailure)
+        }
+    }
+
     override fun importCustomTone(
         type: DeviceDefaultToneType,
         sourceUri: Uri
@@ -97,13 +113,7 @@ internal class AndroidDeviceDefaultToneManager(
             throw DefaultToneImportException(DefaultToneImportFailureReason.INVALID_FORMAT)
         }
 
-        if (type == DeviceDefaultToneType.NOTIFICATION) {
-            val durationMs = readDurationMs(sourceUri)
-            val durationFailure = NotificationToneDurationPolicy.getFailureReason(durationMs)
-            if (durationFailure != null) {
-                throw DefaultToneImportException(durationFailure)
-            }
-        }
+        validateToneSelection(type, sourceUri).getOrThrow()
 
         val category = when (type) {
             DeviceDefaultToneType.RINGTONE -> MediaStoreToneImporter.ToneCategory.RINGTONE

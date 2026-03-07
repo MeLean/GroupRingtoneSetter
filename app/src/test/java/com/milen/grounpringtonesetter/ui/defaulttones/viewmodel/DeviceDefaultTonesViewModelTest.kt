@@ -148,6 +148,37 @@ class DeviceDefaultTonesViewModelTest {
     }
 
     @Test
+    fun `system notification tone longer than policy is rejected before apply`() =
+        runViewModelTest { dispatcher ->
+            val toneManager = FakeDeviceDefaultToneManager(
+                canWrite = true,
+                validateSelectionResult = Result.failure(
+                    DefaultToneImportException(DefaultToneImportFailureReason.NOTIFICATION_TONE_TOO_LONG)
+                )
+            )
+            val viewModel = createViewModel(
+                toneManager = toneManager,
+                entitlement = EntitlementState.OWNED,
+                dispatcher = dispatcher
+            )
+
+            advanceUntilIdle()
+            viewModel.onTonePicked(
+                type = DeviceDefaultToneType.NOTIFICATION,
+                pickedUri = TEST_TONE_URI
+            )
+            advanceUntilIdle()
+
+            val event = withTimeout(1_000) { viewModel.events.first() }
+            assertTrue(event is DeviceDefaultTonesEvent.ShowErrorById)
+            assertEquals(
+                R.string.default_tone_notification_too_long,
+                (event as DeviceDefaultTonesEvent.ShowErrorById).messageResId
+            )
+            assertEquals(0, toneManager.appliedSelections.size)
+        }
+
+    @Test
     fun `custom import success with missing permission keeps pending and applies once after grant`() =
         runViewModelTest { dispatcher ->
             val toneManager = FakeDeviceDefaultToneManager(
@@ -312,6 +343,7 @@ private class TestDispatcherProvider(
 
 private class FakeDeviceDefaultToneManager(
     var canWrite: Boolean = true,
+    var validateSelectionResult: Result<Unit> = Result.success(Unit),
     var importResult: Result<ImportedCustomTone> = Result.success(
         ImportedCustomTone(uri = TEST_TONE_URI, wasNewlyCreated = true)
     ),
@@ -343,6 +375,10 @@ private class FakeDeviceDefaultToneManager(
 
     override fun getCurrentDisplayName(type: DeviceDefaultToneType): String =
         displayNameByType.getValue(type)
+
+    override fun validateToneSelection(type: DeviceDefaultToneType, uriOrNull: Uri?): Result<Unit> {
+        return validateSelectionResult
+    }
 
     override fun importCustomTone(
         type: DeviceDefaultToneType,

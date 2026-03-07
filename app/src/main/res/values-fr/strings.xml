@@ -69,7 +69,6 @@
     <string name="my_song_please_promo_text">Obtenez une sonnerie faite spécialement pour vous ou pour un proche — %1$s pour essayer notre application musicale.</string>
     <string name="ringtone_lable">sonnerie</string>
     <string name="purchase_unavailable">Achat indisponible</string>
-    <string name="billing_not_available_on_device">La facturation Google Play n\'est pas disponible sur cet appareil.</string>
     <string name="billing_service_unavailable">Le service de facturation est temporairement indisponible. Veuillez réessayer plus tard.</string>
     <string name="billing_configuration_error">La facturation Google Play n\'est pas correctement configurée. Veuillez vérifier votre application Google Play Store et réessayer.</string>
     <string name="billing_temporary_unavailable">Le service de facturation est temporairement indisponible. Veuillez réessayer dans un instant.</string>

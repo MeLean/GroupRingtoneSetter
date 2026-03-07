@@ -69,7 +69,6 @@
     <string name="my_song_please_promo_text">अपने या किसी प्रियजन के लिए खास तौर पर बनी रिंगटोन पाएं — हमारी म्यूज़िक ऐप आज़माने के लिए %1$s।</string>
     <string name="ringtone_lable">रिंगटोन</string>
     <string name="purchase_unavailable">खरीद उपलब्ध नहीं है</string>
-    <string name="billing_not_available_on_device">इस डिवाइस पर Google Play बिलिंग उपलब्ध नहीं है।</string>
     <string name="billing_service_unavailable">बिलिंग सेवा अस्थायी रूप से उपलब्ध नहीं है। कृपया बाद में फिर से प्रयास करें।</string>
     <string name="billing_configuration_error">Google Play बिलिंग सही ढंग से कॉन्फ़िगर नहीं है। कृपया अपने Google Play Store ऐप की जांच करें और फिर से प्रयास करें।</string>
     <string name="billing_temporary_unavailable">बिलिंग सेवा अस्थायी रूप से उपलब्ध नहीं है। कृपया एक क्षण में फिर से प्रयास करें।</string>

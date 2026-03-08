@@ -148,6 +148,10 @@ internal class DeviceDefaultTonesScreen : Fragment() {
                     dialogHandler.showErrorById(event.messageResId)
                 }
 
+                is DeviceDefaultTonesEvent.ShowInfoById -> {
+                    dialogHandler.showInfo(event.messageResId)
+                }
+
                 is DeviceDefaultTonesEvent.ShowInterstitialAd -> {
                     adHelper.showInterstitialAd()
                 }

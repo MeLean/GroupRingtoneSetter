@@ -200,6 +200,7 @@ internal class DeviceDefaultTonesViewModel(
 
             setResult.onSuccess {
                 refreshToneNamesInternal()
+                _events.trySend(DeviceDefaultTonesEvent.ShowInfoById(R.string.everything_set))
                 if (entitlementState.value == EntitlementState.NOT_OWNED) {
                     _events.trySend(DeviceDefaultTonesEvent.ShowInterstitialAd)
                 }

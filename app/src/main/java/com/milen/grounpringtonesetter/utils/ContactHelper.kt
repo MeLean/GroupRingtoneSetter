@@ -27,6 +27,8 @@ internal class ContactsHelper(
     private val tracker: Tracker,
 ) {
     private companion object {
+        private const val MAX_CONTENT_PROVIDER_OPERATIONS_PER_BATCH = 400
+
         private val GROUPS_LIST_PROJECTION = arrayOf(
             ContactsContract.Groups._ID,
             ContactsContract.Groups.TITLE,
@@ -50,6 +52,11 @@ internal class ContactsHelper(
         val isReadOnly: Boolean,
         val isDeleted: Boolean,
         val systemId: String?,
+    )
+
+    private data class BatchApplyOutcome(
+        val chunkCount: Int,
+        val appliedResultCount: Int,
     )
 
     private fun GroupMetadata.toDeletionCapability(): GroupDeletionCapability = GroupDeletionCapability(
@@ -544,11 +551,14 @@ internal class ContactsHelper(
             }
         }
 
-        val batchResults = if (ops.isEmpty()) {
-            emptyArray()
-        } else {
-            appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
-        }
+        val batchOutcome = applyOperationsInChunks(
+            operations = ops,
+            operationContext = "reassignContactsToLabelForAppVisibleGroups",
+            metadata = mapOf(
+                "targetLabelId" to targetLabelId.toString(),
+                "contactCount" to distinctContactIds.size.toString()
+            )
+        )
 
         triggerSyncForAllAccounts()
 
@@ -558,7 +568,8 @@ internal class ContactsHelper(
                 "targetLabelId" to targetLabelId.toString(),
                 "contactCount" to distinctContactIds.size.toString(),
                 "operationsCount" to ops.size.toString(),
-                "batchResultsCount" to batchResults.size.toString()
+                "batchResultsCount" to batchOutcome.appliedResultCount.toString(),
+                "batchChunkCount" to batchOutcome.chunkCount.toString()
             )
         )
     }
@@ -591,14 +602,25 @@ internal class ContactsHelper(
             )
         }
 
-        // Apply the batch operation to remove the contacts from the label
-        val result = appContext.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+        val batchOutcome = applyOperationsInChunks(
+            operations = ops,
+            operationContext = "removeAllContactsFromLabel",
+            metadata = mapOf(
+                "labelId" to labelId.toString(),
+                "contactCount" to excludedContacts.size.toString()
+            )
+        )
 
         triggerSyncForAllAccounts()
 
         tracker.trackEvent(
             "removeAllContactsFromLabel successful",
-            mapOf("labelId" to labelId.toString(), "removedCount" to result.size.toString())
+            mapOf(
+                "labelId" to labelId.toString(),
+                "removedCount" to batchOutcome.appliedResultCount.toString(),
+                "operationsCount" to ops.size.toString(),
+                "batchChunkCount" to batchOutcome.chunkCount.toString()
+            )
         )
     }
 
@@ -964,6 +986,53 @@ internal class ContactsHelper(
         tracker.trackEvent(
             "removeAllContactsFromLabel completed",
             mapOf("labelId" to labelId.toString(), "removedCount" to rowsDeleted.toString())
+        )
+    }
+
+    private fun applyOperationsInChunks(
+        operations: List<ContentProviderOperation>,
+        operationContext: String,
+        metadata: Map<String, String>,
+    ): BatchApplyOutcome {
+        if (operations.isEmpty()) {
+            return BatchApplyOutcome(
+                chunkCount = 0,
+                appliedResultCount = 0
+            )
+        }
+
+        val chunks = chunkBySize(
+            items = operations,
+            maxChunkSize = MAX_CONTENT_PROVIDER_OPERATIONS_PER_BATCH
+        )
+
+        var totalAppliedResults = 0
+        chunks.forEachIndexed { index, chunk ->
+            val result = runCatching {
+                appContext.contentResolver.applyBatch(
+                    ContactsContract.AUTHORITY,
+                    ArrayList(chunk)
+                )
+            }.onFailure { error ->
+                tracker.trackEvent(
+                    "content_provider_batch_failed",
+                    metadata + mapOf(
+                        "context" to operationContext,
+                        "chunkIndex" to (index + 1).toString(),
+                        "chunkCount" to chunks.size.toString(),
+                        "chunkSize" to chunk.size.toString(),
+                        "operationsCount" to operations.size.toString(),
+                        "errorType" to error::class.java.simpleName
+                    )
+                )
+            }.getOrThrow()
+
+            totalAppliedResults += result.size
+        }
+
+        return BatchApplyOutcome(
+            chunkCount = chunks.size,
+            appliedResultCount = totalAppliedResults
         )
     }
 

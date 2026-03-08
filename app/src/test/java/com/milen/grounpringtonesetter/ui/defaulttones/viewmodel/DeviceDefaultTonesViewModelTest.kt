@@ -118,11 +118,36 @@ class DeviceDefaultTonesViewModelTest {
                 )
                 advanceUntilIdle()
 
-                val maybeEvent = withTimeoutOrNull(200) { viewModel.events.first() }
-                assertNull(maybeEvent)
+                val maybeInterstitial = withTimeoutOrNull(200) {
+                    viewModel.events.filterIsInstance<DeviceDefaultTonesEvent.ShowInterstitialAd>()
+                        .first()
+                }
+                assertNull(maybeInterstitial)
                 assertEquals(1, toneManager.appliedSelections.size)
             }
         }
+
+    @Test
+    fun `successful apply emits everything set info dialog event`() = runViewModelTest { dispatcher ->
+        val toneManager = FakeDeviceDefaultToneManager(canWrite = true)
+        val viewModel = createViewModel(
+            toneManager = toneManager,
+            entitlement = EntitlementState.OWNED,
+            dispatcher = dispatcher
+        )
+
+        advanceUntilIdle()
+        viewModel.onTonePicked(
+            type = DeviceDefaultToneType.RINGTONE,
+            pickedUri = TEST_TONE_URI
+        )
+        advanceUntilIdle()
+
+        val event = withTimeout(1_000) {
+            viewModel.events.filterIsInstance<DeviceDefaultTonesEvent.ShowInfoById>().first()
+        }
+        assertEquals(R.string.everything_set, event.messageResId)
+    }
 
     @Test
     fun `apply failure emits fallback dialog event`() = runViewModelTest { dispatcher ->

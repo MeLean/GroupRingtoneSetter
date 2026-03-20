@@ -690,8 +690,8 @@ internal class ContactsHelper(
     suspend fun setRingtoneToLabelContacts(
         labelContacts: List<Contact>,
         newRingtoneUriStr: String,
-    ) {
-        withContext(DispatchersProvider.io) {
+    ): List<ContactRingtoneWriteResult> {
+        return withContext(DispatchersProvider.io) {
             tracker.trackEvent(
                 "set_ringtone_to_label_contacts_start",
                 mapOf(
@@ -701,18 +701,26 @@ internal class ContactsHelper(
                 )
             )
 
-            labelContacts.forEach { contact ->
+            val results = labelContacts.map { contact ->
                 contactRingtoneUpdateHelper.scanAndUpdate(
                     appContext,
                     newRingtoneUriStr,
                     contact.id
                 )
             }
+            val appliedCount = results.count { it.isSuccessful }
+            if (appliedCount > 0) {
+                triggerSyncForAllAccounts()
+            }
 
             tracker.trackEvent(
                 "set_ringtone_to_label_contacts_result",
-                mapOf("contactCount" to labelContacts.size.toString())
+                mapOf(
+                    "contactCount" to labelContacts.size.toString(),
+                    "appliedCount" to appliedCount.toString()
+                )
             )
+            return@withContext results
         }
     }
 

@@ -114,7 +114,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         }
 
     private val pickAudioFileLauncher =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             "pickAudioFileLauncher uri: $uri".log()
             uri?.let { viewModel.onRingtoneChosen(it, it.getFileNameOrEmpty(requireContext())) }
         }
@@ -592,7 +592,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     private fun launchFileRingtonePickerInternal(labelItem: LabelItem) {
         viewModel.selectingGroup = labelItem
-        pickAudioFileLauncher.launch(RingtoneFormatValidator.getMimeTypeFilter())
+        pickAudioFileLauncher.launch(RingtoneFormatValidator.SUPPORTED_MIME_TYPES.toTypedArray())
     }
 
     private fun launchSystemRingtonePicker(labelItem: LabelItem) {

@@ -154,16 +154,29 @@ internal class ContactsRepositoryImpl(
 
         if (fileName.isNotBlank()) prefs.saveString(uriStr, fileName)
 
-        helper.setRingtoneToLabelContacts(
+        val appliedRingtoneByContactId = helper.setRingtoneToLabelContacts(
             labelContacts = group.contacts,
             newRingtoneUriStr = uriStr
-        )
+        ).asSequence()
+            .mapNotNull { result ->
+                result.appliedUri?.let { appliedUri ->
+                    result.contactId to appliedUri
+                }
+            }
+            .toMap()
 
-        updateGroupRingtone(group.id, uriStr, fileName)
+        if (appliedRingtoneByContactId.isEmpty()) {
+            throw IllegalStateException("No contact ringtones were persisted for group ${group.id}")
+        }
 
-        val ids = group.contacts.map { it.id }.toHashSet()
+        updateGroupRingtone(group.id, appliedRingtoneByContactId)
+
         _contacts.update { list ->
-            list?.map { c -> if (c.id in ids) c.copy(ringtoneUriStr = uriStr) else c }
+            list?.map { contact ->
+                appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
+                    contact.copy(ringtoneUriStr = appliedUri)
+                } ?: contact
+            }
         }
     }
 
@@ -222,30 +235,30 @@ internal class ContactsRepositoryImpl(
             )
         }
         if (toRemove.isNotEmpty()) helper.removeAllContactsFromLabel(groupId, toRemove)
-        if (ringtoneForNewContactsUri != null && toAdd.isNotEmpty()) {
+        val appliedRingtoneByContactId = if (ringtoneForNewContactsUri != null && toAdd.isNotEmpty()) {
             helper.setRingtoneToLabelContacts(
                 labelContacts = toAdd,
                 newRingtoneUriStr = ringtoneForNewContactsUri
-            )
+            ).asSequence()
+                .mapNotNull { result ->
+                    result.appliedUri?.let { appliedUri ->
+                        result.contactId to appliedUri
+                    }
+                }
+                .toMap()
+        } else {
+            emptyMap()
         }
 
         tracker.trackEvent("update_group_members")
         val movedContactIds = toAdd.map { it.id }.toHashSet()
-        val selectedWithRingtoneApplied = if (
-            ringtoneForNewContactsUri == null || movedContactIds.isEmpty()
-        ) {
-            newSelected.distinctBy { it.id }
-        } else {
-            newSelected
-                .distinctBy { it.id }
-                .map { contact ->
-                    if (contact.id in movedContactIds) {
-                        contact.copy(ringtoneUriStr = ringtoneForNewContactsUri)
-                    } else {
-                        contact
-                    }
-                }
-        }
+        val selectedWithRingtoneApplied = newSelected
+            .distinctBy { it.id }
+            .map { contact ->
+                appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
+                    contact.copy(ringtoneUriStr = appliedUri)
+                } ?: contact
+            }
 
         _labels.update { labels ->
             labels.map { label ->
@@ -262,14 +275,12 @@ internal class ContactsRepositoryImpl(
             }
         }
 
-        if (ringtoneForNewContactsUri != null && movedContactIds.isNotEmpty()) {
+        if (appliedRingtoneByContactId.isNotEmpty()) {
             _contacts.update { list ->
                 list?.map { contact ->
-                    if (contact.id in movedContactIds) {
-                        contact.copy(ringtoneUriStr = ringtoneForNewContactsUri)
-                    } else {
-                        contact
-                    }
+                    appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
+                        contact.copy(ringtoneUriStr = appliedUri)
+                    } ?: contact
                 }
             }
         }
@@ -419,16 +430,16 @@ internal class ContactsRepositoryImpl(
 
     private fun updateGroupRingtone(
         groupId: Long,
-        uriStr: String,
-        fileName: String,
+        appliedRingtoneByContactId: Map<Long, String>,
     ) {
         val updated = _labels.value.map { g ->
             if (g.id == groupId) {
-                g.copy(
-                    ringtoneUriList = listOf(uriStr),
-                    ringtoneFileName = fileName,
-                    contacts = g.contacts.map { c -> c.copy(ringtoneUriStr = uriStr) }
-                )
+                val updatedContacts = g.contacts.map { contact ->
+                    appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
+                        contact.copy(ringtoneUriStr = appliedUri)
+                    } ?: contact
+                }
+                g.withContactsSummary(updatedContacts)
             } else g
         }
 

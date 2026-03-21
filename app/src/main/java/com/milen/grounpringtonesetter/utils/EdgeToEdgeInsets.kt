@@ -15,7 +15,8 @@ private fun View.requestApplyInsetsWhenAttached() {
     if (isAttachedToWindow) requestApplyInsets()
     else addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
         override fun onViewAttachedToWindow(v: View) {
-            v.removeOnAttachStateChangeListener(this);v.requestApplyInsets()
+            v.removeOnAttachStateChangeListener(this)
+            v.requestApplyInsets()
         }
 
         override fun onViewDetachedFromWindow(v: View) {}
@@ -26,8 +27,15 @@ private fun View.requestApplyInsetsWhenAttached() {
 fun View.applyStatusBarPadding() {
     val initial = recordInitialPadding()
     ViewCompat.setOnApplyWindowInsetsListener(this) { v, insets ->
-        val top = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-        v.updatePadding(top = initial.top + top)
+        val systemBarInsets = insets.getInsets(
+            WindowInsetsCompat.Type.statusBars() or
+                    WindowInsetsCompat.Type.displayCutout()
+        )
+        v.updatePadding(
+            left = initial.left + systemBarInsets.left,
+            top = initial.top + systemBarInsets.top,
+            right = initial.right + systemBarInsets.right
+        )
         insets
     }
     requestApplyInsetsWhenAttached()
@@ -37,9 +45,16 @@ fun View.applyStatusBarPadding() {
 fun View.applyNavAndImePadding() {
     val initial = recordInitialPadding()
     ViewCompat.setOnApplyWindowInsetsListener(this) { v, insets ->
-        val b = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-        val ime = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-        v.updatePadding(bottom = initial.bottom + maxOf(b, ime))
+        val safeDrawingInsets = insets.getInsets(
+            WindowInsetsCompat.Type.navigationBars() or
+                    WindowInsetsCompat.Type.displayCutout()
+        )
+        val imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+        v.updatePadding(
+            left = initial.left + safeDrawingInsets.left,
+            right = initial.right + safeDrawingInsets.right,
+            bottom = initial.bottom + maxOf(safeDrawingInsets.bottom, imeBottom)
+        )
         insets
     }
     requestApplyInsetsWhenAttached()

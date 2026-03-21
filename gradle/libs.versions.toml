@@ -59,6 +59,7 @@ androidxSecurityCrypto = { module = "androidx.security:security-crypto", version
 # --- Navigation ---
 androidxNavigationFragmentKtx = { module = "androidx.navigation:navigation-fragment-ktx", version.ref = "navigation" }
 androidxNavigationUiKtx = { module = "androidx.navigation:navigation-ui-ktx", version.ref = "navigation" }
+androidxNavigationTesting = { module = "androidx.navigation:navigation-testing", version.ref = "navigation" }
 
 # --- Google Play Services / Billing ---
 playServicesAds = { module = "com.google.android.gms:play-services-ads", version.ref = "play-services-ads" }

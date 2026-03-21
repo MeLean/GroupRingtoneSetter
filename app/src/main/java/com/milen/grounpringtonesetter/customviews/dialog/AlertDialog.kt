@@ -9,6 +9,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.utils.trackSuppressedFailure
 
 internal data class ButtonData(
     @param:StringRes val textId: Int = R.string.confirm,
@@ -130,7 +131,11 @@ private fun Activity.showDialogSafe(
             override fun onDestroy(owner: LifecycleOwner) {
                 try {
                     if (dialog.isShowing) dialog.dismiss()
-                } catch (_: Throwable) {
+                } catch (throwable: Throwable) {
+                    act.trackSuppressedFailure(
+                        "AlertDialog.showDialogSafe.onDestroy.dismiss",
+                        throwable
+                    )
                 }
                 act.lifecycle.removeObserver(this)
             }
@@ -143,7 +148,11 @@ private fun Activity.showDialogSafe(
         if (isFinishing || isDestroyed) {
             try {
                 dialog.dismiss()
-            } catch (_: Throwable) {
+            } catch (throwable: Throwable) {
+                trackSuppressedFailure(
+                    "AlertDialog.showDialogSafe.onShow.dismiss",
+                    throwable
+                )
             }
         }
     }
@@ -152,7 +161,11 @@ private fun Activity.showDialogSafe(
         dialog.show()
         dialog.window?.let { win -> win.attributes = win.attributes }
         dialog
-    } catch (_: WindowManager.BadTokenException) {
+    } catch (throwable: WindowManager.BadTokenException) {
+        trackSuppressedFailure(
+            "AlertDialog.showDialogSafe.badToken",
+            throwable
+        )
         null
     }
 }

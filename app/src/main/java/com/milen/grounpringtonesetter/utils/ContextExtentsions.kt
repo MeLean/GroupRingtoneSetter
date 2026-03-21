@@ -20,16 +20,6 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
-fun Context.hasInternetConnection(): Boolean =
-    with(getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager) {
-        this?.activeNetwork?.let {
-            getNetworkCapabilities(it)
-                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-                    && getNetworkCapabilities(it)
-                ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
-        }
-    } ?: false
-
 inline fun <T> Flow<T>.collectStateIn(
     owner: LifecycleOwner,
     minActiveState: Lifecycle.State = Lifecycle.State.STARTED,
@@ -91,9 +81,22 @@ internal fun Context.connectivityFlow(): Flow<Boolean> = callbackFlow {
 
     // Register default callback (API 24+; minSdk 26 is fine)
     runCatching { cm.registerDefaultNetworkCallback(callback) }
-        .onFailure { /* if it ever fails, we at least emitted initial state */ }
+        .onFailure {
+            this@connectivityFlow.trackSuppressedFailure(
+                "Context.connectivityFlow.registerDefaultNetworkCallback",
+                it
+            )
+        }
 
-    awaitClose { runCatching { cm.unregisterNetworkCallback(callback) } }
+    awaitClose {
+        runCatching { cm.unregisterNetworkCallback(callback) }
+            .onFailure {
+                this@connectivityFlow.trackSuppressedFailure(
+                    "Context.connectivityFlow.unregisterNetworkCallback",
+                    it
+                )
+            }
+    }
 }.distinctUntilChanged()
 
 private fun isOnlineNow(cm: ConnectivityManager): Boolean {

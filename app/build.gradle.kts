@@ -22,8 +22,8 @@ android {
         applicationId = "com.milen.grounpringtonesetter"
         minSdk = 27
         targetSdk = 35
-        versionCode = 812
-        versionName = "8.1.2"
+        versionCode = 813
+        versionName = "8.1.3"
 
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -113,4 +113,5 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.androidxNavigationTesting)
 }

@@ -256,27 +256,23 @@ internal class HomeViewModel(
 
     fun setUpGroupNameEditing(group: LabelItem) {
         tracker.trackEvent("setUpGroupNameEditing")
-        viewModelScope.launch { _events.send(HomeEvent.NavigateToRename(group)) }
+        _events.trySend(HomeEvent.NavigateToRename(group))
     }
 
     fun setUpContactsManaging(group: LabelItem) {
         tracker.trackEvent("setUpContactsManaging")
-        viewModelScope.launch { _events.send(HomeEvent.NavigateToManageContacts(group)) }
+        _events.trySend(HomeEvent.NavigateToManageContacts(group))
     }
 
     fun setUpGroupCreateRequest() {
         tracker.trackEvent("setUpGroupCreateRequest")
         accountRepo.getAccountsAvailable()
-        viewModelScope.launch {
-            _events.send(HomeEvent.NavigateToCreateGroup)
-        }
+        _events.trySend(HomeEvent.NavigateToCreateGroup)
     }
 
     fun onDeviceDefaultTonesClicked() {
         tracker.trackEvent("onDeviceDefaultTonesClicked")
-        viewModelScope.launch {
-            _events.send(HomeEvent.NavigateToDeviceDefaultTones)
-        }
+        _events.trySend(HomeEvent.NavigateToDeviceDefaultTones)
     }
 
     fun startPurchase(activity: Activity) {

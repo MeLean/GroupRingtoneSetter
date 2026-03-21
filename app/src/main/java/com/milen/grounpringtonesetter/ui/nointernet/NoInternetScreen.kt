@@ -15,10 +15,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.FragmentNoInternetScreenBinding
+import com.milen.grounpringtonesetter.utils.trackSuppressedFailure
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -56,26 +56,27 @@ internal class NoInternetScreen : Fragment() {
                     .connectivityFlow() // defined below in this same file
                     .distinctUntilChanged()
                     .collectLatest { isOnline ->
-                        // Guard: fragment must be attached + navController available
                         val nav = navControllerOrNull() ?: return@collectLatest
-                        if (isOnline && nav.currentDestination?.id == R.id.noInternetFragment) {
-                            // Pop entire graph and go Home (no double-navigate)
-                            val opts = NavOptions.Builder()
-                                .setPopUpTo(nav.graph.id, true)
-                                .setLaunchSingleTop(true)
-                                .build()
-                            runCatching { nav.navigate(R.id.homeFragment, null, opts) }
+                        if (isOnline) {
+                            runCatching { nav.popBackFromNoInternetScreen() }
+                                .onFailure { context.trackSuppressedFailure("NoInternetScreen.popBackFromNoInternetScreen", it) }
                         }
                     }
             }
         }
     }
 
-    // Safe NavController access
     private fun navControllerOrNull(): NavController? {
         if (!isAdded) return null
-        return runCatching { findNavController() }.getOrNull()
+        return runCatching { findNavController() }
+            .onFailure { context.trackSuppressedFailure("NoInternetScreen.findNavController", it) }
+            .getOrNull()
     }
+}
+
+internal fun NavController.popBackFromNoInternetScreen(): Boolean {
+    if (currentDestination?.id != R.id.noInternetFragment) return false
+    return popBackStack()
 }
 
 private fun Context.connectivityFlow(): Flow<Boolean> = callbackFlow {
@@ -100,9 +101,22 @@ private fun Context.connectivityFlow(): Flow<Boolean> = callbackFlow {
 
     // Register default callback (API 24+; minSdk 26 is fine)
     runCatching { cm.registerDefaultNetworkCallback(callback) }
-        .onFailure { /* if it ever fails, we at least emitted initial state */ }
+        .onFailure {
+            this@connectivityFlow.trackSuppressedFailure(
+                "NoInternetScreen.connectivityFlow.registerDefaultNetworkCallback",
+                it
+            )
+        }
 
-    awaitClose { runCatching { cm.unregisterNetworkCallback(callback) } }
+    awaitClose {
+        runCatching { cm.unregisterNetworkCallback(callback) }
+            .onFailure {
+                this@connectivityFlow.trackSuppressedFailure(
+                    "NoInternetScreen.connectivityFlow.unregisterNetworkCallback",
+                    it
+                )
+            }
+    }
 }.distinctUntilChanged()
 
 private fun isOnlineNow(cm: ConnectivityManager): Boolean {

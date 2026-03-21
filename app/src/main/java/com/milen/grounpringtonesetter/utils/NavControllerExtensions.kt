@@ -6,6 +6,32 @@ import androidx.navigation.NavController
 import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.navOptions
 
+internal enum class GuardedNavigationFailureReason {
+    NO_CURRENT_DESTINATION,
+    GRAPH_ROOT,
+    WRONG_DESTINATION,
+}
+
+internal data class GuardedNavigationFailure(
+    val reason: GuardedNavigationFailureReason,
+    @param:IdRes val expectedDestinationId: Int,
+    @param:IdRes val actualDestinationId: Int?,
+    @param:IdRes val graphId: Int,
+    @param:IdRes val actionId: Int,
+)
+
+internal fun classifyNavigationFailure(
+    @IdRes expectedDestinationId: Int,
+    @IdRes actualDestinationId: Int?,
+    @IdRes graphId: Int,
+): GuardedNavigationFailureReason? =
+    when {
+        actualDestinationId == null -> GuardedNavigationFailureReason.NO_CURRENT_DESTINATION
+        actualDestinationId == graphId -> GuardedNavigationFailureReason.GRAPH_ROOT
+        actualDestinationId != expectedDestinationId -> GuardedNavigationFailureReason.WRONG_DESTINATION
+        else -> null
+    }
+
 internal fun NavController.navigateSingleTop(
     @IdRes resId: Int,
     args: Bundle? = null,
@@ -20,9 +46,27 @@ internal fun NavController.navigateSingleTop(
     })
 }
 
-internal fun NavController.navigateAsRoot(@IdRes resId: Int, args: Bundle? = null) {
-    navigate(resId, args, navOptions {
-        launchSingleTop = true
-        popUpTo(graph.startDestinationId) { inclusive = true }
-    })
+internal fun NavController.navigateIfCurrentDestination(
+    @IdRes expectedDestinationId: Int,
+    @IdRes actionId: Int,
+    args: Bundle? = null,
+): GuardedNavigationFailure? {
+    val actualDestinationId = currentDestination?.id
+    val graphId = graph.id
+    val failureReason = classifyNavigationFailure(
+        expectedDestinationId = expectedDestinationId,
+        actualDestinationId = actualDestinationId,
+        graphId = graphId
+    ) ?: run {
+        navigate(actionId, args)
+        return null
+    }
+
+    return GuardedNavigationFailure(
+        reason = failureReason,
+        expectedDestinationId = expectedDestinationId,
+        actualDestinationId = actualDestinationId,
+        graphId = graphId,
+        actionId = actionId
+    )
 }

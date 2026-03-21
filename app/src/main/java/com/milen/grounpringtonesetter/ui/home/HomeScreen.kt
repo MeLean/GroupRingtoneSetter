@@ -32,6 +32,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
@@ -46,6 +47,8 @@ import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModel
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModelFactory
 import com.milen.grounpringtonesetter.ui.picker.PickerScreenFragment
+import com.milen.grounpringtonesetter.utils.GuardedNavigationFailure
+import com.milen.grounpringtonesetter.utils.GuardedNavigationFailureReason
 import com.milen.grounpringtonesetter.utils.RingtoneFormatValidator
 import com.milen.grounpringtonesetter.utils.areAllPermissionsGranted
 import com.milen.grounpringtonesetter.utils.audioPermissionsSdkBased
@@ -57,6 +60,7 @@ import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.log
 import com.milen.grounpringtonesetter.utils.manageVisibility
+import com.milen.grounpringtonesetter.utils.navigateIfCurrentDestination
 import com.milen.grounpringtonesetter.utils.navigateSingleTop
 import com.milen.grounpringtonesetter.utils.parcelableOrNull
 import kotlinx.coroutines.Job
@@ -87,6 +91,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private var searchRevealAnimator: ValueAnimator? = null
     private var pendingAudioPermissionGroup: LabelItem? = null
     private var pendingLegacyPermissionGroup: LabelItem? = null
+    private val tracker by lazy(LazyThreadSafetyMode.NONE) {
+        (requireActivity().application as App).tracker
+    }
 
     private val permissions = mutableListOf(
         Manifest.permission.READ_CONTACTS,
@@ -268,25 +275,31 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     findNavController().navigateSingleTop(R.id.noInternetFragment)
 
                 is HomeEvent.NavigateToRename ->
-                    findNavController().navigate(
-                        R.id.action_home_to_picker,
-                        PickerScreenFragment.argsForRename(event.group)
+                    navigateFromHome(
+                        eventName = "NavigateToRename",
+                        actionId = R.id.action_home_to_picker,
+                        args = PickerScreenFragment.argsForRename(event.group)
                     )
 
                 is HomeEvent.NavigateToManageContacts ->
-                    findNavController().navigate(
-                        R.id.action_home_to_picker,
-                        PickerScreenFragment.argsForManage(event.group)
+                    navigateFromHome(
+                        eventName = "NavigateToManageContacts",
+                        actionId = R.id.action_home_to_picker,
+                        args = PickerScreenFragment.argsForManage(event.group)
                     )
 
                 is HomeEvent.NavigateToCreateGroup ->
-                    findNavController().navigate(
-                        R.id.action_home_to_picker,
-                        PickerScreenFragment.argsForCreate()
+                    navigateFromHome(
+                        eventName = "NavigateToCreateGroup",
+                        actionId = R.id.action_home_to_picker,
+                        args = PickerScreenFragment.argsForCreate()
                     )
 
                 is HomeEvent.NavigateToDeviceDefaultTones ->
-                    findNavController().navigate(R.id.action_home_to_deviceDefaultTones)
+                    navigateFromHome(
+                        eventName = "NavigateToDeviceDefaultTones",
+                        actionId = R.id.action_home_to_deviceDefaultTones
+                    )
 
                 is HomeEvent.ShowErrorById -> dialogHandler.showErrorById(event.strRes)
                 is HomeEvent.ShowErrorText -> dialogHandler.showError(event.message)
@@ -613,6 +626,52 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             }
         }
         pickSystemRingtoneLauncher.launch(pickerIntent)
+    }
+
+    private fun navigateFromHome(
+        eventName: String,
+        actionId: Int,
+        args: Bundle? = null,
+    ) {
+        val failure = findNavController().navigateIfCurrentDestination(
+            expectedDestinationId = R.id.homeFragment,
+            actionId = actionId,
+            args = args
+        ) ?: return
+
+        trackSuppressedHomeNavigation(eventName, failure)
+    }
+
+    private fun trackSuppressedHomeNavigation(
+        eventName: String,
+        failure: GuardedNavigationFailure,
+    ) {
+        tracker.trackEvent(
+            "home_navigation_suppressed",
+            mapOf(
+                "event" to eventName,
+                "action_id" to failure.actionId,
+                "expected_destination_id" to failure.expectedDestinationId,
+                "actual_destination_id" to (failure.actualDestinationId?.toString() ?: "null"),
+                "graph_id" to failure.graphId,
+                "reason" to failure.reason.name
+            )
+        )
+
+        if (failure.reason == GuardedNavigationFailureReason.GRAPH_ROOT ||
+            failure.reason == GuardedNavigationFailureReason.NO_CURRENT_DESTINATION
+        ) {
+            tracker.trackError(
+                HomeNavigationSuppressedException(
+                    eventName = eventName,
+                    actionId = failure.actionId,
+                    expectedDestinationId = failure.expectedDestinationId,
+                    actualDestinationId = failure.actualDestinationId,
+                    graphId = failure.graphId,
+                    failureReason = failure.reason
+                )
+            )
+        }
     }
 
     private fun resolveRingtoneName(uri: Uri): String {

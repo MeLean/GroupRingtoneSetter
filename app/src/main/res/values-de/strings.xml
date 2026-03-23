@@ -84,4 +84,13 @@
     <string name="blocked_contacts_reassignment_message">Diese Kontakte können derzeit nicht neu zugewiesen werden:\n%1$s\n\nOhne diese Kontakte fortfahren oder abbrechen?</string>
     <string name="continue_action">Fortfahren</string>
     <string name="abort_action">Abbrechen</string>
+    <string name="user_preferences">Benutzereinstellungen</string>
+    <string name="group_theme">Gruppenthema</string>
+    <string name="group_sorting">Gruppensortierung</string>
+    <string name="group_theme_classic">Klassisch</string>
+    <string name="group_theme_dark_high_contrast">Dunkler hoher Kontrast</string>
+    <string name="group_theme_light_high_contrast">Heller hoher Kontrast</string>
+    <string name="group_sorting_current_order">Keine Sortierung</string>
+    <string name="group_sorting_ascending">A-Z</string>
+    <string name="group_sorting_descending">Z-A</string>
 </resources>

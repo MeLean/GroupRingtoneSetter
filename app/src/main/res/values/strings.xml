@@ -84,4 +84,13 @@
     <string name="blocked_contacts_reassignment_message">These contacts cannot be reassigned right now:\n%1$s\n\nContinue without these contacts or abort?</string>
     <string name="continue_action">Continue</string>
     <string name="abort_action">Abort</string>
+    <string name="user_preferences">User preferences</string>
+    <string name="group_theme">Group theme</string>
+    <string name="group_sorting">Group sorting</string>
+    <string name="group_theme_classic">Classic</string>
+    <string name="group_theme_dark_high_contrast">Dark high contrast</string>
+    <string name="group_theme_light_high_contrast">Light high contrast</string>
+    <string name="group_sorting_current_order">No ordering</string>
+    <string name="group_sorting_ascending">A-Z</string>
+    <string name="group_sorting_descending">Z-A</string>
 </resources>

@@ -84,4 +84,13 @@
     <string name="blocked_contacts_reassignment_message">Questi contatti non possono essere riassegnati in questo momento:\n%1$s\n\nContinuare senza questi contatti o annullare?</string>
     <string name="continue_action">Continua</string>
     <string name="abort_action">Interrompi</string>
+    <string name="user_preferences">Preferenze utente</string>
+    <string name="group_theme">Tema dei gruppi</string>
+    <string name="group_sorting">Ordinamento dei gruppi</string>
+    <string name="group_theme_classic">Classico</string>
+    <string name="group_theme_dark_high_contrast">Scuro ad alto contrasto</string>
+    <string name="group_theme_light_high_contrast">Chiaro ad alto contrasto</string>
+    <string name="group_sorting_current_order">Nessun ordinamento</string>
+    <string name="group_sorting_ascending">A-Z</string>
+    <string name="group_sorting_descending">Z-A</string>
 </resources>

@@ -1,16 +1,23 @@
 package com.milen.grounpringtonesetter.customviews.ui.texts
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.util.AttributeSet
 import android.view.LayoutInflater
+import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.SearchView
+import androidx.appcompat.widget.SearchView
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import androidx.core.widget.TextViewCompat
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.data.SelectableContact.Companion.toContact
 import com.milen.grounpringtonesetter.databinding.CustomSelectableContactsViewBinding
+import com.milen.grounpringtonesetter.ui.home.HomeThemeAppearance
 import com.milen.grounpringtonesetter.ui.picker.ContactsAdapter
+import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 
 internal class SearchContactView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
@@ -51,6 +58,8 @@ internal class SearchContactView @JvmOverloads constructor(
                 }
             })
         }
+
+        applyTheme(context.currentThemeAppearance())
     }
 
     fun submitContacts(contacts: List<SelectableContact>) {
@@ -91,6 +100,44 @@ internal class SearchContactView @JvmOverloads constructor(
         return source.filter { c ->
             c.name.contains(needle, ignoreCase = true) ||
                     (c.phone?.contains(needle, ignoreCase = true) ?: false)
+        }
+    }
+
+    fun applyTheme(themeAppearance: HomeThemeAppearance) {
+        val surfaceBackgroundColor = ContextCompat.getColor(
+            context,
+            themeAppearance.surfaceBackgroundColorRes
+        )
+        val textColor = ContextCompat.getColor(context, themeAppearance.textColorRes)
+        val iconTintColor = ContextCompat.getColor(context, themeAppearance.iconTintColorRes)
+        val hintColor = ContextCompat.getColor(context, themeAppearance.searchHintColorRes)
+
+        binding.searchCard.setCardBackgroundColor(surfaceBackgroundColor)
+        binding.contactsRecyclerView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        binding.emptyState.setTextColor(textColor)
+        TextViewCompat.setCompoundDrawableTintList(
+            binding.emptyState,
+            ColorStateList.valueOf(iconTintColor)
+        )
+
+        binding.searchView.findViewById<SearchView.SearchAutoComplete>(
+            androidx.appcompat.R.id.search_src_text
+        )?.apply {
+            setTextColor(textColor)
+            setHintTextColor(hintColor)
+        }
+        binding.searchView.findViewById<View>(
+            androidx.appcompat.R.id.search_plate
+        )?.background = null
+
+        listOf(
+            androidx.appcompat.R.id.search_mag_icon,
+            androidx.appcompat.R.id.search_close_btn,
+            androidx.appcompat.R.id.search_go_btn,
+            androidx.appcompat.R.id.search_voice_btn
+        ).forEach { viewId ->
+            binding.searchView.findViewById<ImageView>(viewId)?.imageTintList =
+                ColorStateList.valueOf(iconTintColor)
         }
     }
 }

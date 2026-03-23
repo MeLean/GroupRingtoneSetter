@@ -84,4 +84,13 @@
     <string name="blocked_contacts_reassignment_message">Tych kontaktow nie mozna teraz ponownie przypisac:\n%1$s\n\nKontynuowac bez tych kontaktow czy przerwac?</string>
     <string name="continue_action">Kontynuuj</string>
     <string name="abort_action">Przerwij</string>
+    <string name="user_preferences">Preferencje użytkownika</string>
+    <string name="group_theme">Motyw grup</string>
+    <string name="group_sorting">Sortowanie grup</string>
+    <string name="group_theme_classic">Klasyczny</string>
+    <string name="group_theme_dark_high_contrast">Ciemny o wysokim kontraście</string>
+    <string name="group_theme_light_high_contrast">Jasny o wysokim kontraście</string>
+    <string name="group_sorting_current_order">Bez sortowania</string>
+    <string name="group_sorting_ascending">A-Ż</string>
+    <string name="group_sorting_descending">Ż-A</string>
 </resources>

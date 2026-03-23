@@ -1,14 +1,18 @@
 package com.milen.grounpringtonesetter.customviews.ui.texts
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.inputmethod.EditorInfo
 import android.widget.FrameLayout
+import androidx.annotation.ColorInt
+import androidx.core.content.ContextCompat
 import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.textfield.TextInputEditText
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.CustomInputViewBinding
+import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 import com.milen.grounpringtonesetter.utils.hideSoftInput
 
 
@@ -48,6 +52,12 @@ internal class CustomInputView @JvmOverloads constructor(
             }
         }
 
+        val themeAppearance = context.currentThemeAppearance()
+        applyColors(
+            textColor = ContextCompat.getColor(context, themeAppearance.textColorRes),
+            hintColor = ContextCompat.getColor(context, themeAppearance.searchHintColorRes),
+            strokeColor = ContextCompat.getColor(context, themeAppearance.searchStrokeColorRes)
+        )
 
     }
 
@@ -75,5 +85,17 @@ internal class CustomInputView @JvmOverloads constructor(
         editText.doAfterTextChanged { editable ->
             listener(editable?.toString().orEmpty())
         }
+    }
+
+    fun applyColors(
+        @ColorInt textColor: Int,
+        @ColorInt hintColor: Int,
+        @ColorInt strokeColor: Int,
+    ) {
+        binding.editTextInput.setTextColor(textColor)
+        binding.editTextInput.setHintTextColor(hintColor)
+        binding.textInputLayout.defaultHintTextColor = ColorStateList.valueOf(hintColor)
+        binding.textInputLayout.hintTextColor = ColorStateList.valueOf(hintColor)
+        binding.textInputLayout.setBoxStrokeColorStateList(ColorStateList.valueOf(strokeColor))
     }
 }

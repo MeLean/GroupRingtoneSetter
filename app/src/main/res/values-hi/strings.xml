@@ -84,4 +84,13 @@
     <string name="blocked_contacts_reassignment_message">इन संपर्कों को अभी पुनः असाइन नहीं किया जा सकता:\n%1$s\n\nक्या इन संपर्कों के बिना जारी रखें या रद्द करें?</string>
     <string name="continue_action">जारी रखें</string>
     <string name="abort_action">रद्द करें</string>
+    <string name="user_preferences">उपयोगकर्ता प्राथमिकताएं</string>
+    <string name="group_theme">समूह थीम</string>
+    <string name="group_sorting">समूह क्रम</string>
+    <string name="group_theme_classic">क्लासिक</string>
+    <string name="group_theme_dark_high_contrast">गहरा हाई कॉन्ट्रास्ट</string>
+    <string name="group_theme_light_high_contrast">हल्का हाई कॉन्ट्रास्ट</string>
+    <string name="group_sorting_current_order">बिना क्रमबद्ध किए</string>
+    <string name="group_sorting_ascending">अ-ह</string>
+    <string name="group_sorting_descending">ह-अ</string>
 </resources>

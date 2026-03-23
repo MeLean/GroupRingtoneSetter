@@ -8,6 +8,7 @@
     android:orientation="vertical">
 
     <androidx.cardview.widget.CardView
+        android:id="@+id/searchCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="8dp"
@@ -16,7 +17,7 @@
         android:contentDescription="@android:string/search_go"
         app:cardCornerRadius="16dp">
 
-        <android.widget.SearchView
+        <androidx.appcompat.widget.SearchView
             android:id="@+id/searchView"
             style="@style/SearchViewWhiteStyle"
             android:layout_width="match_parent"

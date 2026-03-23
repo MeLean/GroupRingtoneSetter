@@ -32,6 +32,7 @@ import com.milen.grounpringtonesetter.ui.defaulttones.viewmodel.DeviceDefaultTon
 import com.milen.grounpringtonesetter.utils.changeMainTitle
 import com.milen.grounpringtonesetter.utils.collectEventsIn
 import com.milen.grounpringtonesetter.utils.collectStateIn
+import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 import com.milen.grounpringtonesetter.utils.handleLoading
 
 internal class DeviceDefaultTonesScreen : Fragment() {
@@ -102,6 +103,7 @@ internal class DeviceDefaultTonesScreen : Fragment() {
 
         dialogHandler = DialogHandler(requireActivity())
         adHelper = AdLoadingHelper(requireActivity())
+        applyScreenTheme()
 
         binding.apply {
             crbChangeDefaultRingtone.setOnClickListener {
@@ -178,6 +180,13 @@ internal class DeviceDefaultTonesScreen : Fragment() {
         super.onResume()
         changeMainTitle(getString(R.string.device_default_tones_title))
         viewModel.onScreenResumed()
+    }
+
+    private fun applyScreenTheme() {
+        val themeAppearance = requireContext().currentThemeAppearance()
+        binding.llDefaultRingtoneCard.setBackgroundResource(themeAppearance.groupCardBackgroundRes)
+        binding.llDefaultNotificationCard.setBackgroundResource(themeAppearance.groupCardBackgroundRes)
+        binding.llDefaultAlarmCard.setBackgroundResource(themeAppearance.groupCardBackgroundRes)
     }
 
     private fun launchSystemTonePicker(config: TonePickerLaunchConfig) {

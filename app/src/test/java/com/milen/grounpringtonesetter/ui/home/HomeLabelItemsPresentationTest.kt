@@ -1,0 +1,144 @@
+package com.milen.grounpringtonesetter.ui.home
+
+import com.milen.grounpringtonesetter.data.LabelItem
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import java.util.Locale
+
+class HomeLabelItemsPresentationTest {
+
+    @Test
+    fun `current order preserves repository order`() {
+        val labels = listOf(
+            labelItem(id = 4, groupName = "Zulu"),
+            labelItem(id = 2, groupName = "Alpha"),
+            labelItem(id = 3, groupName = "Beta")
+        )
+
+        val result = deriveVisibleLabelItems(
+            labels = labels,
+            groupSearchQuery = "",
+            sortOption = GroupSortOption.CURRENT_ORDER,
+            locale = Locale.ENGLISH
+        )
+
+        assertEquals(listOf(4L, 2L, 3L), result.map { it.id })
+    }
+
+    @Test
+    fun `alphabetical ascending sorts by normalized name then id`() {
+        val labels = listOf(
+            labelItem(id = 3, groupName = " beta"),
+            labelItem(id = 2, groupName = "Alpha"),
+            labelItem(id = 1, groupName = " alpha ")
+        )
+
+        val result = deriveVisibleLabelItems(
+            labels = labels,
+            groupSearchQuery = "",
+            sortOption = GroupSortOption.ALPHABETICAL_ASC,
+            locale = Locale.ENGLISH
+        )
+
+        assertEquals(listOf(1L, 2L, 3L), result.map { it.id })
+    }
+
+    @Test
+    fun `alphabetical descending sorts by normalized name`() {
+        val labels = listOf(
+            labelItem(id = 1, groupName = "Alpha"),
+            labelItem(id = 2, groupName = "Gamma"),
+            labelItem(id = 3, groupName = "Beta")
+        )
+
+        val result = deriveVisibleLabelItems(
+            labels = labels,
+            groupSearchQuery = "",
+            sortOption = GroupSortOption.ALPHABETICAL_DESC,
+            locale = Locale.ENGLISH
+        )
+
+        assertEquals(listOf(2L, 3L, 1L), result.map { it.id })
+    }
+
+    @Test
+    fun `search filters before sorting`() {
+        val labels = listOf(
+            labelItem(id = 1, groupName = "Alpha Team"),
+            labelItem(id = 2, groupName = "Beta"),
+            labelItem(id = 3, groupName = "alpha")
+        )
+
+        val result = deriveVisibleLabelItems(
+            labels = labels,
+            groupSearchQuery = "alp",
+            sortOption = GroupSortOption.ALPHABETICAL_DESC,
+            locale = Locale.ENGLISH
+        )
+
+        assertEquals(listOf(1L, 3L), result.map { it.id })
+    }
+
+    @Test
+    fun `alphabetical ascending uses locale aware Cyrillic order`() {
+        val labels = listOf(
+            labelItem(id = 1, groupName = "Ябълка"),
+            labelItem(id = 2, groupName = "Бор"),
+            labelItem(id = 3, groupName = "Арфа")
+        )
+
+        val result = deriveVisibleLabelItems(
+            labels = labels,
+            groupSearchQuery = "",
+            sortOption = GroupSortOption.ALPHABETICAL_ASC,
+            locale = Locale.forLanguageTag("bg")
+        )
+
+        assertEquals(listOf(3L, 2L, 1L), result.map { it.id })
+    }
+
+    @Test
+    fun `alphabetical ascending respects Polish diacritics`() {
+        val labels = listOf(
+            labelItem(id = 1, groupName = "Żaba"),
+            labelItem(id = 2, groupName = "Adam"),
+            labelItem(id = 3, groupName = "Źrebak")
+        )
+
+        val result = deriveVisibleLabelItems(
+            labels = labels,
+            groupSearchQuery = "",
+            sortOption = GroupSortOption.ALPHABETICAL_ASC,
+            locale = Locale.forLanguageTag("pl")
+        )
+
+        assertEquals(listOf(2L, 3L, 1L), result.map { it.id })
+    }
+
+    @Test
+    fun `alphabetical ascending uses Japanese locale order`() {
+        val labels = listOf(
+            labelItem(id = 1, groupName = "さくら"),
+            labelItem(id = 2, groupName = "あさ"),
+            labelItem(id = 3, groupName = "かさ")
+        )
+
+        val result = deriveVisibleLabelItems(
+            labels = labels,
+            groupSearchQuery = "",
+            sortOption = GroupSortOption.ALPHABETICAL_ASC,
+            locale = Locale.JAPANESE
+        )
+
+        assertEquals(listOf(2L, 3L, 1L), result.map { it.id })
+    }
+
+    private fun labelItem(
+        id: Long,
+        groupName: String,
+    ) = LabelItem(
+        id = id,
+        groupName = groupName,
+        contacts = emptyList()
+    )
+}

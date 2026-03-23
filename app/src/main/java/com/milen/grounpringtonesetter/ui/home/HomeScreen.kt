@@ -8,6 +8,8 @@ import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.Rect
 import android.media.RingtoneManager
 import android.net.Uri
@@ -38,8 +40,10 @@ import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
+import com.milen.grounpringtonesetter.customviews.dialog.showCustomViewAlertDialog
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
+import com.milen.grounpringtonesetter.databinding.DialogHomePreferencesBinding
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.EXTRA_SELECTED
@@ -88,6 +92,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private lateinit var dialogHandler: DialogHandler
     private var groupSearchJob: Job? = null
     private var renderedSearchVisibility = false
+    private var renderedThemeOption: HomeThemeOption? = null
     private var searchRevealAnimator: ValueAnimator? = null
     private var pendingAudioPermissionGroup: LabelItem? = null
     private var pendingLegacyPermissionGroup: LabelItem? = null
@@ -188,6 +193,13 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
         viewModel.state.collectStateIn(viewLifecycleOwner) { state ->
             handleLoading(state.loadingVisible)
+            if (renderedThemeOption != state.displayPreferences.themeOption) {
+                applyHomeTheme(
+                    themeOption = state.displayPreferences.themeOption,
+                    themeAppearance = state.displayPreferences.themeOption.toAppearance()
+                )
+                renderedThemeOption = state.displayPreferences.themeOption
+            }
 
             if (!state.arePermissionsGranted) {
                 requestMultiplePermissions.launch(permissions.toTypedArray())
@@ -236,7 +248,12 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     }
                     ctcibActionsMenu.apply {
                         isVisible = true
-                        setOnClickListener { showActionsMenu(state.canChangeAccount) }
+                        setOnClickListener {
+                            showActionsMenu(
+                                canChangeAccount = state.canChangeAccount,
+                                currentPreferences = state.displayPreferences
+                            )
+                        }
                     }
                     updateSearchToggleIcon(state.isGroupSearchVisible)
 
@@ -487,7 +504,51 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         return (addButton.right + buffer).toFloat()
     }
 
-    private fun showActionsMenu(canChangeAccount: Boolean) {
+    private fun applyHomeTheme(
+        themeOption: HomeThemeOption,
+        themeAppearance: HomeThemeAppearance,
+    ) {
+        val context = requireContext()
+        val screenBackgroundColor =
+            ContextCompat.getColor(context, themeAppearance.screenBackgroundColorRes)
+        val textColor = ContextCompat.getColor(context, themeAppearance.textColorRes)
+        val iconTintColor = ContextCompat.getColor(context, themeAppearance.iconTintColorRes)
+        val actionButtonBackground =
+            ContextCompat.getColor(context, themeAppearance.actionButtonBackgroundColorRes)
+        val actionButtonText =
+            ContextCompat.getColor(context, themeAppearance.actionButtonTextColorRes)
+        val searchStrokeColor =
+            ContextCompat.getColor(context, themeAppearance.searchStrokeColorRes)
+        val searchHintColor =
+            ContextCompat.getColor(context, themeAppearance.searchHintColorRes)
+        val contentBackgroundColor = if (themeOption == HomeThemeOption.CLASSIC) {
+            Color.TRANSPARENT
+        } else {
+            screenBackgroundColor
+        }
+
+        binding.root.setBackgroundColor(contentBackgroundColor)
+        binding.clTopActions.setBackgroundColor(contentBackgroundColor)
+        binding.rwGroupItems.setBackgroundColor(contentBackgroundColor)
+        binding.llBillingsActions.setBackgroundColor(contentBackgroundColor)
+        binding.noItemDisclaimer.setTextColor(textColor)
+        binding.ctvValidationPurchases.setTextColor(textColor)
+        binding.btnAddGroup.setColors(actionButtonBackground, actionButtonText)
+        binding.btnRemoveAds.setColors(actionButtonBackground, actionButtonText)
+        binding.ctcibToggleSearch.setIconTint(iconTintColor)
+        binding.ctcibActionsMenu.setIconTint(iconTintColor)
+        binding.civGroupSearch.applyColors(
+            textColor = textColor,
+            hintColor = searchHintColor,
+            strokeColor = searchStrokeColor
+        )
+        groupsAdapter.updateThemeAppearance(themeAppearance)
+    }
+
+    private fun showActionsMenu(
+        canChangeAccount: Boolean,
+        currentPreferences: HomeDisplayPreferences,
+    ) {
         val popup = PopupMenu(requireContext(), binding.ctcibActionsMenu)
         popup.menuInflater.inflate(R.menu.home_actions_dropdown, popup.menu)
         popup.setForceShowIcon(true)
@@ -503,6 +564,12 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     true
                 }
 
+                R.id.actionUserPreferences -> {
+                    viewModel.onUserPreferencesClicked()
+                    showUserPreferencesDialog(currentPreferences)
+                    true
+                }
+
                 R.id.actionChangeAccount -> {
                     viewModel.onSelectAccountClicked()
                     true
@@ -512,6 +579,82 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             }
         }
         popup.show()
+    }
+
+    private fun showUserPreferencesDialog(currentPreferences: HomeDisplayPreferences) {
+        val dialogBinding = DialogHomePreferencesBinding.inflate(layoutInflater)
+        applyUserPreferencesDialogTheme(
+            dialogBinding = dialogBinding,
+            themeAppearance = currentPreferences.themeOption.toAppearance()
+        )
+        dialogBinding.selectThemeOption(currentPreferences.themeOption)
+        dialogBinding.selectSortOption(currentPreferences.groupSortOption)
+
+        requireActivity().showCustomViewAlertDialog(
+            titleResId = R.string.user_preferences,
+            customView = dialogBinding.root,
+            cancelButtonData = ButtonData(R.string.cancel),
+            confirmButtonData = ButtonData(R.string.confirm) {
+                val updatedPreferences = HomeDisplayPreferences(
+                    themeOption = dialogBinding.selectedThemeOption(),
+                    groupSortOption = dialogBinding.selectedSortOption()
+                )
+
+                if (updatedPreferences == currentPreferences) {
+                    return@ButtonData
+                }
+
+                viewLifecycleOwner.lifecycleScope.launch {
+                    viewModel.persistHomeDisplayPreferences(updatedPreferences)
+
+                    val app = requireActivity().application as App
+                    app.updateThemeOption(updatedPreferences.themeOption)
+                    if (updatedPreferences.themeOption != currentPreferences.themeOption && isAdded) {
+                        requireActivity().recreate()
+                    }
+                }
+            }
+        )
+    }
+
+    private fun applyUserPreferencesDialogTheme(
+        dialogBinding: DialogHomePreferencesBinding,
+        themeAppearance: HomeThemeAppearance,
+    ) {
+        val context = requireContext()
+        val textColor = ContextCompat.getColor(context, themeAppearance.textColorRes)
+        val dialogBackgroundColor =
+            ContextCompat.getColor(context, themeAppearance.dialogBackgroundColorRes)
+        val checkedColor =
+            ContextCompat.getColor(context, themeAppearance.dialogActionTextColorRes)
+        val uncheckedColor =
+            ContextCompat.getColor(context, themeAppearance.searchHintColorRes)
+        val buttonTint = ColorStateList(
+            arrayOf(
+                intArrayOf(android.R.attr.state_checked),
+                intArrayOf()
+            ),
+            intArrayOf(
+                checkedColor,
+                uncheckedColor
+            )
+        )
+
+        dialogBinding.root.setBackgroundColor(dialogBackgroundColor)
+        dialogBinding.llDialogContent.setBackgroundColor(dialogBackgroundColor)
+        dialogBinding.ctvThemeLabel.setTextColor(textColor)
+        dialogBinding.ctvSortLabel.setTextColor(textColor)
+        listOf(
+            dialogBinding.rbThemeClassic,
+            dialogBinding.rbThemeDarkHighContrast,
+            dialogBinding.rbThemeLightHighContrast,
+            dialogBinding.rbSortCurrentOrder,
+            dialogBinding.rbSortAscending,
+            dialogBinding.rbSortDescending
+        ).forEach { radioButton ->
+            radioButton.setTextColor(textColor)
+            radioButton.buttonTintList = buttonTint
+        }
     }
 
     private fun resolvePopupTextColor(): Int {
@@ -703,4 +846,40 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             requireContext(),
             Manifest.permission.WRITE_EXTERNAL_STORAGE
         ) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun DialogHomePreferencesBinding.selectThemeOption(option: HomeThemeOption) {
+    rgThemeOptions.check(
+        when (option) {
+            HomeThemeOption.CLASSIC -> rbThemeClassic.id
+            HomeThemeOption.DARK_HIGH_CONTRAST -> rbThemeDarkHighContrast.id
+            HomeThemeOption.LIGHT_HIGH_CONTRAST -> rbThemeLightHighContrast.id
+        }
+    )
+}
+
+private fun DialogHomePreferencesBinding.selectedThemeOption(): HomeThemeOption = when (
+    rgThemeOptions.checkedRadioButtonId
+) {
+    rbThemeDarkHighContrast.id -> HomeThemeOption.DARK_HIGH_CONTRAST
+    rbThemeLightHighContrast.id -> HomeThemeOption.LIGHT_HIGH_CONTRAST
+    else -> HomeThemeOption.CLASSIC
+}
+
+private fun DialogHomePreferencesBinding.selectSortOption(option: GroupSortOption) {
+    rgSortOptions.check(
+        when (option) {
+            GroupSortOption.CURRENT_ORDER -> rbSortCurrentOrder.id
+            GroupSortOption.ALPHABETICAL_ASC -> rbSortAscending.id
+            GroupSortOption.ALPHABETICAL_DESC -> rbSortDescending.id
+        }
+    )
+}
+
+private fun DialogHomePreferencesBinding.selectedSortOption(): GroupSortOption = when (
+    rgSortOptions.checkedRadioButtonId
+) {
+    rbSortAscending.id -> GroupSortOption.ALPHABETICAL_ASC
+    rbSortDescending.id -> GroupSortOption.ALPHABETICAL_DESC
+    else -> GroupSortOption.CURRENT_ORDER
 }

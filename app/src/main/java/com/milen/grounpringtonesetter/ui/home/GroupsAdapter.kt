@@ -2,6 +2,7 @@ package com.milen.grounpringtonesetter.ui.home
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -15,27 +16,54 @@ internal class GroupsAdapter(
 ) :
     ListAdapter<LabelItem, GroupsAdapter.ViewHolder>(DiffCallback) {
 
+    private var themeAppearance: HomeThemeAppearance = HomeThemeOption.CLASSIC.toAppearance()
+
     class ViewHolder(private val binding: ItemGroupEntityBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(
             group: LabelItem,
             interactor: GroupItemsInteractor,
+            themeAppearance: HomeThemeAppearance,
         ): Unit =
             group.run {
                 binding.apply {
+                    val context = root.context
+                    val textColor = ContextCompat.getColor(context, themeAppearance.textColorRes)
+                    val iconTintColor =
+                        ContextCompat.getColor(context, themeAppearance.iconTintColorRes)
+                    val actionButtonBackground =
+                        ContextCompat.getColor(
+                            context,
+                            themeAppearance.actionButtonBackgroundColorRes
+                        )
+                    val actionButtonText =
+                        ContextCompat.getColor(context, themeAppearance.actionButtonTextColorRes)
+                    val counterBackground =
+                        ContextCompat.getColor(context, themeAppearance.counterBackgroundColorRes)
+                    val counterText =
+                        ContextCompat.getColor(context, themeAppearance.counterTextColorRes)
+
+                    root.setBackgroundResource(themeAppearance.groupCardBackgroundRes)
                     ctvGroupName.text = groupName
+                    ctvGroupName.setTextColor(textColor)
 
                     contacts.size.let { contactsCount ->
                         cwtContacts.text = "$contactsCount"
+                        cwtContacts.setColors(
+                            backgroundColor = counterBackground,
+                            textColor = counterText
+                        )
                         cwtContacts.contentDescription =
                             "${binding.root.context.getString(R.string.group_contacts_count)}: $contactsCount"
                     }
 
                     ctwRingtone.text = group.ringtoneFileName
+                    ctwRingtone.setTextColor(textColor)
 
                     ctcibManageContacts.setOnClickListener {
                         interactor.onManageContacts(labelItem = this@run)
                     }
+                    ctcibManageContacts.setIconTint(iconTintColor)
                     if (canDelete) {
                         ctcibDelete.isVisible = true
                         ctcibDelete.isEnabled = true
@@ -49,12 +77,18 @@ internal class GroupsAdapter(
                         ctcibDelete.isEnabled = false
                         ctcibDelete.setOnClickListener(null)
                     }
+                    ctcibDelete.setIconTint(iconTintColor)
                     ctcibEdit.setOnClickListener {
                         interactor.onEditName(labelItem = this@run)
                     }
+                    ctcibEdit.setIconTint(iconTintColor)
                     crbChooseRingtone.setOnClickListener {
                         interactor.onChoseRingtoneIntent(labelItem = this@run)
                     }
+                    crbChooseRingtone.setColors(
+                        backgroundColor = actionButtonBackground,
+                        textColor = actionButtonText
+                    )
                 }
             }
     }
@@ -71,7 +105,13 @@ internal class GroupsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val group = getItem(position)
-        holder.bind(group, interactor)
+        holder.bind(group, interactor, themeAppearance)
+    }
+
+    fun updateThemeAppearance(themeAppearance: HomeThemeAppearance) {
+        if (this.themeAppearance == themeAppearance) return
+        this.themeAppearance = themeAppearance
+        notifyDataSetChanged()
     }
 
     companion object DiffCallback : DiffUtil.ItemCallback<LabelItem>() {

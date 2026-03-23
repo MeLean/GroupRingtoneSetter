@@ -84,4 +84,13 @@
     <string name="blocked_contacts_reassignment_message">以下の連絡先は現在再割り当てできません:\n%1$s\n\nこれらの連絡先を除外して続行しますか、それとも中止しますか？</string>
     <string name="continue_action">続行</string>
     <string name="abort_action">中止</string>
+    <string name="user_preferences">ユーザー設定</string>
+    <string name="group_theme">グループのテーマ</string>
+    <string name="group_sorting">グループの並び順</string>
+    <string name="group_theme_classic">クラシック</string>
+    <string name="group_theme_dark_high_contrast">ダーク高コントラスト</string>
+    <string name="group_theme_light_high_contrast">ライト高コントラスト</string>
+    <string name="group_sorting_current_order">並び替えなし</string>
+    <string name="group_sorting_ascending">あ-ん</string>
+    <string name="group_sorting_descending">ん-あ</string>
 </resources>

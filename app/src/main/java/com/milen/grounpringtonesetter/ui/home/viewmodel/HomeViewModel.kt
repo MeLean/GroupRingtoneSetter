@@ -15,9 +15,12 @@ import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.data.accounts.AccountRepository
 import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelException
 import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelFailureReason
+import com.milen.grounpringtonesetter.data.prefs.HomePreferencesStore
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
+import com.milen.grounpringtonesetter.ui.home.HomeDisplayPreferences
 import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
+import com.milen.grounpringtonesetter.ui.home.deriveVisibleLabelItems
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.RingtoneFormatValidator
 import com.milen.grounpringtonesetter.utils.Tracker
@@ -44,6 +47,7 @@ internal class HomeViewModel(
     private val billing: BillingEntitlementManager,
     private val contactsRepo: ContactsRepository,
     private val accountRepo: AccountRepository,
+    private val homePreferencesStore: HomePreferencesStore,
 ) : ViewModel() {
     private companion object {
         const val PURCHASE_UI_GUARD_TIMEOUT_MS = 180_000L
@@ -64,14 +68,11 @@ internal class HomeViewModel(
             accountRepo.available,
             contactsRepo.labelsFlow
         ) { base, entitlement, selectedAcc, availableAccounts, labels ->
-            val normalizedQuery = base.groupSearchQuery.normalizeForSearch()
-            val filteredLabels = if (normalizedQuery.isBlank()) {
-                labels
-            } else {
-                labels.filter { label ->
-                    label.groupName.normalizeForSearch().contains(normalizedQuery)
-                }
-            }
+            val filteredLabels = deriveVisibleLabelItems(
+                labels = labels,
+                groupSearchQuery = base.groupSearchQuery,
+                sortOption = base.displayPreferences.groupSortOption
+            )
             base.copy(
                 isLoading = base.isLoading,
                 labelItems = filteredLabels,
@@ -85,6 +86,10 @@ internal class HomeViewModel(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = _state.value
         )
+
+    init {
+        loadHomeDisplayPreferences()
+    }
 
     private var _selectingGroup: LabelItem? = null
     var selectingGroup: LabelItem
@@ -128,6 +133,22 @@ internal class HomeViewModel(
 
     fun onSelectAccountClicked() =
         showAccountPicker(accountRepo.getAccountsAvailable())
+
+    fun onUserPreferencesClicked() {
+        tracker.trackEvent("home_user_preferences_opened")
+    }
+
+    suspend fun persistHomeDisplayPreferences(preferences: HomeDisplayPreferences): Boolean =
+        saveHomeDisplayPreferencesIfChanged(
+            current = _state.value.displayPreferences,
+            updated = preferences,
+            store = homePreferencesStore,
+            onStateUpdated = { updatedPreferences ->
+                _state.update { it.copy(displayPreferences = updatedPreferences) }
+            },
+            trackEvent = tracker::trackEvent,
+            trackError = tracker::trackError
+        )
 
     fun onGroupSearchQueryUpdated(query: String) {
         _state.update { it.copy(groupSearchQuery = query) }
@@ -559,7 +580,17 @@ internal class HomeViewModel(
     private fun showDoneMessage() {
         _events.trySend(HomeEvent.ShowInfoText(R.string.everything_set))
     }
-}
 
-private fun String.normalizeForSearch(): String =
-    trim().lowercase()
+    private fun loadHomeDisplayPreferences() {
+        viewModelScope.launch {
+            runCatching { homePreferencesStore.read() }
+                .onSuccess { preferences ->
+                    _state.update { it.copy(displayPreferences = preferences) }
+                }
+                .onFailure { error ->
+                    if (error is CancellationException) throw error
+                    tracker.trackError(error)
+                }
+        }
+    }
+}

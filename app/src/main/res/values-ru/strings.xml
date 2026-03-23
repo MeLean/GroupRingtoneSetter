@@ -84,4 +84,13 @@
     <string name="blocked_contacts_reassignment_message">Эти контакты сейчас нельзя переназначить:\n%1$s\n\nПродолжить без этих контактов или прервать?</string>
     <string name="continue_action">Продолжить</string>
     <string name="abort_action">Прервать</string>
+    <string name="user_preferences">Пользовательские настройки</string>
+    <string name="group_theme">Тема групп</string>
+    <string name="group_sorting">Сортировка групп</string>
+    <string name="group_theme_classic">Классическая</string>
+    <string name="group_theme_dark_high_contrast">Темная высокая контрастность</string>
+    <string name="group_theme_light_high_contrast">Светлая высокая контрастность</string>
+    <string name="group_sorting_current_order">Без сортировки</string>
+    <string name="group_sorting_ascending">А-Я</string>
+    <string name="group_sorting_descending">Я-А</string>
 </resources>

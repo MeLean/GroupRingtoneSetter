@@ -2,12 +2,16 @@ package com.milen.grounpringtonesetter.customviews.ui.buttons
 
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.FrameLayout
+import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
+import androidx.core.content.ContextCompat
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.CustomTextColorButtonBinding
+import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 
 internal class CustomTextColorImageButton @JvmOverloads constructor(
     context: Context,
@@ -32,6 +36,13 @@ internal class CustomTextColorImageButton @JvmOverloads constructor(
                 }
             }
         }
+
+        setIconTint(
+            ContextCompat.getColor(
+                context,
+                context.currentThemeAppearance().iconTintColorRes
+            )
+        )
     }
 
     override fun setOnClickListener(listener: OnClickListener?) {
@@ -40,5 +51,9 @@ internal class CustomTextColorImageButton @JvmOverloads constructor(
 
     fun setIcon(@DrawableRes drawableRes: Int) {
         binding.imageButton.setImageResource(drawableRes)
+    }
+
+    fun setIconTint(@ColorInt color: Int) {
+        binding.imageButton.imageTintList = ColorStateList.valueOf(color)
     }
 }

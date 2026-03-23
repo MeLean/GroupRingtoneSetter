@@ -3,7 +3,10 @@ package com.milen.grounpringtonesetter
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned
@@ -25,6 +28,8 @@ import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.showCustomViewAlertDialog
 import com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
 import com.milen.grounpringtonesetter.databinding.ActivityMainBinding
+import com.milen.grounpringtonesetter.ui.home.HomeThemeOption
+import com.milen.grounpringtonesetter.ui.home.toAppearance
 import com.milen.grounpringtonesetter.utils.applyNavAndImePadding
 import com.milen.grounpringtonesetter.utils.applyStatusBarPadding
 
@@ -41,6 +46,7 @@ class MainActivity : AppCompatActivity() {
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applyCurrentTheme()
 
         binding.toolbarMain.applyStatusBarPadding()
         binding.container.applyNavAndImePadding()
@@ -56,11 +62,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setWindowBackground() {
-        try {
-            val drawable = ContextCompat.getDrawable(this, R.drawable.ringtone_background_3)
-            window.setBackgroundDrawable(drawable)
-        } catch (_: Exception) {
-            window.setBackgroundDrawableResource(android.R.color.black)
+        val themeOption = (application as App).currentThemeOption()
+        runCatching {
+            if (themeOption == HomeThemeOption.CLASSIC) {
+                val drawable = ContextCompat.getDrawable(this, R.drawable.ringtone_background_3)
+                window.setBackgroundDrawable(drawable)
+            } else {
+                val backgroundColor = ContextCompat.getColor(
+                    this,
+                    themeOption.toAppearance().screenBackgroundColorRes
+                )
+                window.setBackgroundDrawable(ColorDrawable(backgroundColor))
+            }
+        }.onFailure {
+            val fallbackColor = if (themeOption == HomeThemeOption.LIGHT_HIGH_CONTRAST) {
+                android.R.color.white
+            } else {
+                android.R.color.black
+            }
+            window.setBackgroundDrawableResource(fallbackColor)
         }
     }
 
@@ -92,6 +112,44 @@ class MainActivity : AppCompatActivity() {
                     confirmButtonData = ButtonData(R.string.ok)
                 )
             }
+        }
+    }
+
+    private fun applyCurrentTheme() {
+        val themeOption = (application as App).currentThemeOption()
+        val themeAppearance = themeOption.toAppearance()
+        val screenBackgroundColor =
+            ContextCompat.getColor(this, themeAppearance.screenBackgroundColorRes)
+        val textColor = ContextCompat.getColor(this, themeAppearance.textColorRes)
+        val iconTintColor = ContextCompat.getColor(this, themeAppearance.iconTintColorRes)
+        val progressTintColor =
+            ContextCompat.getColor(this, themeAppearance.actionButtonBackgroundColorRes)
+        val shouldUseSolidScreenBackground = themeOption != HomeThemeOption.CLASSIC
+        val toolbarBackgroundColor = if (themeOption == HomeThemeOption.CLASSIC) {
+            Color.TRANSPARENT
+        } else {
+            screenBackgroundColor
+        }
+
+        binding.navHostFragment.setBackgroundColor(
+            if (shouldUseSolidScreenBackground) {
+                screenBackgroundColor
+            } else {
+                Color.TRANSPARENT
+            }
+        )
+        binding.toolbarMain.applyColors(
+            backgroundColor = toolbarBackgroundColor,
+            textColor = textColor,
+            iconTintColor = iconTintColor
+        )
+        binding.progressIndicator.indeterminateTintList = ColorStateList.valueOf(progressTintColor)
+
+        val insetsController = WindowCompat.getInsetsController(window, binding.root)
+        val isLightTheme = themeOption == HomeThemeOption.LIGHT_HIGH_CONTRAST
+        insetsController.isAppearanceLightStatusBars = isLightTheme
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            insetsController.isAppearanceLightNavigationBars = isLightTheme
         }
     }
 

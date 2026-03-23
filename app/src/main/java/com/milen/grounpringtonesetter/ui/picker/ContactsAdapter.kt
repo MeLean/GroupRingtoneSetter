@@ -1,7 +1,9 @@
 package com.milen.grounpringtonesetter.ui.picker
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -10,6 +12,7 @@ import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.ItemContactBinding
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
+import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +50,7 @@ internal class ContactsAdapter :
 
         fun bind(contact: SelectableContact, onChecked: (SelectableContact) -> Unit) =
             with(binding) {
+                val themeAppearance = root.context.currentThemeAppearance()
                 ctvContactName.text = contact.name
                 ctvContactPhone.text = contact.phone
                 bindRingtoneLabel(contact)
@@ -59,6 +63,12 @@ internal class ContactsAdapter :
                     } else {
                         context.getString(R.string.click_to_check)
                     }
+                    buttonTintList = ColorStateList.valueOf(
+                        ContextCompat.getColor(
+                            context,
+                            themeAppearance.actionButtonBackgroundColorRes
+                        )
+                    )
                     setOnCheckedChangeListener { _, checked ->
                         onChecked(contact.copy(isChecked = checked))
                     }

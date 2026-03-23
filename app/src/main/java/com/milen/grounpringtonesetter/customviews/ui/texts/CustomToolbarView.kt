@@ -1,9 +1,11 @@
 package com.milen.grounpringtonesetter.customviews.ui.texts
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.LinearLayout
+import androidx.annotation.ColorInt
 import androidx.core.view.isVisible
 import com.milen.grounpringtonesetter.databinding.CustomToolbarViewBinding
 
@@ -36,5 +38,16 @@ internal class CustomToolbarView @JvmOverloads constructor(
             isVisible = true
             setOnClickListener { callback() }
         }
+    }
+
+    fun applyColors(
+        @ColorInt backgroundColor: Int,
+        @ColorInt textColor: Int,
+        @ColorInt iconTintColor: Int,
+    ) {
+        setBackgroundColor(backgroundColor)
+        binding.ctvTitle.setTextColor(textColor)
+        binding.btnInfoAction.imageTintList = ColorStateList.valueOf(iconTintColor)
+        binding.btnCustomAction.imageTintList = ColorStateList.valueOf(iconTintColor)
     }
 }

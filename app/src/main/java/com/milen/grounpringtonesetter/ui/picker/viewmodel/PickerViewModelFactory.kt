@@ -4,7 +4,6 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
-import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.data.repos.RepoGraph
 import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
@@ -14,8 +13,7 @@ internal object PickerViewModelFactory {
     fun provideFactory(activity: FragmentActivity): ViewModelProvider.Factory {
         val app = activity.application as App
         val tracker = app.tracker
-
-        val prefs = EncryptedPreferencesHelper(app)
+        val prefs = app.preferencesHelper
         val ringtoneUpdater = ContactRingtoneUpdateHelper(
             tracker = tracker,
             preferenceHelper = prefs

@@ -1,11 +1,15 @@
 package com.milen.grounpringtonesetter.customviews.ui.buttons
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.FrameLayout
+import androidx.annotation.ColorInt
+import androidx.core.content.ContextCompat
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.CustomRoundedButtonBinding
+import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 
 internal class CustomRoundedButton @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
@@ -31,10 +35,26 @@ internal class CustomRoundedButton @JvmOverloads constructor(
                 recycle()
             }
         }
+
+        val themeAppearance = context.currentThemeAppearance()
+        setColors(
+            backgroundColor = ContextCompat.getColor(
+                context,
+                themeAppearance.actionButtonBackgroundColorRes
+            ),
+            textColor = ContextCompat.getColor(
+                context,
+                themeAppearance.actionButtonTextColorRes
+            )
+        )
     }
 
-    fun setLabel(label: String) {
-        binding.btnMain.text = label
+    fun setColors(
+        @ColorInt backgroundColor: Int,
+        @ColorInt textColor: Int,
+    ) {
+        binding.btnMain.backgroundTintList = ColorStateList.valueOf(backgroundColor)
+        binding.btnMain.setTextColor(textColor)
     }
 
     fun setOnClickListener(listener: () -> Unit) {

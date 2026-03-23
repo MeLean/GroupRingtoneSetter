@@ -84,4 +84,13 @@
     <string name="blocked_contacts_reassignment_message">以下联系人当前无法重新分配：\n%1$s\n\n是否在不包含这些联系人的情况下继续，还是中止？</string>
     <string name="continue_action">继续</string>
     <string name="abort_action">中止</string>
+    <string name="user_preferences">用户偏好</string>
+    <string name="group_theme">群组主题</string>
+    <string name="group_sorting">群组排序</string>
+    <string name="group_theme_classic">经典</string>
+    <string name="group_theme_dark_high_contrast">深色高对比度</string>
+    <string name="group_theme_light_high_contrast">浅色高对比度</string>
+    <string name="group_sorting_current_order">不排序</string>
+    <string name="group_sorting_ascending">阿-座</string>
+    <string name="group_sorting_descending">座-阿</string>
 </resources>

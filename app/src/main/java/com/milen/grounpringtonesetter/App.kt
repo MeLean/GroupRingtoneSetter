@@ -9,6 +9,13 @@ import android.os.Build
 import android.os.Bundle
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.NoopBillingResultActivity
+import com.milen.grounpringtonesetter.data.prefs.EncryptedHomePreferencesDataSource
+import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.prefs.HomePreferencesStore
+import com.milen.grounpringtonesetter.data.prefs.readHomeDisplayPreferencesSync
+import com.milen.grounpringtonesetter.ui.home.HomeThemeAppearance
+import com.milen.grounpringtonesetter.ui.home.HomeThemeOption
+import com.milen.grounpringtonesetter.ui.home.toAppearance
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.CoroutineScope
@@ -17,8 +24,32 @@ import kotlinx.coroutines.launch
 
 class App : Application() {
     internal val tracker: Tracker by lazy { Tracker() }
+    internal val preferencesHelper: EncryptedPreferencesHelper by lazy { EncryptedPreferencesHelper(this) }
+    internal val homePreferencesStore: HomePreferencesStore by lazy {
+        HomePreferencesStore(
+            dataSource = EncryptedHomePreferencesDataSource(preferencesHelper)
+        )
+    }
     internal lateinit var billingManager: BillingEntitlementManager
         private set
+
+    @Volatile
+    private var activeThemeOption: HomeThemeOption? = null
+
+    internal fun currentThemeOption(): HomeThemeOption {
+        val cached = activeThemeOption
+        if (cached != null) return cached
+
+        val resolved = readHomeDisplayPreferencesSync(preferencesHelper).themeOption
+        activeThemeOption = resolved
+        return resolved
+    }
+
+    internal fun currentThemeAppearance(): HomeThemeAppearance = currentThemeOption().toAppearance()
+
+    internal fun updateThemeOption(themeOption: HomeThemeOption) {
+        activeThemeOption = themeOption
+    }
 
     override fun onCreate() {
         super.onCreate()

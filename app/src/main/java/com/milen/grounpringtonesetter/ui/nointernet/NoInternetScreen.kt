@@ -2,6 +2,7 @@ package com.milen.grounpringtonesetter.ui.nointernet
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -10,6 +11,7 @@ import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -18,6 +20,7 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.FragmentNoInternetScreenBinding
+import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 import com.milen.grounpringtonesetter.utils.trackSuppressedFailure
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -40,6 +43,7 @@ internal class NoInternetScreen : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        applyScreenTheme()
 
         binding.topBarEndButton.setOnClickListener { activity?.finish() }
         binding.openNetworkSettingsButton.setOnClickListener {
@@ -59,11 +63,39 @@ internal class NoInternetScreen : Fragment() {
                         val nav = navControllerOrNull() ?: return@collectLatest
                         if (isOnline) {
                             runCatching { nav.popBackFromNoInternetScreen() }
-                                .onFailure { context.trackSuppressedFailure("NoInternetScreen.popBackFromNoInternetScreen", it) }
+                                .onFailure {
+                                    context.trackSuppressedFailure(
+                                        "NoInternetScreen.popBackFromNoInternetScreen",
+                                        it
+                                    )
+                                }
                         }
                     }
             }
         }
+    }
+
+    private fun applyScreenTheme() {
+        val themeAppearance = requireContext().currentThemeAppearance()
+        val textColor = ContextCompat.getColor(requireContext(), themeAppearance.textColorRes)
+        val iconTintColor =
+            ContextCompat.getColor(requireContext(), themeAppearance.iconTintColorRes)
+        val actionBackgroundColor = ContextCompat.getColor(
+            requireContext(),
+            themeAppearance.actionButtonBackgroundColorRes
+        )
+        val actionTextColor = ContextCompat.getColor(
+            requireContext(),
+            themeAppearance.actionButtonTextColorRes
+        )
+
+        binding.noInternetDescription.setTextColor(textColor)
+        binding.backgroundImage.imageTintList = ColorStateList.valueOf(iconTintColor)
+        binding.openNetworkSettingsButton.backgroundTintList =
+            ColorStateList.valueOf(actionBackgroundColor)
+        binding.openNetworkSettingsButton.setTextColor(actionTextColor)
+        binding.topBarEndButton.backgroundTintList = ColorStateList.valueOf(actionBackgroundColor)
+        binding.topBarEndButton.setTextColor(actionTextColor)
     }
 
     private fun navControllerOrNull(): NavController? {

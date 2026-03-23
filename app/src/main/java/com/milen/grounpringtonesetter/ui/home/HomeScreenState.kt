@@ -8,6 +8,7 @@ import com.milen.grounpringtonesetter.data.accounts.AccountId
 internal data class HomeScreenState(
     val isLoading: Boolean = false,
     val labelItems: List<LabelItem> = emptyList(),
+    val displayPreferences: HomeDisplayPreferences = HomeDisplayPreferences(),
     val groupSearchQuery: String = "",
     val isGroupSearchVisible: Boolean = false,
     val arePermissionsGranted: Boolean = false,

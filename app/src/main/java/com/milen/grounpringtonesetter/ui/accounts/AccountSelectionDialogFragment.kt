@@ -8,6 +8,7 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.customviews.dialog.applyHomeDialogTheme
 import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.utils.parcelableArrayListOrEmpty
 import com.milen.grounpringtonesetter.utils.parcelableOrNull
@@ -51,7 +52,12 @@ class AccountSelectionDialogFragment : DialogFragment() {
             }
             .setNegativeButton(R.string.cancel, null)
             .create()
-            .apply { setCanceledOnTouchOutside(false) }
+            .apply {
+                setCanceledOnTouchOutside(false)
+                setOnShowListener {
+                    applyHomeDialogTheme(requireActivity())
+                }
+            }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

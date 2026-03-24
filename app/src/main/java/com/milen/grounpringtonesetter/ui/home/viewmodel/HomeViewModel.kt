@@ -212,11 +212,13 @@ internal class HomeViewModel(
     }
 
     fun onRingtoneChosen(
+        activity: Activity,
         uri: Uri,
         fileName: String,
         shouldValidateFormat: Boolean = true,
     ) {
         tracker.trackEvent("onRingtoneChosen")
+        adHelper.updateActivity(activity)
         val group = _selectingGroup ?: return
 
         if (group.contacts.isEmpty()) {
@@ -227,7 +229,6 @@ internal class HomeViewModel(
 
         // Validate ringtone format before processing
         viewModelScope.launch {
-            val activity = adHelper.activity
             if (activity.isDestroyed) {
                 tracker.trackEvent("ringtone_validation_activity_unavailable")
                 _selectingGroup = null
@@ -353,7 +354,8 @@ internal class HomeViewModel(
         }
     }
 
-    fun onHomeResumed() {
+    fun onHomeResumed(activity: Activity) {
+        adHelper.updateActivity(activity)
         if (_state.value.isPurchaseInProgress) {
             releasePurchaseUiGuard("home_resumed")
         }

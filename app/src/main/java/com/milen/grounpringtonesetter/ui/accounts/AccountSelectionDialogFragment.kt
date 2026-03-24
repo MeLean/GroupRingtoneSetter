@@ -40,7 +40,7 @@ class AccountSelectionDialogFragment : DialogFragment() {
         return AlertDialog.Builder(requireContext(), R.style.AlertDialogCustom)
             .setTitle(R.string.pick_account_contacts)
             .setSingleChoiceItems(labels, selectedIndex) { _, which -> selectedIndex = which }
-            .setPositiveButton(android.R.string.ok) { dialog, _ ->
+            .setPositiveButton(R.string.ok) { dialog, _ ->
                 if (accounts.isNotEmpty()) {
                     val index = selectedIndex.coerceIn(0, accounts.lastIndex)
                     setFragmentResult(

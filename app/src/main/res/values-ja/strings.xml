@@ -63,6 +63,7 @@
     <string name="reset_all_ringtones">すべての着信音をリセット</string>
     <string name="reset_all_ringtones_description">続行すると、連絡先に設定されたすべてのカスタム着信音が削除されます。これにより連絡先は既定の着信音に戻り、個別の着信音設定は残りません。</string>
     <string name="ad_free_forever">広告なし（永続）</string>
+    <string name="ad_unavailable_after_ringtone_change">すべて準備完了です。現在、広告を表示できませんでした。広告なしで利用したい場合は、広告を削除できます。</string>
     <string name="pick_account_contacts">アプリが使用する連絡先のアカウントを選択</string>
     <string name="pick_account_btn_label">アカウントを選択</string>
     <string name="click_here">ここをタップ</string>

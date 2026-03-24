@@ -23,9 +23,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:color="@color/textColor"
-            android:iconifiedByDefault="false"
-            android:queryBackground="@android:color/transparent"
-            android:submitBackground="@android:color/transparent" />
+            android:iconifiedByDefault="false" />
     </androidx.cardview.widget.CardView>
 
     <!-- Content area with list + empty state overlay -->

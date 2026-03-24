@@ -33,6 +33,8 @@
     <style name="SearchViewWhiteStyle" parent="Widget.AppCompat.SearchView">
         <item name="android:textColor">@color/white</item>
         <item name="android:textColorHint">@color/white</item>
+        <item name="queryBackground">@null</item>
+        <item name="submitBackground">@null</item>
     </style>
 
     <style name="AlertDialogCustom" parent="Theme.MaterialComponents.Dialog">

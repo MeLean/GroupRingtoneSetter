@@ -63,6 +63,7 @@
     <string name="reset_all_ringtones">Réinitialiser toutes les sonneries</string>
     <string name="reset_all_ringtones_description">Si vous continuez, toutes les sonneries personnalisées définies pour vos contacts seront supprimées. Cela signifie que vos contacts reviendront à la sonnerie par défaut et qu\'aucun réglage individuel ne sera conservé.</string>
     <string name="ad_free_forever">Sans publicités à vie</string>
+    <string name="ad_unavailable_after_ringtone_change">Tout est prêt. Nous n\'avons pas pu afficher de publicité pour le moment. Si vous voulez une expérience sans publicités, vous pouvez les supprimer.</string>
     <string name="pick_account_contacts">Sélectionnez les comptes dont l’application utilisera les contacts</string>
     <string name="pick_account_btn_label">Choisir un compte</string>
     <string name="click_here">cliquez ici</string>

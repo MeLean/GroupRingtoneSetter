@@ -63,6 +63,7 @@
     <string name="reset_all_ringtones">Alle Klingeltöne zurücksetzen</string>
     <string name="reset_all_ringtones_description">Wenn Sie fortfahren, werden alle für Ihre Kontakte festgelegten benutzerdefinierten Klingeltöne entfernt. Das bedeutet, dass Ihre Kontakte auf den Standardklingelton zurückgesetzt werden und keine individuellen Klingelton-Einstellungen bestehen bleiben.</string>
     <string name="ad_free_forever">Für immer werbefrei</string>
+    <string name="ad_unavailable_after_ringtone_change">Alles ist eingerichtet. Wir konnten im Moment keine Werbung anzeigen. Wenn Sie ein werbefreies Erlebnis möchten, können Sie die Werbung entfernen.</string>
     <string name="pick_account_contacts">Wählen Sie die Konten aus, deren Kontakte die App verwenden soll</string>
     <string name="pick_account_btn_label">Konto auswählen</string>
     <string name="click_here">Tippen Sie hier</string>

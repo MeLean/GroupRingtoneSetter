@@ -10,6 +10,7 @@ import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.BillingError
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
+import com.milen.grounpringtonesetter.customviews.ui.ads.InterstitialAdShowResult
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.data.accounts.AccountRepository
@@ -564,13 +565,26 @@ internal class HomeViewModel(
                 hideLoading()
                 showDoneMessage()
             }
-            EntitlementState.NOT_OWNED, EntitlementState.UNKNOWN, EntitlementState.PENDING ->
-                adHelper.run {
-                    loadInterstitialAd {
-                        hideLoading()
-                        showDoneMessage()
-                        showInterstitialAd()
+            EntitlementState.NOT_OWNED ->
+                adHelper.showInterstitialAd { result ->
+                    hideLoading()
+                    when (result) {
+                        InterstitialAdShowResult.SHOWN -> showDoneMessage()
+                        InterstitialAdShowResult.LOAD_FAILED,
+                        InterstitialAdShowResult.SHOW_FAILED -> {
+                            tracker.trackEvent(
+                                "ringtone_interstitial_unavailable",
+                                mapOf("reason" to result.name.lowercase())
+                            )
+                            _events.trySend(HomeEvent.ShowAdUnavailableDialog)
+                        }
                     }
+                }
+
+            EntitlementState.UNKNOWN, EntitlementState.PENDING ->
+                adHelper.showInterstitialAd {
+                    hideLoading()
+                    showDoneMessage()
                 }
         }
 

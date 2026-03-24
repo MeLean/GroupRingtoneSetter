@@ -63,6 +63,7 @@
     <string name="reset_all_ringtones">Сбросить все рингтоны</string>
     <string name="reset_all_ringtones_description">Если вы продолжите, все пользовательские рингтоны, установленные для ваших контактов, будут удалены. Это означает, что ваши контакты вернутся к стандартному рингтону, и индивидуальные настройки рингтонов не сохранятся.</string>
     <string name="ad_free_forever">Без рекламы навсегда</string>
+    <string name="ad_unavailable_after_ringtone_change">Все настроено. Сейчас не удалось показать рекламу. Если вы хотите пользоваться приложением без рекламы, вы можете ее отключить.</string>
     <string name="pick_account_contacts">Выберите аккаунты, чьи контакты будет использовать приложение</string>
     <string name="pick_account_btn_label">Выбрать аккаунт</string>
     <string name="click_here">нажмите здесь</string>

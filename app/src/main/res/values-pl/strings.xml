@@ -63,6 +63,7 @@
     <string name="reset_all_ringtones">Zresetuj wszystkie dzwonki</string>
     <string name="reset_all_ringtones_description">Jesli kontynuujesz, wszystkie niestandardowe dzwonki ustawione dla kontaktow zostana usuniete. Oznacza to, ze kontakty wroca do domyslnego dzwonka i zadne indywidualne ustawienia dzwonkow nie pozostana.</string>
     <string name="ad_free_forever">Bez reklam na zawsze</string>
+    <string name="ad_unavailable_after_ringtone_change">Wszystko gotowe. Nie udalo sie teraz wyswietlic reklamy. Jesli chcesz korzystac bez reklam, mozesz je usunac.</string>
     <string name="pick_account_contacts">Wybierz konta, ktorych kontaktow aplikacja ma uzywac</string>
     <string name="pick_account_btn_label">Wybierz konto</string>
     <string name="click_here">kliknij tutaj</string>

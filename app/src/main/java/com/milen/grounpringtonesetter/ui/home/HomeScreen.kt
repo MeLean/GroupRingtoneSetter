@@ -128,7 +128,13 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private val pickAudioFileLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             "pickAudioFileLauncher uri: $uri".log()
-            uri?.let { viewModel.onRingtoneChosen(it, it.getFileNameOrEmpty(requireContext())) }
+            uri?.let {
+                viewModel.onRingtoneChosen(
+                    activity = requireActivity(),
+                    uri = it,
+                    fileName = it.getFileNameOrEmpty(requireContext())
+                )
+            }
         }
 
     private val pickSystemRingtoneLauncher =
@@ -138,6 +144,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                 ?.getParcelableUriExtraCompat(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
                 ?: return@registerForActivityResult
             viewModel.onRingtoneChosen(
+                activity = requireActivity(),
                 uri = pickedUri,
                 fileName = resolveRingtoneName(pickedUri),
                 shouldValidateFormat = false
@@ -351,7 +358,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
     override fun onResume() {
         super.onResume()
-        viewModel.onHomeResumed()
+        viewModel.onHomeResumed(requireActivity())
         changeMainTitle(getString(R.string.app_name))
     }
 

@@ -9,6 +9,7 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.milen.grounpringtonesetter.BuildConfig
 import com.milen.grounpringtonesetter.R
+import java.lang.ref.WeakReference
 
 internal enum class InterstitialAdShowResult {
     SHOWN,
@@ -16,16 +17,30 @@ internal enum class InterstitialAdShowResult {
     SHOW_FAILED,
 }
 
-internal class AdLoadingHelper(val activity: Activity) {
+internal class AdLoadingHelper(activity: Activity) {
     private var interstitialAd: InterstitialAd? = null
     private var isLoadingInterstitialAd = false
     private val loadCallbacks = mutableListOf<(Boolean) -> Unit>()
+    private var activityRef = WeakReference(activity)
+
+    fun updateActivity(activity: Activity) {
+        activityRef = WeakReference(activity)
+    }
+
+    fun currentActivityOrNull(): Activity? =
+        activityRef.get()?.takeUnless { it.isDestroyed || it.isFinishing }
 
     fun loadInterstitialAd(
         onAdLoadingFinished: (Boolean) -> Unit = {},
     ) {
         if (interstitialAd != null) {
             onAdLoadingFinished(true)
+            return
+        }
+
+        val activity = currentActivityOrNull()
+        if (activity == null) {
+            onAdLoadingFinished(false)
             return
         }
 
@@ -70,6 +85,13 @@ internal class AdLoadingHelper(val activity: Activity) {
                 }
             )
 
+            return
+        }
+
+        val activity = currentActivityOrNull()
+        if (activity == null) {
+            interstitialAd = null
+            onAdLoadingFinished(InterstitialAdShowResult.SHOW_FAILED)
             return
         }
 

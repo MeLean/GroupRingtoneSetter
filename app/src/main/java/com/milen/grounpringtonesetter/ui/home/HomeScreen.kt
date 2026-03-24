@@ -318,6 +318,16 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                         actionId = R.id.action_home_to_deviceDefaultTones
                     )
 
+                is HomeEvent.ShowAdUnavailableDialog ->
+                    requireActivity().showAlertDialog(
+                        titleResId = R.string.info,
+                        message = getString(R.string.ad_unavailable_after_ringtone_change),
+                        cancelButtonData = ButtonData(R.string.cancel),
+                        confirmButtonData = ButtonData(R.string.ad_free_forever) {
+                            viewModel.startPurchase(requireActivity())
+                        }
+                    )
+
                 is HomeEvent.ShowErrorById -> dialogHandler.showErrorById(event.strRes)
                 is HomeEvent.ShowErrorText -> dialogHandler.showError(event.message)
                 is HomeEvent.ShowInfoText -> dialogHandler.showInfo(event.strRes)

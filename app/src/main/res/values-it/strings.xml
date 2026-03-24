@@ -63,6 +63,7 @@
     <string name="reset_all_ringtones">Reimposta tutte le suonerie</string>
     <string name="reset_all_ringtones_description">Se procedi, tutte le suonerie personalizzate impostate per i tuoi contatti verranno rimosse. I contatti torneranno alla suoneria predefinita e non rimarranno impostazioni individuali.</string>
     <string name="ad_free_forever">Senza annunci per sempre</string>
+    <string name="ad_unavailable_after_ringtone_change">È tutto pronto. Al momento non siamo riusciti a mostrare un annuncio. Se desideri un\'esperienza senza annunci, puoi rimuoverli.</string>
     <string name="pick_account_contacts">Seleziona gli account di cui l\'app utilizzerà i contatti</string>
     <string name="pick_account_btn_label">Seleziona account</string>
     <string name="click_here">clicca qui</string>

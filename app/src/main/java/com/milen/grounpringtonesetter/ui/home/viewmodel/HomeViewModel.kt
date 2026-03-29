@@ -234,7 +234,20 @@ internal class HomeViewModel(
                 _selectingGroup = null
                 return@launch
             }
-            
+
+            if (isUnsupportedGroupRingtoneUri(uri)) {
+                tracker.trackEvent(
+                    "group_ringtone_default_alias_rejected",
+                    mapOf(
+                        "scheme" to (uri.scheme ?: "null"),
+                        "authority" to (uri.authority ?: "null")
+                    )
+                )
+                _events.send(HomeEvent.ShowErrorById(R.string.group_ringtone_default_not_supported))
+                _selectingGroup = null
+                return@launch
+            }
+
             if (shouldValidateFormat) {
                 val errorResId = withContext(DispatchersProvider.io) {
                     RingtoneFormatValidator.validateRingtoneFormat(

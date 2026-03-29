@@ -81,6 +81,7 @@
     <string name="ringtone_source_system">Системни мелодии</string>
     <string name="ringtone_source_file">Файлове на устройството</string>
     <string name="ringtone_format_not_supported">Избраният файлов формат не може да се използва като звънец. Моля, изберете аудио файл във формат MP3, M4A, OGG, WAV или AAC.</string>
+    <string name="group_ringtone_default_not_supported">Звънецът по подразбиране на устройството не може да се приложи към групи контакти. Моля, изберете конкретен системен звънец или файл от устройството.</string>
     <string name="blocked_contacts_reassignment_title">Някои контакти не могат да бъдат преназначени</string>
     <string name="blocked_contacts_reassignment_message">Тези контакти не могат да бъдат преназначени в момента:\n%1$s\n\nДа продължим без тези контакти или да прекратим?</string>
     <string name="continue_action">Продължи</string>

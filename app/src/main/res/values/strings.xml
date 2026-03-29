@@ -81,6 +81,7 @@
     <string name="ringtone_source_system">System ringtones</string>
     <string name="ringtone_source_file">Files on device</string>
     <string name="ringtone_format_not_supported">The selected file format cannot be used as a ringtone. Please choose an audio file in MP3, M4A, OGG, WAV, or AAC format.</string>
+    <string name="group_ringtone_default_not_supported">The device default ringtone can\'t be applied to contact groups. Please choose a specific system ringtone or a file on your device.</string>
     <string name="blocked_contacts_reassignment_title">Some contacts cannot be reassigned</string>
     <string name="blocked_contacts_reassignment_message">These contacts cannot be reassigned right now:\n%1$s\n\nContinue without these contacts or abort?</string>
     <string name="continue_action">Continue</string>

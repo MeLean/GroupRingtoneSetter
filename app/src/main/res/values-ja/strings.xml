@@ -81,6 +81,7 @@
     <string name="ringtone_source_system">システム着信音</string>
     <string name="ringtone_source_file">端末内のファイル</string>
     <string name="ringtone_format_not_supported">選択したファイル形式は着信音として使用できません。MP3、M4A、OGG、WAV、AAC のいずれかの音声ファイルを選択してください。</string>
+    <string name="group_ringtone_default_not_supported">端末のデフォルト着信音は連絡先グループには適用できません。個別のシステム着信音または端末内のファイルを選択してください。</string>
     <string name="blocked_contacts_reassignment_title">一部の連絡先を再割り当てできません</string>
     <string name="blocked_contacts_reassignment_message">次の連絡先は現在再割り当てできません。\n%1$s\n\nこれらを除外して続行しますか？それとも中止しますか？</string>
     <string name="continue_action">続行</string>

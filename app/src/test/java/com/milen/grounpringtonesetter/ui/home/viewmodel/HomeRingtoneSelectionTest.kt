@@ -1,9 +1,13 @@
 package com.milen.grounpringtonesetter.ui.home.viewmodel
 
+import android.net.FakeUri
+import android.net.Uri
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HomeRingtoneSelectionTest {
@@ -45,5 +49,38 @@ class HomeRingtoneSelectionTest {
         )
 
         assertNull(resolved)
+    }
+
+    @Test
+    fun `isUnsupportedGroupRingtoneUri rejects default ringtone alias`() {
+        val uri: Uri = FakeUri("content://settings/system/ringtone")
+
+        assertTrue(isUnsupportedGroupRingtoneUri(uri))
+    }
+
+    @Test
+    fun `isUnsupportedGroupRingtoneUri rejects default notification and alarm aliases`() {
+        val notificationUri: Uri = FakeUri("content://settings/system/notification_sound")
+        val alarmUri: Uri = FakeUri("content://settings/system/alarm_alert")
+
+        assertTrue(isUnsupportedGroupRingtoneUri(notificationUri))
+        assertTrue(isUnsupportedGroupRingtoneUri(alarmUri))
+    }
+
+    @Test
+    fun `isUnsupportedGroupRingtoneUri allows concrete media store ringtone`() {
+        val uri: Uri = FakeUri("content://media/internal/audio/media/50")
+
+        assertFalse(isUnsupportedGroupRingtoneUri(uri))
+    }
+
+    @Test
+    fun `isUnsupportedGroupRingtoneUri allows file and saf uris`() {
+        val fileUri: Uri = FakeUri("file:///sdcard/Ringtones/tone.mp3")
+        val safUri: Uri =
+            FakeUri("content://com.android.externalstorage.documents/document/audio%3A12")
+
+        assertFalse(isUnsupportedGroupRingtoneUri(fileUri))
+        assertFalse(isUnsupportedGroupRingtoneUri(safUri))
     }
 }

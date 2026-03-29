@@ -81,6 +81,7 @@
     <string name="ringtone_source_system">Dzwonki systemowe</string>
     <string name="ringtone_source_file">Pliki na urzadzeniu</string>
     <string name="ringtone_format_not_supported">Wybranego formatu pliku nie mozna uzyc jako dzwonka. Wybierz plik audio w formacie MP3, M4A, OGG, WAV lub AAC.</string>
+    <string name="group_ringtone_default_not_supported">Domyślnego dzwonka urządzenia nie można zastosować do grup kontaktów. Wybierz konkretny dzwonek systemowy albo plik z urządzenia.</string>
     <string name="blocked_contacts_reassignment_title">Niektorych kontaktow nie mozna ponownie przypisac</string>
     <string name="blocked_contacts_reassignment_message">Tych kontaktow nie mozna teraz ponownie przypisac:\n%1$s\n\nKontynuowac bez tych kontaktow czy przerwac?</string>
     <string name="continue_action">Kontynuuj</string>

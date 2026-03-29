@@ -81,6 +81,7 @@
     <string name="ringtone_source_system">Systemklingeltöne</string>
     <string name="ringtone_source_file">Dateien auf dem Gerät</string>
     <string name="ringtone_format_not_supported">Das ausgewählte Dateiformat kann nicht als Klingelton verwendet werden. Bitte wählen Sie eine Audiodatei im Format MP3, M4A, OGG, WAV oder AAC.</string>
+    <string name="group_ringtone_default_not_supported">Der Standardklingelton des Geräts kann nicht auf Kontaktgruppen angewendet werden. Bitte wählen Sie einen bestimmten Systemklingelton oder eine Datei auf Ihrem Gerät aus.</string>
     <string name="blocked_contacts_reassignment_title">Einige Kontakte können nicht neu zugewiesen werden</string>
     <string name="blocked_contacts_reassignment_message">Diese Kontakte können derzeit nicht neu zugewiesen werden:\n%1$s\n\nOhne diese Kontakte fortfahren oder abbrechen?</string>
     <string name="continue_action">Fortfahren</string>

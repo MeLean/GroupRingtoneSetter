@@ -90,7 +90,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun showInfoDialog() {
         val dialogBinding = DialogInfoBinding.inflate(layoutInflater)
-        dialogBinding.ctvVersion.text = getString(R.string.info_dialog_version, BuildConfig.VERSION_NAME)
+        dialogBinding.ctvVersion.text =
+            getString(R.string.info_dialog_version, BuildConfig.VERSION_NAME)
 
         bindInfoAppLink(
             textView = dialogBinding.ctvPetishNutrackTitle,

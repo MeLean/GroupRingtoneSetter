@@ -54,10 +54,13 @@ internal class AccountSelectionDialogFragment : DialogFragment() {
             .create()
             .apply {
                 setCanceledOnTouchOutside(false)
-                setOnShowListener {
-                    applyHomeDialogTheme(requireActivity())
-                }
             }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val hostActivity = activity ?: return
+        (dialog as? AlertDialog)?.applyHomeDialogTheme(hostActivity)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

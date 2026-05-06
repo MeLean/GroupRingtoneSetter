@@ -22,7 +22,7 @@ class HomeLabelItemsPresentationTest {
             locale = Locale.ENGLISH
         )
 
-        assertEquals(listOf(4L, 2L, 3L), result.map { it.id })
+        assertEquals(listOf("group:4", "group:2", "group:3"), result.map { it.id })
     }
 
     @Test
@@ -40,7 +40,7 @@ class HomeLabelItemsPresentationTest {
             locale = Locale.ENGLISH
         )
 
-        assertEquals(listOf(1L, 2L, 3L), result.map { it.id })
+        assertEquals(listOf("group:1", "group:2", "group:3"), result.map { it.id })
     }
 
     @Test
@@ -58,7 +58,7 @@ class HomeLabelItemsPresentationTest {
             locale = Locale.ENGLISH
         )
 
-        assertEquals(listOf(2L, 3L, 1L), result.map { it.id })
+        assertEquals(listOf("group:2", "group:3", "group:1"), result.map { it.id })
     }
 
     @Test
@@ -76,7 +76,7 @@ class HomeLabelItemsPresentationTest {
             locale = Locale.ENGLISH
         )
 
-        assertEquals(listOf(1L, 3L), result.map { it.id })
+        assertEquals(listOf("group:1", "group:3"), result.map { it.id })
     }
 
     @Test
@@ -94,7 +94,7 @@ class HomeLabelItemsPresentationTest {
             locale = Locale.forLanguageTag("bg")
         )
 
-        assertEquals(listOf(3L, 2L, 1L), result.map { it.id })
+        assertEquals(listOf("group:3", "group:2", "group:1"), result.map { it.id })
     }
 
     @Test
@@ -112,7 +112,7 @@ class HomeLabelItemsPresentationTest {
             locale = Locale.forLanguageTag("pl")
         )
 
-        assertEquals(listOf(2L, 3L, 1L), result.map { it.id })
+        assertEquals(listOf("group:2", "group:3", "group:1"), result.map { it.id })
     }
 
     @Test
@@ -130,14 +130,14 @@ class HomeLabelItemsPresentationTest {
             locale = Locale.JAPANESE
         )
 
-        assertEquals(listOf(2L, 3L, 1L), result.map { it.id })
+        assertEquals(listOf("group:2", "group:3", "group:1"), result.map { it.id })
     }
 
     private fun labelItem(
         id: Long,
         groupName: String,
     ) = LabelItem(
-        id = id,
+        id = "group:$id",
         groupName = groupName,
         contacts = emptyList()
     )

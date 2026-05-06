@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Gruppen-Klingelton-Manager</string>
     <string name="items_not_found">Keine Elemente gefunden</string>
+    <string name="on_device_groups_not_found">Es gibt noch keine Gruppen. Erstellen Sie eine neue Gruppe, um Ihre Kontakte zu organisieren.</string>
     <string name="everything_set">Alles ist eingerichtet!</string>
     <string name="permission_required">Berechtigung erforderlich</string>
     <string name="need_permission_to_run">Bitte erteilen Sie die erforderlichen Berechtigungen, um die Anwendung zu verwenden. Installieren Sie die App neu oder erteilen Sie sie manuell in den Geräteeinstellungen.</string>
@@ -66,6 +67,9 @@
     <string name="ad_unavailable_after_ringtone_change">Alles ist eingerichtet. Wir konnten im Moment keine Werbung anzeigen. Wenn Sie ein werbefreies Erlebnis möchten, können Sie die Werbung entfernen.</string>
     <string name="pick_account_contacts">Wählen Sie die Konten aus, deren Kontakte die App verwenden soll</string>
     <string name="pick_account_btn_label">Konto auswählen</string>
+    <string name="pick_contact_source_contacts">Wählen Sie die Kontaktquelle aus, die die App verwenden soll</string>
+    <string name="pick_contact_source_btn_label">Kontaktquelle auswählen</string>
+    <string name="contact_source_on_device">Auf dem Gerät</string>
     <string name="click_here">Tippen Sie hier</string>
     <string name="my_song_please_promo_text">Erhalten Sie einen nur für Sie oder Ihre Liebsten erstellten Klingelton — %1$s, um unsere Musik-App auszuprobieren.</string>
     <string name="ringtone_lable">Klingelton</string>

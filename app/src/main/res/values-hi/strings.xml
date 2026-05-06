@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">ग्रुप रिंगटोन सेटर</string>
     <string name="items_not_found">कोई आइटम नहीं मिला</string>
+    <string name="on_device_groups_not_found">अभी तक कोई समूह नहीं है। अपने संपर्कों को व्यवस्थित करने के लिए एक नया समूह बनाएं।</string>
     <string name="everything_set">सब कुछ सेट है!</string>
     <string name="permission_required">अनुमति आवश्यक है</string>
     <string name="need_permission_to_run">कृपया ऐप्लिकेशन का उपयोग करने के लिए अनुमति प्रदान करें। ऐप को फिर से इंस्टॉल करें या उपकरण सेटिंग्स से मैन्युअल रूप से दें।</string>
@@ -66,6 +67,9 @@
     <string name="ad_unavailable_after_ringtone_change">सब कुछ सेट है। हम इस समय विज्ञापन नहीं दिखा सके। यदि आप विज्ञापन-मुक्त अनुभव चाहते हैं, तो आप उन्हें हटा सकते हैं।</string>
     <string name="pick_account_contacts">वे खाते चुनें जिनके संपर्क ऐप उपयोग करेगा</string>
     <string name="pick_account_btn_label">खाता चुनें</string>
+    <string name="pick_contact_source_contacts">वह संपर्क स्रोत चुनें जिसका ऐप उपयोग करेगा</string>
+    <string name="pick_contact_source_btn_label">संपर्क स्रोत चुनें</string>
+    <string name="contact_source_on_device">डिवाइस पर</string>
     <string name="click_here">यहाँ क्लिक करें</string>
     <string name="my_song_please_promo_text">अपने या किसी प्रियजन के लिए खास तौर पर बनी रिंगटोन पाएं — हमारी म्यूज़िक ऐप आज़माने के लिए %1$s।</string>
     <string name="ringtone_lable">रिंगटोन</string>

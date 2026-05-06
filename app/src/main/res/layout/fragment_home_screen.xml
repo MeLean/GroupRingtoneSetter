@@ -96,6 +96,20 @@
         app:layout_constraintTop_toTopOf="@+id/rwGroupItems"
         tools:visibility="visible" />
 
+    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+        android:id="@+id/btn_empty_add_group"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="48dp"
+        android:visibility="gone"
+        app:buttonLabel="@string/add_group"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/no_item_disclaimer"
+        tools:visibility="visible" />
+
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rwGroupItems"

@@ -8,11 +8,13 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
 import androidx.core.content.ContextCompat
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
+import com.milen.grounpringtonesetter.data.LabelStorageKind
 import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelException
 import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelFailureReason
@@ -45,6 +47,20 @@ internal class ContactsHelper(
             ContactsContract.Groups.DELETED,
             ContactsContract.Groups.SYSTEM_ID
         )
+
+        private val CONTACTS_LIST_PROJECTION = arrayOf(
+            ContactsContract.Contacts._ID,
+            ContactsContract.Contacts.LOOKUP_KEY,
+            ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+            ContactsContract.Contacts.CUSTOM_RINGTONE
+        )
+
+        private val RAW_CONTACTS_PROJECTION = arrayOf(
+            ContactsContract.RawContacts._ID,
+            ContactsContract.RawContacts.CONTACT_ID,
+            ContactsContract.RawContacts.ACCOUNT_NAME,
+            ContactsContract.RawContacts.ACCOUNT_TYPE
+        )
     }
 
     private data class GroupMetadata(
@@ -57,6 +73,13 @@ internal class ContactsHelper(
     private data class BatchApplyOutcome(
         val chunkCount: Int,
         val appliedResultCount: Int,
+    )
+
+    private data class RawContactDescriptor(
+        val rawContactId: Long,
+        val contactId: Long,
+        val accountName: String?,
+        val accountType: String?,
     )
 
     private fun GroupMetadata.toDeletionCapability(): GroupDeletionCapability = GroupDeletionCapability(
@@ -172,16 +195,24 @@ internal class ContactsHelper(
                         )
                         val ids = getContactIdsForLabel(gid)
                         val contacts = ids.map { id ->
-                            Contact(id = id, name = "", phone = null, ringtoneUriStr = null)
+                            Contact(
+                                id = id,
+                                lookupKey = "",
+                                name = "",
+                                phone = null,
+                                ringtoneUriStr = null
+                            )
                         }
                         out.add(
                             LabelItem(
-                                id = gid,
+                                id = providerGroupKey(gid),
                                 groupName = gname,
                                 contacts = contacts,
                                 ringtoneUriList = emptyList(),
                                 ringtoneFileName = "",
-                                canDelete = canDelete
+                                canDelete = canDelete,
+                                storageKind = LabelStorageKind.PROVIDER_GROUP,
+                                providerGroupId = gid
                             )
                         )
                     }
@@ -224,7 +255,7 @@ internal class ContactsHelper(
         if (allowed.isEmpty()) return@withContext emptyList()
 
         val allShallow = getAllLabelItemsShallow(includeDeviceContacts = true)
-        allShallow.filter { it.id in allowed }
+        allShallow.filter { it.providerGroupId in allowed }
     }
 
     suspend fun getRingtonesForContactsBatched(
@@ -269,23 +300,20 @@ internal class ContactsHelper(
             )
 
             val cr = appContext.contentResolver
-            val contactsProjection = arrayOf(
-                ContactsContract.Contacts._ID,
-                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
-                ContactsContract.Contacts.CUSTOM_RINGTONE
-            )
 
             fun queryContacts(selection: String?, args: Array<String>?): MutableList<Contact> {
                 val out = mutableListOf<Contact>()
                 cr.query(
                     ContactsContract.Contacts.CONTENT_URI,
-                    contactsProjection,
+                    CONTACTS_LIST_PROJECTION,
                     selection,
                     args,
                     null
                 )
                     ?.use { cursor ->
                         val idIdx = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                        val lookupKeyIdx =
+                            cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY)
                         val nameIdx =
                             cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
                         val toneIdx =
@@ -293,12 +321,14 @@ internal class ContactsHelper(
 
                         while (cursor.moveToNext()) {
                             val id = cursor.getLong(idIdx)
+                            val lookupKey = cursor.getString(lookupKeyIdx).orEmpty()
                             val name = cursor.getString(nameIdx).orEmpty()
                             val phone = appContext.getPrimaryPhoneNumberForContact(id)
                             val ringtoneUriStr = cursor.getString(toneIdx)
                             out.add(
                                 Contact(
                                     id = id,
+                                    lookupKey = lookupKey,
                                     name = name,
                                     phone = phone,
                                     ringtoneUriStr = ringtoneUriStr
@@ -371,6 +401,25 @@ internal class ContactsHelper(
                 )
             }
         }
+
+    fun hasPureOnDeviceContacts(): Boolean =
+        runCatching { pureLocalContactIds().isNotEmpty() }.getOrDefault(false)
+
+    suspend fun getPureOnDeviceContacts(): List<Contact> = withContext(DispatchersProvider.io) {
+        val ids = pureLocalContactIds().toList()
+        if (ids.isEmpty()) return@withContext emptyList()
+        queryContactsByIds(ids)
+    }
+
+    fun resolveMirrorRawContactIdForPureLocalContact(contactId: Long): Long? {
+        val rawContacts = getRawContactDescriptors().filter { it.contactId == contactId }
+        if (rawContacts.isEmpty()) return null
+        return if (rawContacts.all(::isLocalRawContact)) {
+            rawContacts.minByOrNull { it.rawContactId }?.rawContactId
+        } else {
+            null
+        }
+    }
 
     fun updateLabelName(labelId: Long, newLabelName: String) {
         tracker.trackEvent(
@@ -673,12 +722,14 @@ internal class ContactsHelper(
                         // Add the label to the list
                         labels.add(
                             LabelItem(
-                                id = id,
+                                id = providerGroupKey(id),
                                 groupName = title,
                                 contacts = contacts,
                                 ringtoneUriList = ringtoneUris,
                                 ringtoneFileName = ringtoneFileName,
-                                canDelete = canDelete
+                                canDelete = canDelete,
+                                storageKind = LabelStorageKind.PROVIDER_GROUP,
+                                providerGroupId = id
                             )
                         )
                     }
@@ -878,11 +929,13 @@ internal class ContactsHelper(
             triggerSyncForAllAccounts()
 
             LabelItem(
-                id = labelId,
+                id = providerGroupKey(labelId),
                 groupName = labelName,
                 contacts = emptyList(),
                 ringtoneUriList = emptyList(),
-                ringtoneFileName = ""
+                ringtoneFileName = "",
+                storageKind = LabelStorageKind.PROVIDER_GROUP,
+                providerGroupId = labelId
             )
         }
     }
@@ -1145,6 +1198,7 @@ internal class ContactsHelper(
         val uri = ContactsContract.Data.CONTENT_URI
         val projection = arrayOf(
             ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID,
+            ContactsContract.Data.LOOKUP_KEY,
             ContactsContract.Data.DISPLAY_NAME_PRIMARY
         )
         val selection =
@@ -1158,26 +1212,29 @@ internal class ContactsHelper(
             ?.use { cursor ->
                 val contactIdIndex =
                     cursor.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.GroupMembership.CONTACT_ID)
+                val lookupKeyIndex =
+                    cursor.getColumnIndexOrThrow(ContactsContract.Data.LOOKUP_KEY)
                 val nameIndex =
                     cursor.getColumnIndexOrThrow(ContactsContract.Data.DISPLAY_NAME_PRIMARY)
 
-            while (cursor.moveToNext()) {
-                val contactId = cursor.getLong(contactIdIndex) // Use this for accurate phone lookup
-                val name = cursor.getString(nameIndex).orEmpty()
-                val phone =
-                    appContext.getPrimaryPhoneNumberForContact(contactId) // Use CONTACT_ID for phone query
-                val ringtoneUriStr = getCustomRingtoneForContact(contactId)
+                while (cursor.moveToNext()) {
+                    val contactId = cursor.getLong(contactIdIndex)
+                    val lookupKey = cursor.getString(lookupKeyIndex).orEmpty()
+                    val name = cursor.getString(nameIndex).orEmpty()
+                    val phone = appContext.getPrimaryPhoneNumberForContact(contactId)
+                    val ringtoneUriStr = getCustomRingtoneForContact(contactId)
 
-                contacts.add(
-                    Contact(
-                        id = contactId,
-                        name = name,
-                        phone = phone,
-                        ringtoneUriStr = ringtoneUriStr
+                    contacts.add(
+                        Contact(
+                            id = contactId,
+                            lookupKey = lookupKey,
+                            name = name,
+                            phone = phone,
+                            ringtoneUriStr = ringtoneUriStr
+                        )
                     )
-                )
+                }
             }
-        }
 
         return contacts
     }
@@ -1232,8 +1289,177 @@ internal class ContactsHelper(
 
             val all = getAllLabelItems()
 
-            return@withContext all.filter { it.id in allowedGroupIds }
+            return@withContext all.filter { it.providerGroupId in allowedGroupIds }
         }
+
+    suspend fun getLookupKeysForContactIdsBatched(
+        contactIds: List<Long>,
+        batchSize: Int = 200,
+    ): Map<Long, String> = withContext(DispatchersProvider.io) {
+        if (contactIds.isEmpty()) return@withContext emptyMap()
+        val resolver = appContext.contentResolver
+        val out = HashMap<Long, String>(contactIds.size)
+
+        contactIds.chunked(batchSize).forEach { chunk ->
+            val selection = "${ContactsContract.Contacts._ID} IN (${chunk.joinToString(",")})"
+            resolver.query(
+                ContactsContract.Contacts.CONTENT_URI,
+                arrayOf(
+                    ContactsContract.Contacts._ID,
+                    ContactsContract.Contacts.LOOKUP_KEY
+                ),
+                selection,
+                null,
+                null
+            )?.use { cursor ->
+                val idIndex = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                val lookupKeyIndex =
+                    cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY)
+                while (cursor.moveToNext()) {
+                    val contactId = cursor.getLong(idIndex)
+                    val lookupKey = cursor.getString(lookupKeyIndex).orEmpty()
+                    if (lookupKey.isNotBlank()) {
+                        out[contactId] = lookupKey
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    suspend fun getContactsByLookupKeys(
+        lookupKeys: List<String>,
+        batchSize: Int = 200,
+    ): List<Contact> = withContext(DispatchersProvider.io) {
+        if (lookupKeys.isEmpty()) return@withContext emptyList()
+        val byLookupKey = linkedMapOf<String, Contact>()
+
+        lookupKeys.distinct().chunked(batchSize).forEach { chunk ->
+            val placeholders = chunk.joinToString(",") { "?" }
+            val selection = "${ContactsContract.Contacts.LOOKUP_KEY} IN ($placeholders)"
+            appContext.contentResolver.query(
+                ContactsContract.Contacts.CONTENT_URI,
+                CONTACTS_LIST_PROJECTION,
+                selection,
+                chunk.toTypedArray(),
+                null
+            )?.use { cursor ->
+                val idIdx = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                val lookupKeyIdx =
+                    cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY)
+                val nameIdx =
+                    cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                val toneIdx =
+                    cursor.getColumnIndexOrThrow(ContactsContract.Contacts.CUSTOM_RINGTONE)
+                while (cursor.moveToNext()) {
+                    val contactId = cursor.getLong(idIdx)
+                    val lookupKey = cursor.getString(lookupKeyIdx).orEmpty()
+                    byLookupKey[lookupKey] = Contact(
+                        id = contactId,
+                        lookupKey = lookupKey,
+                        name = cursor.getString(nameIdx).orEmpty(),
+                        phone = appContext.getPrimaryPhoneNumberForContact(contactId),
+                        ringtoneUriStr = cursor.getString(toneIdx)
+                    )
+                }
+            }
+        }
+
+        return@withContext lookupKeys.mapNotNull { byLookupKey[it] }
+    }
+
+    private suspend fun queryContactsByIds(contactIds: List<Long>): List<Contact> =
+        withContext(DispatchersProvider.io) {
+            val results = mutableListOf<Contact>()
+            contactIds.chunked(900).forEach { batch ->
+                val placeholders = batch.joinToString(",") { "?" }
+                val selection = "${ContactsContract.Contacts._ID} IN ($placeholders)"
+                val args = batch.map { it.toString() }.toTypedArray()
+                appContext.contentResolver.query(
+                    ContactsContract.Contacts.CONTENT_URI,
+                    CONTACTS_LIST_PROJECTION,
+                    selection,
+                    args,
+                    null
+                )?.use { cursor ->
+                    val idIdx = cursor.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
+                    val lookupKeyIdx =
+                        cursor.getColumnIndexOrThrow(ContactsContract.Contacts.LOOKUP_KEY)
+                    val nameIdx =
+                        cursor.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                    val toneIdx =
+                        cursor.getColumnIndexOrThrow(ContactsContract.Contacts.CUSTOM_RINGTONE)
+                    while (cursor.moveToNext()) {
+                        val contactId = cursor.getLong(idIdx)
+                        results += Contact(
+                            id = contactId,
+                            lookupKey = cursor.getString(lookupKeyIdx).orEmpty(),
+                            name = cursor.getString(nameIdx).orEmpty(),
+                            phone = appContext.getPrimaryPhoneNumberForContact(contactId),
+                            ringtoneUriStr = cursor.getString(toneIdx)
+                        )
+                    }
+                }
+            }
+            results
+        }
+
+    private fun pureLocalContactIds(): Set<Long> {
+        val rawContacts = getRawContactDescriptors()
+        if (rawContacts.isEmpty()) return emptySet()
+        return rawContacts
+            .groupBy { it.contactId }
+            .filterValues { descriptors -> descriptors.isNotEmpty() && descriptors.all(::isLocalRawContact) }
+            .keys
+    }
+
+    private fun getRawContactDescriptors(): List<RawContactDescriptor> {
+        val descriptors = mutableListOf<RawContactDescriptor>()
+        appContext.contentResolver.query(
+            ContactsContract.RawContacts.CONTENT_URI,
+            RAW_CONTACTS_PROJECTION,
+            "${ContactsContract.RawContacts.DELETED} = 0",
+            null,
+            null
+        )?.use { cursor ->
+            val rawIdIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts._ID)
+            val contactIdIndex = cursor.getColumnIndexOrThrow(ContactsContract.RawContacts.CONTACT_ID)
+            val accountNameIndex =
+                cursor.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_NAME)
+            val accountTypeIndex =
+                cursor.getColumnIndexOrThrow(ContactsContract.RawContacts.ACCOUNT_TYPE)
+            while (cursor.moveToNext()) {
+                descriptors += RawContactDescriptor(
+                    rawContactId = cursor.getLong(rawIdIndex),
+                    contactId = cursor.getLong(contactIdIndex),
+                    accountName = cursor.getString(accountNameIndex),
+                    accountType = cursor.getString(accountTypeIndex)
+                )
+            }
+        }
+        return descriptors
+    }
+
+    private fun isLocalRawContact(descriptor: RawContactDescriptor): Boolean {
+        val localType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            ContactsContract.RawContacts.getLocalAccountType(appContext)
+        } else {
+            null
+        }
+        val localName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            ContactsContract.RawContacts.getLocalAccountName(appContext)
+        } else {
+            null
+        }
+
+        return if (!localType.isNullOrBlank() && !localName.isNullOrBlank()) {
+            descriptor.accountType == localType && descriptor.accountName == localName
+        } else {
+            descriptor.accountType.isNullOrBlank() && descriptor.accountName.isNullOrBlank()
+        }
+    }
+
+    private fun providerGroupKey(groupId: Long): String = "group:$groupId"
 
     private fun ringtoneUriSignature(uri: String): String {
         if (uri.isBlank()) return "empty"

@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Impostazione suoneria per gruppi</string>
     <string name="items_not_found">Nessun elemento trovato</string>
+    <string name="on_device_groups_not_found">Non ci sono ancora gruppi. Crea un nuovo gruppo per organizzare i tuoi contatti.</string>
     <string name="everything_set">È tutto pronto!</string>
     <string name="permission_required">Autorizzazione necessaria</string>
     <string name="need_permission_to_run">Concedi le autorizzazioni per usare l\'applicazione. Reinstalla l\'app oppure concedile manualmente dalle impostazioni del dispositivo.</string>
@@ -66,6 +67,9 @@
     <string name="ad_unavailable_after_ringtone_change">È tutto pronto. Al momento non siamo riusciti a mostrare un annuncio. Se desideri un\'esperienza senza annunci, puoi rimuoverli.</string>
     <string name="pick_account_contacts">Seleziona gli account di cui l\'app utilizzerà i contatti</string>
     <string name="pick_account_btn_label">Seleziona account</string>
+    <string name="pick_contact_source_contacts">Seleziona la fonte dei contatti che l\'app utilizzerà</string>
+    <string name="pick_contact_source_btn_label">Seleziona fonte contatti</string>
+    <string name="contact_source_on_device">Sul dispositivo</string>
     <string name="click_here">clicca qui</string>
     <string name="my_song_please_promo_text">Ottieni una suoneria fatta su misura per te o per una persona cara - %1$s per provare la nostra app musicale.</string>
     <string name="ringtone_lable">suoneria</string>

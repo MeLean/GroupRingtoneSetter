@@ -4,8 +4,15 @@ import androidx.core.net.toUri
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
-import com.milen.grounpringtonesetter.data.accounts.AccountId
+import com.milen.grounpringtonesetter.data.LabelStorageKind
+import com.milen.grounpringtonesetter.data.local.LocalContactLabelMirror
+import com.milen.grounpringtonesetter.data.local.LocalLabelDocument
+import com.milen.grounpringtonesetter.data.local.LocalLabelsStore
+import com.milen.grounpringtonesetter.data.local.LocalStoredLabel
+import com.milen.grounpringtonesetter.data.local.LocalStoredLabelMember
+import com.milen.grounpringtonesetter.data.local.recoverLocalLabels
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.sources.ContactSource
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
@@ -16,6 +23,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 internal data class RingtoneChoiceOption(
     val uri: String,
@@ -42,18 +50,18 @@ internal interface ContactsRepository {
     suspend fun refreshAllPhoneContacts()
 
     suspend fun createGroup(name: String)
-    suspend fun renameGroup(groupId: Long, newName: String)
-    suspend fun deleteGroup(groupId: Long)
+    suspend fun renameGroup(group: LabelItem, newName: String)
+    suspend fun deleteGroup(group: LabelItem)
 
     suspend fun updateGroupMembers(
-        groupId: Long,
+        group: LabelItem,
         newSelected: List<Contact>,
         oldSelected: List<Contact>,
         ringtoneForNewContactsUri: String?,
     )
 
     suspend fun validateGroupReassignment(
-        groupId: Long,
+        group: LabelItem,
         candidates: List<Contact>,
     ): GroupReassignmentValidation
 
@@ -61,18 +69,19 @@ internal interface ContactsRepository {
 
     suspend fun getContactsByIdsPreferCache(ids: List<Long>, batchSize: Int = 200): List<Contact>
 
-    suspend fun enrichGroupContactsBasics(labelId: Long, batchSize: Int = 200)
+    suspend fun enrichGroupContactsBasics(labelId: String, batchSize: Int = 200)
 
     fun getRingtoneChoiceOptions(uriList: List<String>): List<RingtoneChoiceOption>
 }
-
 
 internal class ContactsRepositoryImpl(
     private val app: App,
     private val helper: ContactsHelper,
     private val tracker: Tracker,
     private val prefs: EncryptedPreferencesHelper,
-    private val accountsProvider: () -> AccountId?,
+    private val localLabelsStore: LocalLabelsStore,
+    private val localLabelMirror: LocalContactLabelMirror,
+    private val sourceProvider: () -> ContactSource?,
 ) : ContactsRepository {
 
     private val lock = Mutex()
@@ -82,36 +91,41 @@ internal class ContactsRepositoryImpl(
     private val _contacts = MutableStateFlow<List<Contact>?>(null)
     override val allContacts: StateFlow<List<Contact>?> = _contacts
 
-
     override suspend fun loadAccountLabels() {
-        return lock.withLock {
-            val selected = accountsProvider()
-            val fresh = if (selected == null) {
-                tracker.trackError(RuntimeException("The contacts are queried with no accounts selected"))
-                helper.getAllLabelItems()
-            } else {
-                helper.getAllLabelItemsForAccounts(selected)
-            }
+        lock.withLock {
+            _labels.value = when (val source = sourceProvider()) {
+                null -> {
+                    tracker.trackError(RuntimeException("The contacts are queried with no source selected"))
+                    helper.getAllLabelItems()
+                }
 
-            _labels.update { fresh }
+                is ContactSource.CloudAccount ->
+                    helper.getAllLabelItemsForAccounts(source.account)
+
+                ContactSource.OnDevice ->
+                    readLocalLabelItems(writeBackIfNeeded = true)
+            }
         }
     }
 
     override suspend fun loadAccountLabelsShallow() {
-        return lock.withLock {
-            val selected = accountsProvider()
-            val fresh = if (selected == null) {
-                tracker.trackError(RuntimeException("The contacts are queried with no accounts selected"))
-                helper.getAllLabelItemsShallow()
-            } else {
-                helper.getAllLabelItemsForAccountsShallow(selected)
+        lock.withLock {
+            _labels.value = when (val source = sourceProvider()) {
+                null -> {
+                    tracker.trackError(RuntimeException("The contacts are queried with no source selected"))
+                    helper.getAllLabelItemsShallow()
+                }
+
+                is ContactSource.CloudAccount ->
+                    helper.getAllLabelItemsForAccountsShallow(source.account)
+
+                ContactSource.OnDevice ->
+                    readLocalLabelItems(writeBackIfNeeded = true)
             }
-            _labels.update { fresh }
         }
     }
 
     override suspend fun enrichRingtonesForCurrentLabels(batchSize: Int) {
-        // Take a snapshot of current labels (IDs only so far).
         val snapshot = labelsFlow.value
         val allIds = snapshot
             .asSequence()
@@ -119,31 +133,21 @@ internal class ContactsRepositoryImpl(
             .map { it.id }
             .distinct()
             .toList()
-
         if (allIds.isEmpty()) return
 
-        // Query ringtones off the main thread.
         val ringtoneMap = helper.getRingtonesForContactsBatched(allIds, batchSize)
-
-        // Atomically update labels with enriched contact ringtone URIs and group summaries.
         lock.withLock {
             _labels.update { current ->
                 current.map { label ->
-                    val updatedContacts = label.contacts.map { c ->
-                        val uri = ringtoneMap[c.id]
-                        if (uri == c.ringtoneUriStr) c else c.copy(ringtoneUriStr = uri)
+                    val updatedContacts = label.contacts.map { contact ->
+                        val uri = ringtoneMap[contact.id]
+                        if (uri == contact.ringtoneUriStr) contact else contact.copy(ringtoneUriStr = uri)
                     }
-                    val distinctUris = updatedContacts.mapNotNull { it.ringtoneUriStr }.distinct()
-                    label.copy(
-                        contacts = updatedContacts,
-                        ringtoneUriList = distinctUris,
-                        ringtoneFileName = deriveGroupRingtoneFileName(distinctUris)
-                    )
+                    label.withContactsSummary(updatedContacts)
                 }
             }
         }
     }
-
 
     override suspend fun setGroupRingtone(
         group: LabelItem,
@@ -159,9 +163,7 @@ internal class ContactsRepositoryImpl(
             newRingtoneUriStr = uriStr
         ).asSequence()
             .mapNotNull { result ->
-                result.appliedUri?.let { appliedUri ->
-                    result.contactId to appliedUri
-                }
+                result.appliedUri?.let { appliedUri -> result.contactId to appliedUri }
             }
             .toMap()
 
@@ -170,7 +172,6 @@ internal class ContactsRepositoryImpl(
         }
 
         updateGroupRingtone(group.id, appliedRingtoneByContactId)
-
         _contacts.update { list ->
             list?.map { contact ->
                 appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
@@ -180,222 +181,209 @@ internal class ContactsRepositoryImpl(
         }
     }
 
-    override suspend fun deleteGroup(groupId: Long) {
-        tracker.trackEvent(
-            "delete_group",
-            mapOf("group_id" to groupId.toString())
-        )
-        helper.deleteLabel(groupId)
+    override suspend fun deleteGroup(group: LabelItem) {
+        when (group.storageKind) {
+            LabelStorageKind.PROVIDER_GROUP -> {
+                val providerGroupId = group.providerGroupId
+                    ?: error("Provider group id is required for provider-backed labels")
+                tracker.trackEvent(
+                    "delete_group",
+                    mapOf("group_id" to providerGroupId.toString())
+                )
+                helper.deleteLabel(providerGroupId)
+                _labels.update { current -> current.filter { it.id != group.id } }
+            }
 
-        val updated = _labels.value.filter { it.id != groupId }
-        _labels.update { updated }
+            LabelStorageKind.LOCAL_STORE -> {
+                deleteLocalGroup(group)
+            }
+        }
     }
 
     override suspend fun createGroup(name: String) {
-        tracker.trackEvent("create_group")
-        val result = helper.createLabel(name, accountsProvider())
-        if (result == null) {
-            throw Throwable()
-        }
+        when (val source = sourceProvider()) {
+            is ContactSource.CloudAccount -> {
+                tracker.trackEvent("create_group")
+                val result = helper.createLabel(name, source.account) ?: throw Throwable()
+                _labels.update { current -> current + result }
+            }
 
-        val updated = _labels.value + result
-        _labels.update { updated }
+            ContactSource.OnDevice -> createLocalGroup(name)
+
+            null -> {
+                tracker.trackError(RuntimeException("Group creation attempted without selected source"))
+                throw IllegalStateException("No source selected")
+            }
+        }
     }
 
-    override suspend fun renameGroup(groupId: Long, newName: String) {
-        tracker.trackEvent("rename_group")
-        helper.updateLabelName(groupId, newName)
-        val updated = _labels.value.map { g ->
-            if (g.id == groupId) g.copy(groupName = newName) else g
+    override suspend fun renameGroup(group: LabelItem, newName: String) {
+        when (group.storageKind) {
+            LabelStorageKind.PROVIDER_GROUP -> {
+                val providerGroupId = group.providerGroupId
+                    ?: error("Provider group id is required for provider-backed labels")
+                tracker.trackEvent("rename_group")
+                helper.updateLabelName(providerGroupId, newName)
+                _labels.update { current ->
+                    current.map { existing ->
+                        if (existing.id == group.id) existing.copy(groupName = newName) else existing
+                    }
+                }
+            }
+
+            LabelStorageKind.LOCAL_STORE -> renameLocalGroup(group, newName)
         }
-        _labels.update { updated }
     }
 
     override suspend fun updateGroupMembers(
-        groupId: Long,
+        group: LabelItem,
         newSelected: List<Contact>,
         oldSelected: List<Contact>,
         ringtoneForNewContactsUri: String?,
     ) {
-        val oldIds =
-            HashSet<Long>(oldSelected.size).apply { oldSelected.forEach { add(it.id) } }
-        val newIds =
-            HashSet<Long>(newSelected.size).apply { newSelected.forEach { add(it.id) } }
-
-        val toAdd =
-            if (newSelected.isEmpty()) emptyList() else newSelected.filter { it.id !in oldIds }
-        val toRemove =
-            if (oldSelected.isEmpty()) emptyList() else oldSelected.filter { it.id !in newIds }
-
-        if (toAdd.isNotEmpty()) {
-            helper.reassignContactsToLabelForAppVisibleGroups(
-                targetLabelId = groupId,
-                contactIds = toAdd.map { it.id },
-                appVisibleEditableLabelIds = _labels.value.map { it.id }.toSet()
+        when (group.storageKind) {
+            LabelStorageKind.PROVIDER_GROUP -> updateProviderGroupMembers(
+                group = group,
+                newSelected = newSelected,
+                oldSelected = oldSelected,
+                ringtoneForNewContactsUri = ringtoneForNewContactsUri
             )
-        }
-        if (toRemove.isNotEmpty()) helper.removeAllContactsFromLabel(groupId, toRemove)
-        val appliedRingtoneByContactId = if (ringtoneForNewContactsUri != null && toAdd.isNotEmpty()) {
-            helper.setRingtoneToLabelContacts(
-                labelContacts = toAdd,
-                newRingtoneUriStr = ringtoneForNewContactsUri
-            ).asSequence()
-                .mapNotNull { result ->
-                    result.appliedUri?.let { appliedUri ->
-                        result.contactId to appliedUri
-                    }
-                }
-                .toMap()
-        } else {
-            emptyMap()
-        }
 
-        tracker.trackEvent("update_group_members")
-        val movedContactIds = toAdd.map { it.id }.toHashSet()
-        val selectedWithRingtoneApplied = newSelected
-            .distinctBy { it.id }
-            .map { contact ->
-                appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
-                    contact.copy(ringtoneUriStr = appliedUri)
-                } ?: contact
-            }
-
-        _labels.update { labels ->
-            labels.map { label ->
-                if (label.id == groupId) {
-                    label.withContactsSummary(selectedWithRingtoneApplied)
-                } else if (movedContactIds.isNotEmpty()) {
-                    val filteredContacts = label.contacts.filterNot { it.id in movedContactIds }
-                    if (filteredContacts.size == label.contacts.size) {
-                        label
-                    } else {
-                        label.withContactsSummary(filteredContacts)
-                    }
-                } else label
-            }
-        }
-
-        if (appliedRingtoneByContactId.isNotEmpty()) {
-            _contacts.update { list ->
-                list?.map { contact ->
-                    appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
-                        contact.copy(ringtoneUriStr = appliedUri)
-                    } ?: contact
-                }
-            }
+            LabelStorageKind.LOCAL_STORE -> updateLocalGroupMembers(
+                group = group,
+                newSelected = newSelected,
+                oldSelected = oldSelected,
+                ringtoneForNewContactsUri = ringtoneForNewContactsUri
+            )
         }
     }
 
     override suspend fun validateGroupReassignment(
-        groupId: Long,
+        group: LabelItem,
         candidates: List<Contact>,
     ): GroupReassignmentValidation {
         val distinctCandidates = candidates.distinctBy { it.id }
         if (distinctCandidates.isEmpty()) {
-            return GroupReassignmentValidation(
-                allowed = emptyList(),
-                blocked = emptyList()
-            )
+            return GroupReassignmentValidation(emptyList(), emptyList())
         }
 
-        val blockedIds = helper.findBlockedContactsForLabelReassignment(
-            targetLabelId = groupId,
-            contactIds = distinctCandidates.map { it.id },
-            appVisibleEditableLabelIds = labelsFlow.value.map { it.id }.toSet()
-        )
+        return when (group.storageKind) {
+            LabelStorageKind.PROVIDER_GROUP -> {
+                val providerGroupId = group.providerGroupId
+                    ?: error("Provider group id is required for provider-backed labels")
+                val blockedIds = helper.findBlockedContactsForLabelReassignment(
+                    targetLabelId = providerGroupId,
+                    contactIds = distinctCandidates.map { it.id },
+                    appVisibleEditableLabelIds = labelsFlow.value.mapNotNull { it.providerGroupId }
+                        .toSet()
+                )
+                GroupReassignmentValidation(
+                    allowed = distinctCandidates.filterNot { it.id in blockedIds },
+                    blocked = distinctCandidates.filter { it.id in blockedIds }
+                )
+            }
 
-        val blocked = distinctCandidates.filter { it.id in blockedIds }
-        val allowed = distinctCandidates.filterNot { it.id in blockedIds }
-        return GroupReassignmentValidation(
-            allowed = allowed,
-            blocked = blocked
-        )
+            LabelStorageKind.LOCAL_STORE -> {
+                val blocked = distinctCandidates.filter { candidate ->
+                    candidate.lookupKey.isBlank() ||
+                            helper.resolveMirrorRawContactIdForPureLocalContact(candidate.id) == null
+                }
+                GroupReassignmentValidation(
+                    allowed = distinctCandidates.filterNot { it in blocked },
+                    blocked = blocked
+                )
+            }
+        }
     }
 
     override suspend fun clearAllRingtones() = withContext(DispatchersProvider.io) {
         helper.clearAllRingtoneUris()
         tracker.trackEvent("clear_all_ringtones")
-        val updated = _labels.value.map { g ->
-            g.copy(
-                ringtoneUriList = emptyList(),
-                ringtoneFileName = "",
-                contacts = g.contacts.map { it.copy(ringtoneUriStr = null) }
-            )
+        _labels.update { current ->
+            current.map { group ->
+                group.copy(
+                    ringtoneUriList = emptyList(),
+                    ringtoneFileName = "",
+                    contacts = group.contacts.map { it.copy(ringtoneUriStr = null) }
+                )
+            }
         }
-        _labels.update { updated }
     }
-
 
     override suspend fun refreshAllPhoneContacts() {
-        val accountId = accountsProvider()
-        tracker.trackEvent(
-            "get_all_phone_contacts",
-            mapOf(
-                "has_account" to (accountId != null),
-                "account_sig" to accountSignature(accountId)
-            )
-        )
-        val contacts = helper.getAllPhoneContacts(accountId)
+        val contacts = when (val source = sourceProvider()) {
+            null -> helper.getAllPhoneContacts(null)
+            is ContactSource.CloudAccount -> helper.getAllPhoneContacts(source.account)
+            ContactSource.OnDevice -> helper.getPureOnDeviceContacts()
+        }
         _contacts.update { contacts }
     }
+
     override suspend fun getContactsByIdsPreferCache(
         ids: List<Long>,
         batchSize: Int,
     ): List<Contact> {
         if (ids.isEmpty()) return emptyList()
 
-        // 1) try cache first
         val cacheMap = allContacts.value?.associateBy { it.id } ?: emptyMap()
         val fromCache = ids.mapNotNull { cacheMap[it] }
         val missingIds = ids.filterNot { cacheMap.containsKey(it) }
         if (missingIds.isEmpty()) return fromCache
 
-        // 2) fetch only missing (batched, off-main inside helpers)
         val namesMap = helper.getDisplayNamesForContactsBatched(missingIds, batchSize)
         val phonesMap = helper.getPrimaryPhonesForContactsBatched(missingIds, batchSize)
+        val lookupKeyMap = helper.getLookupKeysForContactIdsBatched(missingIds, batchSize)
 
         val fetched = missingIds.map { id ->
             Contact(
                 id = id,
+                lookupKey = lookupKeyMap[id].orEmpty(),
                 name = namesMap[id] ?: "",
                 phone = phonesMap[id],
-                ringtoneUriStr = null // ringtone remains group-specific; don't touch here
+                ringtoneUriStr = null
             )
         }
 
-        // 3) merge into cache
         lock.withLock {
-            val cur = _contacts.value.orEmpty()
-            val merged = (cur + fetched).distinctBy { it.id }
+            val merged = (_contacts.value.orEmpty() + fetched).distinctBy { it.id }
             _contacts.value = merged
         }
 
-        // 4) return in requested order
         val resultMap = (fromCache + fetched).associateBy { it.id }
         return ids.mapNotNull { resultMap[it] }
     }
 
-    override suspend fun enrichGroupContactsBasics(labelId: Long, batchSize: Int) {
-        // Snapshot target label & contact IDs
+    override suspend fun enrichGroupContactsBasics(labelId: String, batchSize: Int) {
         val label = labelsFlow.value.firstOrNull { it.id == labelId } ?: return
+        if (label.storageKind == LabelStorageKind.LOCAL_STORE) {
+            lock.withLock {
+                _labels.value = readLocalLabelItems(writeBackIfNeeded = true)
+            }
+            return
+        }
+
         val ids = label.contacts.map { it.id }.distinct()
         if (ids.isEmpty()) return
-
-        // Resolve via cache; fetch only what's missing
         val contacts = getContactsByIdsPreferCache(ids, batchSize)
         val byId = contacts.associateBy { it.id }
 
-        // Update ONLY this label's contacts with name/phone (keep ringtone as-is)
         lock.withLock {
             _labels.update { current ->
                 current.map { item ->
-                    if (item.id != labelId) item else {
-                        val updated = item.contacts.map { c ->
-                            val enriched = byId[c.id]
-                            if (enriched == null) c else c.copy(
-                                name = enriched.name.ifBlank { c.name },
-                                phone = enriched.phone ?: c.phone
-                            )
+                    if (item.id != labelId) {
+                        item
+                    } else {
+                        val updated = item.contacts.map { contact ->
+                            val enriched = byId[contact.id]
+                            if (enriched == null) {
+                                contact
+                            } else {
+                                contact.copy(
+                                    lookupKey = enriched.lookupKey.ifBlank { contact.lookupKey },
+                                    name = enriched.name.ifBlank { contact.name },
+                                    phone = enriched.phone ?: contact.phone
+                                )
+                            }
                         }
                         item.copy(contacts = updated)
                     }
@@ -421,36 +409,299 @@ internal class ContactsRepositoryImpl(
                     ?.takeIf { it.isNotBlank() }
                 ?: uriStr
 
-            RingtoneChoiceOption(
-                uri = uriStr,
-                displayName = displayName
-            )
+            RingtoneChoiceOption(uri = uriStr, displayName = displayName)
         }
     }
 
-    private fun updateGroupRingtone(
-        groupId: Long,
-        appliedRingtoneByContactId: Map<Long, String>,
+    private suspend fun updateProviderGroupMembers(
+        group: LabelItem,
+        newSelected: List<Contact>,
+        oldSelected: List<Contact>,
+        ringtoneForNewContactsUri: String?,
     ) {
-        val updated = _labels.value.map { g ->
-            if (g.id == groupId) {
-                val updatedContacts = g.contacts.map { contact ->
-                    appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
-                        contact.copy(ringtoneUriStr = appliedUri)
-                    } ?: contact
-                }
-                g.withContactsSummary(updatedContacts)
-            } else g
+        val providerGroupId = group.providerGroupId
+            ?: error("Provider group id is required for provider-backed labels")
+        val oldIds = oldSelected.mapTo(hashSetOf()) { it.id }
+        val newIds = newSelected.mapTo(hashSetOf()) { it.id }
+        val toAdd = newSelected.filter { it.id !in oldIds }
+        val toRemove = oldSelected.filter { it.id !in newIds }
+
+        if (toAdd.isNotEmpty()) {
+            helper.reassignContactsToLabelForAppVisibleGroups(
+                targetLabelId = providerGroupId,
+                contactIds = toAdd.map { it.id },
+                appVisibleEditableLabelIds = labelsFlow.value.mapNotNull { it.providerGroupId }
+                    .toSet()
+            )
+        }
+        if (toRemove.isNotEmpty()) {
+            helper.removeAllContactsFromLabel(providerGroupId, toRemove)
         }
 
-        _labels.update { updated }
+        val appliedRingtoneByContactId =
+            applyRingtoneToAddedContacts(toAdd, ringtoneForNewContactsUri)
+
+        tracker.trackEvent("update_group_members")
+        val movedContactIds = toAdd.mapTo(hashSetOf()) { it.id }
+        val selectedWithAppliedRingtone = newSelected
+            .distinctBy { it.id }
+            .map { contact ->
+                appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
+                    contact.copy(ringtoneUriStr = appliedUri)
+                } ?: contact
+            }
+
+        _labels.update { labels ->
+            labels.map { label ->
+                if (label.id == group.id) {
+                    label.withContactsSummary(selectedWithAppliedRingtone)
+                } else if (movedContactIds.isNotEmpty()) {
+                    val filteredContacts = label.contacts.filterNot { it.id in movedContactIds }
+                    if (filteredContacts.size == label.contacts.size) {
+                        label
+                    } else {
+                        label.withContactsSummary(filteredContacts)
+                    }
+                } else {
+                    label
+                }
+            }
+        }
+
+        applyRingtoneToContactsState(appliedRingtoneByContactId)
+    }
+
+    private suspend fun createLocalGroup(name: String) {
+        tracker.trackEvent("create_local_group")
+        val document = localLabelsStore.read()
+        val label = LocalStoredLabel(
+            id = UUID.randomUUID().toString(),
+            name = name,
+            members = emptyList()
+        )
+        val updatedDocument = document.copy(labels = document.labels + label)
+        localLabelsStore.write(updatedDocument)
+        lock.withLock {
+            _labels.value = readLocalLabelItems(writeBackIfNeeded = false)
+        }
+    }
+
+    private suspend fun renameLocalGroup(group: LabelItem, newName: String) {
+        tracker.trackEvent("rename_local_group")
+        val localId = group.requireLocalLabelId()
+        val document = localLabelsStore.read()
+        val updatedDocument = document.copy(
+            labels = document.labels.map { label ->
+                if (label.id == localId) label.copy(name = newName) else label
+            }
+        )
+        localLabelsStore.write(updatedDocument)
+        runMirrorOperationSafely("rename_local_group_mirror") {
+            localLabelMirror.updateLabelName(localId, newName)
+        }
+        lock.withLock {
+            _labels.value = readLocalLabelItems(writeBackIfNeeded = false)
+        }
+    }
+
+    private suspend fun deleteLocalGroup(group: LabelItem) {
+        tracker.trackEvent("delete_local_group")
+        val localId = group.requireLocalLabelId()
+        val document = localLabelsStore.read()
+        val updatedDocument = document.copy(labels = document.labels.filterNot { it.id == localId })
+        localLabelsStore.write(updatedDocument)
+        runMirrorOperationSafely("delete_local_group_mirror") {
+            localLabelMirror.deleteAssignmentsForLabel(localId)
+        }
+        lock.withLock {
+            _labels.value = readLocalLabelItems(writeBackIfNeeded = false)
+        }
+    }
+
+    private suspend fun updateLocalGroupMembers(
+        group: LabelItem,
+        newSelected: List<Contact>,
+        oldSelected: List<Contact>,
+        ringtoneForNewContactsUri: String?,
+    ) {
+        tracker.trackEvent("update_local_group_members")
+        val localId = group.requireLocalLabelId()
+        val document = localLabelsStore.read()
+        val normalizedNew = newSelected
+            .filter { it.lookupKey.isNotBlank() }
+            .distinctBy { it.lookupKey }
+        val normalizedOld = oldSelected
+            .filter { it.lookupKey.isNotBlank() }
+            .distinctBy { it.lookupKey }
+        val toAdd = normalizedNew.filter { candidate ->
+            normalizedOld.none { it.lookupKey == candidate.lookupKey }
+        }
+        val toRemove = normalizedOld.filter { candidate ->
+            normalizedNew.none { it.lookupKey == candidate.lookupKey }
+        }
+
+        val movedLookupKeys = toAdd.mapTo(hashSetOf()) { it.lookupKey }
+        val updatedLabels = document.labels.map { label ->
+            when {
+                label.id == localId -> label.copy(
+                    members = normalizedNew.map { contact ->
+                        LocalStoredLabelMember(
+                            lookupKey = contact.lookupKey,
+                            contactId = contact.id
+                        )
+                    }
+                )
+
+                movedLookupKeys.isNotEmpty() -> label.copy(
+                    members = label.members.filterNot { member ->
+                        member.lookupKey in movedLookupKeys
+                    }
+                )
+
+                else -> label
+            }
+        }
+
+        localLabelsStore.write(document.copy(labels = updatedLabels))
+
+        runMirrorOperationSafely("update_local_group_members_mirror") {
+            toRemove.forEach { removed ->
+                localLabelMirror.clearAssignment(removed.id)
+            }
+            normalizedNew.forEach { selected ->
+                val rawContactId = helper.resolveMirrorRawContactIdForPureLocalContact(selected.id)
+                if (rawContactId != null) {
+                    localLabelMirror.upsertAssignment(
+                        contactId = selected.id,
+                        rawContactId = rawContactId,
+                        labelId = localId,
+                        labelName = group.groupName
+                    )
+                } else {
+                    tracker.trackEvent(
+                        "local_label_mirror_raw_contact_missing",
+                        mapOf("contact_id" to selected.id.toString())
+                    )
+                }
+            }
+        }
+
+        val appliedRingtoneByContactId =
+            applyRingtoneToAddedContacts(toAdd, ringtoneForNewContactsUri)
+        applyRingtoneToContactsState(appliedRingtoneByContactId)
+
+        lock.withLock {
+            _labels.value = readLocalLabelItems(writeBackIfNeeded = true)
+        }
+    }
+
+    private suspend fun readLocalLabelItems(writeBackIfNeeded: Boolean): List<LabelItem> {
+        val storedDocument = localLabelsStore.read()
+        val mirroredAssignments = runCatching { localLabelMirror.readAssignments() }
+            .onFailure(tracker::trackError)
+            .getOrDefault(emptyList())
+        val recoveredDocument = recoverLocalLabels(storedDocument, mirroredAssignments)
+        val (cleanDocument, labelItems) = hydrateLocalLabels(recoveredDocument)
+        if (writeBackIfNeeded && cleanDocument != storedDocument) {
+            localLabelsStore.write(cleanDocument)
+        }
+        return labelItems
+    }
+
+    private suspend fun hydrateLocalLabels(
+        document: LocalLabelDocument,
+    ): Pair<LocalLabelDocument, List<LabelItem>> {
+        val contactsByLookupKey = helper.getContactsByLookupKeys(
+            document.labels.flatMap { label -> label.members.map { it.lookupKey } }
+        ).associateBy { it.lookupKey }
+
+        val cleanedLabels = document.labels.map { label ->
+            label.copy(
+                members = label.members
+                    .filter { member -> contactsByLookupKey.containsKey(member.lookupKey) }
+                    .distinctBy { it.lookupKey }
+            )
+        }
+
+        val items = cleanedLabels.map { label ->
+            val contacts =
+                label.members.mapNotNull { member -> contactsByLookupKey[member.lookupKey] }
+            LocalLabelItemFactory.toLabelItem(
+                label = label,
+                contacts = contacts,
+                ringtoneFileNameResolver = ::deriveGroupRingtoneFileName
+            )
+        }
+        return LocalLabelDocument(version = document.version, labels = cleanedLabels) to items
+    }
+
+    private suspend fun applyRingtoneToAddedContacts(
+        contacts: List<Contact>,
+        ringtoneUri: String?,
+    ): Map<Long, String> {
+        if (ringtoneUri == null || contacts.isEmpty()) return emptyMap()
+        return helper.setRingtoneToLabelContacts(
+            labelContacts = contacts,
+            newRingtoneUriStr = ringtoneUri
+        ).asSequence()
+            .mapNotNull { result ->
+                result.appliedUri?.let { appliedUri -> result.contactId to appliedUri }
+            }
+            .toMap()
+    }
+
+    private fun applyRingtoneToContactsState(appliedRingtoneByContactId: Map<Long, String>) {
+        if (appliedRingtoneByContactId.isEmpty()) return
+        _contacts.update { list ->
+            list?.map { contact ->
+                appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
+                    contact.copy(ringtoneUriStr = appliedUri)
+                } ?: contact
+            }
+        }
+    }
+
+    private suspend fun runMirrorOperationSafely(
+        context: String,
+        block: suspend () -> Unit,
+    ) {
+        runCatching { block() }
+            .onFailure { error ->
+                tracker.trackError(error)
+                tracker.trackEvent(
+                    "local_label_mirror_operation_failed",
+                    mapOf(
+                        "context" to context,
+                        "reason" to (error.message ?: error::class.java.simpleName)
+                    )
+                )
+            }
+    }
+
+    private fun updateGroupRingtone(
+        groupId: String,
+        appliedRingtoneByContactId: Map<Long, String>,
+    ) {
+        _labels.update { current ->
+            current.map { group ->
+                if (group.id == groupId) {
+                    val updatedContacts = group.contacts.map { contact ->
+                        appliedRingtoneByContactId[contact.id]?.let { appliedUri ->
+                            contact.copy(ringtoneUriStr = appliedUri)
+                        } ?: contact
+                    }
+                    group.withContactsSummary(updatedContacts)
+                } else {
+                    group
+                }
+            }
+        }
     }
 
     private fun deriveGroupRingtoneFileName(uris: List<String>): String {
         val distinctUris = uris.toSet()
         if (distinctUris.isEmpty()) return ""
 
-        // 2) Map each distinct URI to a human-friendly filename
         val names = distinctUris.mapNotNull { uriStr ->
             val uri = runCatching { uriStr.toUri() }.getOrNull() ?: return@mapNotNull null
             val fromExt = runCatching { uri.getFileNameOrEmpty(app) }.getOrNull()
@@ -461,7 +712,6 @@ internal class ContactsRepositoryImpl(
             }
         }.distinct()
 
-        // 3) Join for display (or empty if nothing resolved)
         return if (names.isEmpty()) "" else names.joinToString(", ")
     }
 
@@ -474,9 +724,34 @@ internal class ContactsRepositoryImpl(
         )
     }
 
-    private fun accountSignature(accountId: AccountId?): String {
-        val raw = accountId?.raw.orEmpty()
-        if (raw.isBlank()) return "none"
-        return raw.hashCode().toUInt().toString(16)
+    private fun LabelItem.requireLocalLabelId(): String {
+        check(storageKind == LabelStorageKind.LOCAL_STORE) {
+            "Local label id requested for non-local label"
+        }
+        return id.removePrefix(LOCAL_LABEL_PREFIX)
+    }
+
+    private object LocalLabelItemFactory {
+        fun toLabelItem(
+            label: LocalStoredLabel,
+            contacts: List<Contact>,
+            ringtoneFileNameResolver: (List<String>) -> String,
+        ): LabelItem {
+            val ringtoneUris = contacts.mapNotNull { it.ringtoneUriStr }.distinct()
+            return LabelItem(
+                id = "$LOCAL_LABEL_PREFIX${label.id}",
+                groupName = label.name,
+                contacts = contacts,
+                ringtoneUriList = ringtoneUris,
+                ringtoneFileName = ringtoneFileNameResolver(ringtoneUris),
+                canDelete = true,
+                storageKind = LabelStorageKind.LOCAL_STORE,
+                providerGroupId = null
+            )
+        }
+    }
+
+    companion object {
+        private const val LOCAL_LABEL_PREFIX = "local:"
     }
 }

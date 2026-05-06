@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Définir la sonnerie</string>
     <string name="items_not_found">Aucun élément trouvé</string>
+    <string name="on_device_groups_not_found">Il n’y a pas encore de groupes. Créez un nouveau groupe pour organiser vos contacts.</string>
     <string name="everything_set">Tout est prêt !</string>
     <string name="permission_required">Permission requise</string>
     <string name="need_permission_to_run">Veuillez autoriser l\'utilisation de l\'application. Réinstallez l\'application ou accordez manuellement les autorisations via les paramètres de l\'appareil.</string>
@@ -66,6 +67,9 @@
     <string name="ad_unavailable_after_ringtone_change">Tout est prêt. Nous n\'avons pas pu afficher de publicité pour le moment. Si vous voulez une expérience sans publicités, vous pouvez les supprimer.</string>
     <string name="pick_account_contacts">Sélectionnez les comptes dont l’application utilisera les contacts</string>
     <string name="pick_account_btn_label">Choisir un compte</string>
+    <string name="pick_contact_source_contacts">Sélectionnez la source de contacts que l’application utilisera</string>
+    <string name="pick_contact_source_btn_label">Choisir la source des contacts</string>
+    <string name="contact_source_on_device">Sur l’appareil</string>
     <string name="click_here">cliquez ici</string>
     <string name="my_song_please_promo_text">Obtenez une sonnerie faite spécialement pour vous ou pour un proche — %1$s pour essayer notre application musicale.</string>
     <string name="ringtone_lable">sonnerie</string>

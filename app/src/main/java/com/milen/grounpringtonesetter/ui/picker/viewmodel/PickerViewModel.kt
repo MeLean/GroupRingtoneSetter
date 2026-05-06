@@ -98,7 +98,7 @@ internal class PickerViewModel(
     }
 
     private var enrichJob: Job? = null
-    private fun startUpdateContactsForLabel(labelId: Long) {
+    private fun startUpdateContactsForLabel(labelId: String) {
         enrichJob?.cancel()
         enrichJob = viewModelScope.launch {
             try {
@@ -164,7 +164,7 @@ internal class PickerViewModel(
         viewModelScope.launch {
             val result = runCatching {
                 withContext(DispatchersProvider.io) {
-                    contactsRepo.renameGroup(group.id, newName)
+                    contactsRepo.renameGroup(group, newName)
                 }
             }
             result.onSuccess {
@@ -201,7 +201,7 @@ internal class PickerViewModel(
             val validationResult = runCatching {
                 withContext(DispatchersProvider.io) {
                     contactsRepo.validateGroupReassignment(
-                        groupId = group.id,
+                        group = group,
                         candidates = toAdd
                     )
                 }
@@ -421,7 +421,7 @@ internal class PickerViewModel(
             val result = runCatching {
                 withContext(DispatchersProvider.io) {
                     contactsRepo.updateGroupMembers(
-                        groupId = group.id,
+                        group = group,
                         newSelected = newSelected,
                         oldSelected = oldSelected,
                         ringtoneForNewContactsUri = ringtoneForNewContactsUri

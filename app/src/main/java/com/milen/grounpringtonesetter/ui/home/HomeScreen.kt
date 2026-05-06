@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.doOnLayout
 import androidx.core.view.get
+import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import androidx.core.view.size
 import androidx.fragment.app.Fragment
@@ -42,7 +43,7 @@ import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.customviews.dialog.showCustomViewAlertDialog
 import com.milen.grounpringtonesetter.data.LabelItem
-import com.milen.grounpringtonesetter.data.accounts.AccountId
+import com.milen.grounpringtonesetter.data.sources.ContactSource
 import com.milen.grounpringtonesetter.databinding.DialogHomePreferencesBinding
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
@@ -194,6 +195,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         binding.apply {
             rwGroupItems.adapter = groupsAdapter
             setupGroupSearch()
+            btnAddGroup.setOnClickListener { openCreateGroup() }
+            btnEmptyAddGroup.setOnClickListener { openCreateGroup() }
         }
 
         dialogHandler = DialogHandler(requireActivity())
@@ -231,6 +234,10 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     state.labelItems.isEmpty() &&
                         !state.isLoading &&
                         state.arePermissionsGranted
+                noItemDisclaimer.setText(resolveHomeEmptyStateMessageRes(state))
+                btnEmptyAddGroup.isVisible =
+                    noItemDisclaimer.isVisible && shouldShowHomeEmptyAddGroupButton(state)
+                rwGroupItems.isInvisible = noItemDisclaimer.isVisible
 
                 val currentQuery = civGroupSearch.getText()
                 if (currentQuery != state.groupSearchQuery) {
@@ -244,6 +251,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     ctcibToggleSearch.isVisible = false
                     ctcibActionsMenu.isVisible = false
                     btnAddGroup.isVisible = false
+                    btnEmptyAddGroup.isVisible = false
                     btnAddGroup.translationX = 0f
                     renderedSearchVisibility = false
                 } else {
@@ -257,14 +265,12 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                         isVisible = true
                         setOnClickListener {
                             showActionsMenu(
-                                canChangeAccount = state.canChangeAccount,
+                                canChangeAccount = state.canChangeSource,
                                 currentPreferences = state.displayPreferences
                             )
                         }
                     }
                     updateSearchToggleIcon(state.isGroupSearchVisible)
-
-                    btnAddGroup.setOnClickListener { viewModel.setUpGroupCreateRequest() }
 
                     renderGroupSearchVisibility(
                         isVisible = state.isGroupSearchVisible,
@@ -292,8 +298,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
         viewModel.events.collectEventsIn(viewLifecycleOwner) { event ->
             when (event) {
-                is HomeEvent.AskAccountSelection ->
-                    AccountSelectionDialogFragment.show(this, event.accounts, event.selected)
+                is HomeEvent.AskSourceSelection ->
+                    AccountSelectionDialogFragment.show(this, event.sources, event.selected)
 
                 is HomeEvent.ConnectionLost ->
                     findNavController().navigateSingleTop(R.id.noInternetFragment)
@@ -345,8 +351,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             RESULT_KEY,
             viewLifecycleOwner
         ) { _, bundle ->
-            val selectedAccount: AccountId? = bundle.parcelableOrNull(EXTRA_SELECTED)
-            viewModel.onAccountsSelected(selectedAccount)
+            val selectedSource: ContactSource? = bundle.parcelableOrNull(EXTRA_SELECTED)
+            viewModel.onAccountsSelected(selectedSource)
         }
     }
 
@@ -560,6 +566,10 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             strokeColor = searchStrokeColor
         )
         groupsAdapter.updateThemeAppearance(themeAppearance)
+    }
+
+    private fun openCreateGroup() {
+        viewModel.setUpGroupCreateRequest()
     }
 
     private fun showActionsMenu(

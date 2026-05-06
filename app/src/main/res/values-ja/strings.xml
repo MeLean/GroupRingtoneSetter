@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">グループ別着信音設定</string>
     <string name="items_not_found">項目が見つかりません</string>
+    <string name="on_device_groups_not_found">まだグループがありません。連絡先を整理するには新しいグループを作成してください。</string>
     <string name="everything_set">設定が完了しました</string>
     <string name="permission_required">権限が必要です</string>
     <string name="need_permission_to_run">アプリを使用するには必要な権限を許可してください。アプリを再インストールするか、端末の設定から手動で許可してください。</string>
@@ -66,6 +67,9 @@
     <string name="ad_unavailable_after_ringtone_change">設定が完了しました。現在は広告を表示できませんでした。広告なしで使いたい場合は、広告を非表示にできます。</string>
     <string name="pick_account_contacts">アプリで使用する連絡先のアカウントを選択</string>
     <string name="pick_account_btn_label">アカウントを選択</string>
+    <string name="pick_contact_source_contacts">アプリで使用する連絡先の保存先を選択</string>
+    <string name="pick_contact_source_btn_label">連絡先の保存先を選択</string>
+    <string name="contact_source_on_device">端末内</string>
     <string name="click_here">こちら</string>
     <string name="my_song_please_promo_text">あなたや大切な人のためだけの着信音を作れます。音楽アプリを試すには%1$sをタップしてください。</string>
     <string name="ringtone_lable">着信音</string>

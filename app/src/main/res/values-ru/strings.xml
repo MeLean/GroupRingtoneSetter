@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Установщик группового звонка</string>
     <string name="items_not_found">Элементы не найдены</string>
+    <string name="on_device_groups_not_found">Пока нет ни одной группы. Создайте новую группу, чтобы упорядочить свои контакты.</string>
     <string name="everything_set">Все настроено!</string>
     <string name="permission_required">Требуется разрешение</string>
     <string name="need_permission_to_run">Пожалуйста, предоставьте разрешение на использование приложения. Переустановите приложение или предоставьте их вручную в настройках устройства.</string>
@@ -66,6 +67,9 @@
     <string name="ad_unavailable_after_ringtone_change">Все настроено. Сейчас не удалось показать рекламу. Если вы хотите пользоваться приложением без рекламы, вы можете ее отключить.</string>
     <string name="pick_account_contacts">Выберите аккаунты, чьи контакты будет использовать приложение</string>
     <string name="pick_account_btn_label">Выбрать аккаунт</string>
+    <string name="pick_contact_source_contacts">Выберите источник контактов, который будет использовать приложение</string>
+    <string name="pick_contact_source_btn_label">Выбрать источник контактов</string>
+    <string name="contact_source_on_device">На устройстве</string>
     <string name="click_here">нажмите здесь</string>
     <string name="my_song_please_promo_text">Получите рингтон, сделанный специально для вас или вашего близкого — %1$s, чтобы попробовать наше музыкальное приложение.</string>
     <string name="ringtone_lable">мелодия звонка</string>

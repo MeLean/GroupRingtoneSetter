@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
-import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
 import com.milen.grounpringtonesetter.data.repos.RepoGraph
 import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
 import com.milen.grounpringtonesetter.utils.ContactsHelper
@@ -17,8 +16,6 @@ internal object HomeViewModelFactory {
         val tracker = app.tracker
         val billing = app.billingManager
         val prefs = app.preferencesHelper
-
-        AccountsResolver(app)
 
         val ringtoneUpdater = ContactRingtoneUpdateHelper(
             tracker = tracker,
@@ -48,7 +45,7 @@ internal object HomeViewModelFactory {
                     tracker = tracker,
                     billing = billing,
                     contactsRepo = contactsRepo,
-                    accountRepo = RepoGraph.accountRepo(app, prefs),
+                    sourceRepo = RepoGraph.contactSourceRepo(app, contactsHelper, prefs),
                     homePreferencesStore = app.homePreferencesStore
                 ) as T
             }

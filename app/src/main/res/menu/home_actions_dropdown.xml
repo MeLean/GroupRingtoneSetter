@@ -11,5 +11,5 @@
     <item
         android:id="@+id/actionChangeAccount"
         android:icon="@drawable/ic_attribution_24"
-        android:title="@string/pick_account_btn_label" />
+        android:title="@string/pick_contact_source_btn_label" />
 </menu>

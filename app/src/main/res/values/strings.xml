@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Group Ringtone Setter</string>
     <string name="items_not_found">No items found</string>
+    <string name="on_device_groups_not_found">No groups yet. Create a new group to organize your contacts.</string>
     <string name="everything_set">Everything is set!</string>
     <string name="permission_required">Permission required</string>
     <string name="need_permission_to_run">Please grant permission to use the application. Reinstall the app or grant them manually from device settings.</string>
@@ -66,6 +67,9 @@
     <string name="ad_unavailable_after_ringtone_change">Everything is set. We could not show an ad right now. If you want an ad-free experience, you can remove ads.</string>
     <string name="pick_account_contacts">Select the accounts whose contacts the app will use</string>
     <string name="pick_account_btn_label">Pick up account</string>
+    <string name="pick_contact_source_contacts">Select the contact source the app will use</string>
+    <string name="pick_contact_source_btn_label">Select contact source</string>
+    <string name="contact_source_on_device">On device</string>
     <string name="click_here">click here</string>
     <string name="my_song_please_promo_text">Get a ringtone made just for you or your loved one — %1$s to try our music app.</string>
     <string name="ringtone_lable">ringtone</string>

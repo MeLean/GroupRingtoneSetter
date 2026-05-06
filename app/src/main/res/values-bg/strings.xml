@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Задай мелодия на звънене</string>
     <string name="items_not_found">Не са намерени елементи</string>
+    <string name="on_device_groups_not_found">Все още няма групи. Създайте нова група, за да подредите контактите си.</string>
     <string name="everything_set">Всичко е настроено!</string>
     <string name="permission_required">Изисква се разрешение</string>
     <string name="need_permission_to_run">Моля, разрешете използването на приложението. Преинсталирайте приложението или ги дайте ръчно от настройките на устройството.</string>
@@ -66,6 +67,9 @@
     <string name="ad_unavailable_after_ringtone_change">Всичко е настроено. В момента не успяхме да покажем реклама. Ако искате работа без реклами, можете да ги премахнете.</string>
     <string name="pick_account_contacts">Изберете акаунтите, чиито контакти приложението ще използва</string>
     <string name="pick_account_btn_label">Изберете акаунтите</string>
+    <string name="pick_contact_source_contacts">Изберете източника на контакти, който приложението ще използва</string>
+    <string name="pick_contact_source_btn_label">Изберете източник</string>
+    <string name="contact_source_on_device">На устройството</string>
     <string name="click_here">натисни тук</string>
     <string name="my_song_please_promo_text">Вземи рингтон, направен специално за теб или за твой любим човек — %1$s, за да пробваш нашето музикално приложение.</string>
     <string name="ringtone_lable">мелодия</string>

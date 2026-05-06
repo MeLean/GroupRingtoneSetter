@@ -12,12 +12,12 @@ import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.customviews.ui.ads.InterstitialAdShowResult
 import com.milen.grounpringtonesetter.data.LabelItem
-import com.milen.grounpringtonesetter.data.accounts.AccountId
-import com.milen.grounpringtonesetter.data.accounts.AccountRepository
 import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelException
 import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelFailureReason
 import com.milen.grounpringtonesetter.data.prefs.HomePreferencesStore
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
+import com.milen.grounpringtonesetter.data.sources.ContactSource
+import com.milen.grounpringtonesetter.data.sources.ContactSourceRepository
 import com.milen.grounpringtonesetter.ui.home.HomeDisplayPreferences
 import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
@@ -47,7 +47,7 @@ internal class HomeViewModel(
     private val tracker: Tracker,
     private val billing: BillingEntitlementManager,
     private val contactsRepo: ContactsRepository,
-    private val accountRepo: AccountRepository,
+    private val sourceRepo: ContactSourceRepository,
     private val homePreferencesStore: HomePreferencesStore,
 ) : ViewModel() {
     private companion object {
@@ -65,10 +65,10 @@ internal class HomeViewModel(
         combine(
             _state,
             billing.state,
-            accountRepo.selected,
-            accountRepo.available,
+            sourceRepo.selected,
+            sourceRepo.available,
             contactsRepo.labelsFlow
-        ) { base, entitlement, selectedAcc, availableAccounts, labels ->
+        ) { base, entitlement, selectedSource, availableSources, labels ->
             val filteredLabels = deriveVisibleLabelItems(
                 labels = labels,
                 groupSearchQuery = base.groupSearchQuery,
@@ -78,10 +78,12 @@ internal class HomeViewModel(
                 isLoading = base.isLoading,
                 labelItems = filteredLabels,
                 entitlement = entitlement,
-                selectedAccount = selectedAcc,
-                canChangeAccount = availableAccounts.size > 1,
+                selectedSource = selectedSource,
+                canChangeSource = availableSources.size > 1,
                 loadingVisible = base.arePermissionsGranted && base.isLoading || entitlement == EntitlementState.UNKNOWN
             )
+        }.combine(contactsRepo.allContacts) { base, allContacts ->
+            base.copy(hasContactsInSelectedSource = allContacts?.isNotEmpty())
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
@@ -102,12 +104,12 @@ internal class HomeViewModel(
 
     fun onPermissionsGranted() {
         tracker.trackEvent("onPermissionsGranted")
-        accountRepo.refreshAvailable()
+        sourceRepo.refreshAvailable()
         if (!_state.value.arePermissionsGranted) {
             _state.update { it.copy(arePermissionsGranted = true) }
         }
 
-        ensureAccountSelectionOrAskOnce()
+        ensureSourceSelectionOrAskOnce()
     }
 
     fun onNoPermissions() {
@@ -133,7 +135,7 @@ internal class HomeViewModel(
     }
 
     fun onSelectAccountClicked() =
-        showAccountPicker(accountRepo.getAccountsAvailable())
+        showSourcePicker(sourceRepo.getSourcesAvailable())
 
     fun onUserPreferencesClicked() {
         tracker.trackEvent("home_user_preferences_opened")
@@ -165,12 +167,12 @@ internal class HomeViewModel(
         }
     }
 
-    fun onAccountsSelected(selected: AccountId?) {
+    fun onAccountsSelected(selected: ContactSource?) {
         tracker.trackEvent(
-            "on_accounts_selected",
+            "on_contact_source_selected",
             mapOf(
-                "has_account" to (selected != null),
-                "account_sig" to accountSignature(selected)
+                "has_source" to (selected != null),
+                "source_sig" to sourceSignature(selected)
             )
         )
         selected?.let {
@@ -178,7 +180,7 @@ internal class HomeViewModel(
             viewModelScope.launch {
                 val result = runCatching {
                     withContext(DispatchersProvider.io) {
-                        accountRepo.selectNewAccount(selected)
+                        sourceRepo.selectNewSource(selected)
                     }
                 }
                 result.onSuccess {
@@ -190,7 +192,7 @@ internal class HomeViewModel(
                 }
             }
         } ?: run {
-            tracker.trackError(RuntimeException("Account selected with null"))
+            tracker.trackError(RuntimeException("Contact source selected with null"))
             _events.trySend(HomeEvent.ShowErrorById(R.string.something_went_wrong))
         }
     }
@@ -199,7 +201,7 @@ internal class HomeViewModel(
         viewModelScope.launch {
             val result = runCatching {
                 withContext(DispatchersProvider.io) {
-                    contactsRepo.deleteGroup(labelItem.id)
+                    contactsRepo.deleteGroup(labelItem)
                 }
             }
             result.onSuccess {
@@ -302,7 +304,7 @@ internal class HomeViewModel(
 
     fun setUpGroupCreateRequest() {
         tracker.trackEvent("setUpGroupCreateRequest")
-        accountRepo.getAccountsAvailable()
+        sourceRepo.getSourcesAvailable()
         _events.trySend(HomeEvent.NavigateToCreateGroup)
     }
 
@@ -468,10 +470,9 @@ internal class HomeViewModel(
         else -> "UNKNOWN_$code"
     }
 
-    private fun accountSignature(accountId: AccountId?): String {
-        val raw = accountId?.raw.orEmpty()
-        if (raw.isBlank()) return "none"
-        return raw.hashCode().toUInt().toString(16)
+    private fun sourceSignature(source: ContactSource?): String {
+        val raw = source?.stableKey.orEmpty()
+        return if (raw.isBlank()) "none" else raw.hashCode().toUInt().toString(16)
     }
 
     private fun updateGroupList() {
@@ -506,40 +507,40 @@ internal class HomeViewModel(
     }
 
 
-    private fun ensureAccountSelectionOrAskOnce() {
+    private fun ensureSourceSelectionOrAskOnce() {
         if (!_state.value.arePermissionsGranted) return
 
-        // If we already have a selection, just ensure data loading happens.
-        if (accountRepo.selected.value != null) {
+        if (sourceRepo.selected.value != null) {
             updateGroupList()
+            refreshContactsSilently()
             return
         }
 
-        // Fallback: if repo hasn't filled yet, do a direct resolver read (permission is granted now)
-        val deviceAccounts = accountRepo.getAccountsAvailable()
-        when (deviceAccounts.size) {
+        val availableSources = sourceRepo.getSourcesAvailable()
+        when (availableSources.size) {
             0 -> {
                 _state.update { it.copy(isLoading = false) }
             }
 
             1 -> {
-                accountRepo.selectNewAccount(deviceAccounts.first())
+                sourceRepo.selectNewSource(availableSources.first())
                 updateGroupList()
+                refreshContactsSilently()
             }
 
             else -> {
                 _state.update { it.copy(isLoading = false) }
-                showAccountPicker(accounts = deviceAccounts)
+                showSourcePicker(sources = availableSources)
             }
         }
     }
 
-    private fun showAccountPicker(accounts: Set<AccountId>) {
-        if (accounts.isEmpty()) {
+    private fun showSourcePicker(sources: Set<ContactSource>) {
+        if (sources.isEmpty()) {
             _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
             return
         }
-        _events.trySend(HomeEvent.AskAccountSelection(accounts, accountRepo.selected.value))
+        _events.trySend(HomeEvent.AskSourceSelection(sources, sourceRepo.selected.value))
     }
 
     private fun showLoading() = _state.update { it.copy(isLoading = true) }

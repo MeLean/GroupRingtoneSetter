@@ -9,43 +9,43 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.customviews.dialog.applyHomeDialogTheme
-import com.milen.grounpringtonesetter.data.accounts.AccountId
+import com.milen.grounpringtonesetter.data.sources.ContactSource
 import com.milen.grounpringtonesetter.utils.parcelableArrayListOrEmpty
 import com.milen.grounpringtonesetter.utils.parcelableOrNull
 
 /**
- * Single-choice account picker.
+ * Single-choice source picker.
  * Returns a result ONLY when the positive button is clicked.
  */
-class AccountSelectionDialogFragment : DialogFragment() {
+internal class AccountSelectionDialogFragment : DialogFragment() {
 
-    private lateinit var accounts: ArrayList<AccountId>
+    private lateinit var sources: ArrayList<ContactSource>
     private var selectedIndex: Int = NO_INDEX
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        accounts = requireArguments().parcelableArrayListOrEmpty(ARG_ACCOUNTS)
-        val preselected: AccountId? = requireArguments().parcelableOrNull(ARG_ACCOUNT_SELECTED)
+        sources = requireArguments().parcelableArrayListOrEmpty(ARG_SOURCES)
+        val preselected: ContactSource? = requireArguments().parcelableOrNull(ARG_SOURCE_SELECTED)
 
         selectedIndex =
             savedInstanceState?.getInt(STATE_SELECTED_INDEX, NO_INDEX)
                 ?.takeIf { it != NO_INDEX }
                 ?: preselected
-                    ?.let { sel -> accounts.indexOfFirst { it.raw == sel.raw } } ?: NO_INDEX
+                    ?.let { sel -> sources.indexOfFirst { it.stableKey == sel.stableKey } } ?: NO_INDEX
     }
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val labels = accounts.map { it.label }.toTypedArray()
+        val labels = sources.map { it.displayLabel(requireContext()) }.toTypedArray()
 
         return AlertDialog.Builder(requireContext(), R.style.AlertDialogCustom)
-            .setTitle(R.string.pick_account_contacts)
+            .setTitle(R.string.pick_contact_source_contacts)
             .setSingleChoiceItems(labels, selectedIndex) { _, which -> selectedIndex = which }
             .setPositiveButton(R.string.ok) { dialog, _ ->
-                if (accounts.isNotEmpty()) {
-                    val index = selectedIndex.coerceIn(0, accounts.lastIndex)
+                if (sources.isNotEmpty()) {
+                    val index = selectedIndex.coerceIn(0, sources.lastIndex)
                     setFragmentResult(
                         requestKey = RESULT_KEY,
-                        result = bundleOf(EXTRA_SELECTED to accounts[index])
+                        result = bundleOf(EXTRA_SELECTED to sources[index])
                     )
                 }
                 dialog.dismiss()
@@ -67,23 +67,23 @@ class AccountSelectionDialogFragment : DialogFragment() {
 
     companion object {
         private const val TAG = "AccountSelectionDialogFragment"
-        private const val ARG_ACCOUNTS = "accounts"
-        private const val ARG_ACCOUNT_SELECTED = "selected"
+        private const val ARG_SOURCES = "sources"
+        private const val ARG_SOURCE_SELECTED = "selected"
         private const val STATE_SELECTED_INDEX = "selected_index"
         private const val NO_INDEX = -1
 
         const val RESULT_KEY = "AccountSelectionDialogFragment.result"
         const val EXTRA_SELECTED = "selected"
 
-        fun show(host: Fragment, accounts: Collection<AccountId>, selected: AccountId?) {
+        internal fun show(host: Fragment, sources: Collection<ContactSource>, selected: ContactSource?) {
             val fm = host.parentFragmentManager
             val existing = fm.findFragmentByTag(TAG) as? AccountSelectionDialogFragment
             if (existing?.dialog?.isShowing == true || existing?.isAdded == true) return
 
             AccountSelectionDialogFragment().apply {
                 arguments = bundleOf(
-                    ARG_ACCOUNTS to ArrayList(accounts),
-                    ARG_ACCOUNT_SELECTED to selected
+                    ARG_SOURCES to ArrayList(sources),
+                    ARG_SOURCE_SELECTED to selected
                 )
             }.also { dlg ->
                 if (fm.isStateSaved) {

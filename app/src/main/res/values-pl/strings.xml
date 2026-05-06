@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">Ustaw dzwonek grupowy</string>
     <string name="items_not_found">Nie znaleziono elementow</string>
+    <string name="on_device_groups_not_found">Nie ma jeszcze żadnych grup. Utwórz nową grupę, aby uporządkować kontakty.</string>
     <string name="everything_set">Wszystko gotowe!</string>
     <string name="permission_required">Wymagane uprawnienie</string>
     <string name="need_permission_to_run">Aby korzystac z aplikacji, przyznaj uprawnienia. Zainstaluj aplikacje ponownie lub przyznaj je recznie w ustawieniach urzadzenia.</string>
@@ -66,6 +67,9 @@
     <string name="ad_unavailable_after_ringtone_change">Wszystko gotowe. Nie udalo sie teraz wyswietlic reklamy. Jesli chcesz korzystac bez reklam, mozesz je usunac.</string>
     <string name="pick_account_contacts">Wybierz konta, ktorych kontaktow aplikacja ma uzywac</string>
     <string name="pick_account_btn_label">Wybierz konto</string>
+    <string name="pick_contact_source_contacts">Wybierz źródło kontaktów, z którego aplikacja ma korzystać</string>
+    <string name="pick_contact_source_btn_label">Wybierz źródło kontaktów</string>
+    <string name="contact_source_on_device">Na urządzeniu</string>
     <string name="click_here">kliknij tutaj</string>
     <string name="my_song_please_promo_text">Zdobadz dzwonek stworzony specjalnie dla Ciebie lub bliskiej osoby - %1$s, aby wyprobowac nasza aplikacje muzyczna.</string>
     <string name="ringtone_lable">dzwonek</string>

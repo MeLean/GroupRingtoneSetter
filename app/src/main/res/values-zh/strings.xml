@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">群组铃声设置器</string>
     <string name="items_not_found">未找到项目</string>
+    <string name="on_device_groups_not_found">还没有任何分组。创建一个新分组来整理你的联系人。</string>
     <string name="everything_set">一切都设置好了！</string>
     <string name="permission_required">需要权限</string>
     <string name="need_permission_to_run">请授予应用程序使用权限。 请从设备设置中重新安装应用程序或手动授予。</string>
@@ -63,6 +64,9 @@
     <string name="ad_unavailable_after_ringtone_change">一切都设置好了。我们暂时无法显示广告。如果您想要无广告体验，可以移除广告。</string>
     <string name="pick_account_contacts">选择应用将使用其联系人的账户</string>
     <string name="pick_account_btn_label">选择账户</string>
+    <string name="pick_contact_source_contacts">选择应用将使用的联系人来源</string>
+    <string name="pick_contact_source_btn_label">选择联系人来源</string>
+    <string name="contact_source_on_device">在设备上</string>
     <string name="click_here">点击这里</string>
     <string name="my_song_please_promo_text">为你或你所爱的人定制专属铃声 — %1$s 试用我们的音乐应用。</string>
     <string name="ringtone_lable">铃声</string>

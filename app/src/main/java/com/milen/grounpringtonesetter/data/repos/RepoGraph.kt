@@ -1,10 +1,13 @@
 package com.milen.grounpringtonesetter.data.repos
 
 import com.milen.grounpringtonesetter.App
-import com.milen.grounpringtonesetter.data.accounts.AccountRepository
-import com.milen.grounpringtonesetter.data.accounts.AccountRepositoryImpl
 import com.milen.grounpringtonesetter.data.accounts.AccountsResolver
+import com.milen.grounpringtonesetter.data.local.EncryptedLocalLabelsDataSource
+import com.milen.grounpringtonesetter.data.local.LocalContactLabelMirror
+import com.milen.grounpringtonesetter.data.local.LocalLabelsStore
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
+import com.milen.grounpringtonesetter.data.sources.ContactSourceRepository
+import com.milen.grounpringtonesetter.data.sources.ContactSourceRepositoryImpl
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 
 
@@ -13,16 +16,18 @@ internal object RepoGraph {
     private var repo: ContactsRepository? = null
 
     @Volatile
-    private var accRepo: AccountRepository? = null
+    private var sourceRepo: ContactSourceRepository? = null
 
-    fun accountRepo(
+    fun contactSourceRepo(
         app: App,
+        helper: ContactsHelper,
         prefs: EncryptedPreferencesHelper,
-    ): AccountRepository = accRepo ?: synchronized(this) {
-        accRepo ?: AccountRepositoryImpl(
+    ): ContactSourceRepository = sourceRepo ?: synchronized(this) {
+        sourceRepo ?: ContactSourceRepositoryImpl(
             prefs = prefs,
-            resolver = AccountsResolver(app)
-        ).also { accRepo = it }
+            resolver = AccountsResolver(app),
+            contactsHelper = helper
+        ).also { sourceRepo = it }
     }
 
     fun contactsRepo(
@@ -31,13 +36,17 @@ internal object RepoGraph {
         prefs: EncryptedPreferencesHelper,
     ): ContactsRepository =
         repo ?: synchronized(this) {
-            val ar = accountRepo(app, prefs)
+            val sr = contactSourceRepo(app, helper, prefs)
             repo ?: ContactsRepositoryImpl(
                 app = app,
                 helper = helper,
                 tracker = app.tracker,
                 prefs = prefs,
-                accountsProvider = { ar.selected.value }
+                localLabelsStore = LocalLabelsStore(
+                    dataSource = EncryptedLocalLabelsDataSource(prefs)
+                ),
+                localLabelMirror = LocalContactLabelMirror(app),
+                sourceProvider = { sr.selected.value }
             ).also { repo = it }
         }
 }

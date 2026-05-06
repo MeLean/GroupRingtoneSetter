@@ -7,6 +7,7 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 internal data class SelectableContact(
     val id: Long,
+    val lookupKey: String,
     val name: String,
     val phone: String?,
     val ringtoneUriString: String?,
@@ -17,6 +18,7 @@ internal data class SelectableContact(
             contact.run {
                 SelectableContact(
                     id = id,
+                    lookupKey = lookupKey,
                     name = name,
                     phone = phone,
                     ringtoneUriString = ringtoneUriStr,
@@ -27,6 +29,7 @@ internal data class SelectableContact(
         fun SelectableContact.toContact(): Contact =
             Contact(
                 id = id,
+                lookupKey = lookupKey,
                 name = name,
                 phone = phone,
                 ringtoneUriStr = ringtoneUriString,

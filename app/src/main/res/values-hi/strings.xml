@@ -51,7 +51,12 @@
     <string name="loading">लोड हो रहा है. . .</string>
     <string name="error">त्रुटि</string>
     <string name="info">जानकारी</string>
-    <string name="info_text">सर्वोत्तम प्रदर्शन के लिए:\n- सुनिश्चित करें कि सभी आवश्यक अनुमतियां दी गई हैं।\n- अपने Google खाते से लॉग इन करें।\n- किसी संपर्क को कई समूहों में जोड़ने से बचें।</string>
+    <string name="info_text">बेहतर अनुभव के लिए:\n- सुनिश्चित करें कि सभी आवश्यक अनुमतियां दी गई हैं।\n- वही संपर्क स्रोत चुनें जहां आपके संपर्क सहेजे गए हैं।\n- एक ही संपर्क को कई समूहों में जोड़ने से बचें।</string>
+    <string name="useful_apps_heading">ये ऐप्स भी आपके लिए उपयोगी हो सकते हैं</string>
+    <string name="petish_nutrack_info_description">अपने पालतू के भोजन, रिमाइंडर और स्वास्थ्य विवरण एक ही जगह पर ट्रैक करें।</string>
+    <string name="gentle_compliments_info_description">दिन भर कोमल प्रशंसाएं और स्नेहभरे रिमाइंडर पाएं।</string>
+    <string name="my_song_please_info_description">किसी खास व्यक्ति के लिए निजी गीत और खास संगीत उपहार बनाएं।</string>
+    <string name="info_dialog_version">संस्करण %1$s</string>
     <string name="no_ringtone_selected">कोई रिंगटोन चयनित नहीं है</string>
     <string name="no_contacts">समूह में कोई संपर्क नहीं है</string>
     <string name="group_contacts_count">समूह में संपर्कों की संख्या</string>

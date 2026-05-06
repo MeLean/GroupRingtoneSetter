@@ -51,7 +51,12 @@
     <string name="loading">読み込み中…</string>
     <string name="error">エラー</string>
     <string name="info">情報</string>
-    <string name="info_text">快適にご利用いただくために:\n- 必要な権限をすべて許可してください。\n- Google アカウントにログインしてください。\n- 同じ連絡先を複数のグループに追加しないでください。</string>
+    <string name="info_text">より快適にご利用いただくために:\n- 必要な権限をすべて許可してください。\n- 連絡先が保存されている連絡先ソースを選択してください。\n- 同じ連絡先を複数のグループに追加しないでください。</string>
+    <string name="useful_apps_heading">こちらのアプリも役立つかもしれません</string>
+    <string name="petish_nutrack_info_description">ペットの食事、リマインダー、健康情報をひとつの場所で管理できます。</string>
+    <string name="gentle_compliments_info_description">やさしい褒め言葉や思いやりのあるリマインダーを一日を通して受け取れます。</string>
+    <string name="my_song_please_info_description">大切な人のために、パーソナルな曲や特別な音楽ギフトを作成できます。</string>
+    <string name="info_dialog_version">バージョン %1$s</string>
     <string name="no_ringtone_selected">着信音が選択されていません</string>
     <string name="no_contacts">このグループには連絡先がありません</string>
     <string name="group_contacts_count">連絡先数</string>

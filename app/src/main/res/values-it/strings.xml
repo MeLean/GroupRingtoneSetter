@@ -51,7 +51,12 @@
     <string name="loading">Caricamento in corso…</string>
     <string name="error">Errore</string>
     <string name="info">Informazioni</string>
-    <string name="info_text">Per le migliori prestazioni:\n- Assicurati che tutte le autorizzazioni necessarie siano concesse.\n- Accedi con il tuo account Google.\n- Evita di aggiungere un contatto a più gruppi.</string>
+    <string name="info_text">Per un\'esperienza migliore:\n- Assicurati che tutte le autorizzazioni necessarie siano concesse.\n- Scegli la fonte dei contatti in cui sono salvati i tuoi contatti.\n- Evita di aggiungere lo stesso contatto a più gruppi.</string>
+    <string name="useful_apps_heading">Anche queste app potrebbero esserti utili</string>
+    <string name="petish_nutrack_info_description">Tieni traccia di pasti, promemoria e dati di salute del tuo animale in un unico posto.</string>
+    <string name="gentle_compliments_info_description">Ricevi complimenti delicati e promemoria gentili durante la giornata.</string>
+    <string name="my_song_please_info_description">Crea canzoni personalizzate e regali musicali pensati per una persona speciale.</string>
+    <string name="info_dialog_version">Versione %1$s</string>
     <string name="no_ringtone_selected">Nessuna suoneria selezionata</string>
     <string name="no_contacts">Non ci sono contatti nel gruppo</string>
     <string name="group_contacts_count">Numero di contatti del gruppo</string>

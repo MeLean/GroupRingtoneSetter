@@ -51,7 +51,12 @@
     <string name="loading">Chargement. . .</string>
     <string name="error">Erreur</string>
     <string name="info">Information</string>
-    <string name="info_text">Pour de meilleures performances :- Assurez-vous que toutes les autorisations nécessaires sont accordées.\n- Connectez-vous avec votre compte Google.\n- Évitez d\'ajouter un contact à plusieurs groupes.</string>
+    <string name="info_text">Pour une meilleure expérience :\n- Assurez-vous que toutes les autorisations nécessaires sont accordées.\n- Choisissez la source de contacts où vos contacts sont enregistrés.\n- Évitez d’ajouter le même contact à plusieurs groupes.</string>
+    <string name="useful_apps_heading">Ces applications peuvent aussi vous être utiles</string>
+    <string name="petish_nutrack_info_description">Suivez les repas, les rappels et les informations de santé de votre animal au même endroit.</string>
+    <string name="gentle_compliments_info_description">Recevez des compliments doux et des rappels bienveillants tout au long de la journée.</string>
+    <string name="my_song_please_info_description">Créez des chansons personnalisées et des cadeaux musicaux attentionnés pour quelqu’un de spécial.</string>
+    <string name="info_dialog_version">Version %1$s</string>
     <string name="no_ringtone_selected">Aucune sonnerie sélectionnée</string>
     <string name="no_contacts">Il n\'y a pas de contacts dans le groupe</string>
     <string name="group_contacts_count">Nombre de contacts dans le groupe</string>

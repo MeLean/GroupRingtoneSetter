@@ -48,7 +48,12 @@
     <string name="loading">加载中…</string>
     <string name="error">错误</string>
     <string name="info">信息</string>
-    <string name="info_text">为了获得最佳性能：\n- 确保授予所有必要的权限。\n- 使用您的 Google 帐户登录。\n- 避免将联系人添加到多个组中。</string>
+    <string name="info_text">为了获得更好的体验：\n- 请确保授予所有必要的权限。\n- 请选择保存联系人所在的联系人来源。\n- 避免将同一个联系人添加到多个分组中。</string>
+    <string name="useful_apps_heading">这些应用也可能对你有帮助</string>
+    <string name="petish_nutrack_info_description">在一个地方记录宠物的饮食、提醒和健康信息。</string>
+    <string name="gentle_compliments_info_description">在一天中收到温柔的赞美和贴心的提醒。</string>
+    <string name="my_song_please_info_description">为特别的人创作个性化歌曲和有心意的音乐礼物。</string>
+    <string name="info_dialog_version">版本 %1$s</string>
     <string name="no_ringtone_selected">未选择铃声</string>
     <string name="no_contacts">组中没有联系人</string>
     <string name="group_contacts_count">群组中的联系人数量</string>

@@ -1,20 +1,12 @@
 package com.milen.grounpringtonesetter
 
-import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import android.os.Bundle
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.TextPaint
-import android.text.method.LinkMovementMethod
-import android.text.style.ClickableSpan
-import android.util.TypedValue
-import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -26,12 +18,13 @@ import androidx.navigation.fragment.NavHostFragment
 import com.google.android.gms.ads.MobileAds
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.showCustomViewAlertDialog
-import com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
 import com.milen.grounpringtonesetter.databinding.ActivityMainBinding
+import com.milen.grounpringtonesetter.databinding.DialogInfoBinding
 import com.milen.grounpringtonesetter.ui.home.HomeThemeOption
 import com.milen.grounpringtonesetter.ui.home.toAppearance
 import com.milen.grounpringtonesetter.utils.applyNavAndImePadding
 import com.milen.grounpringtonesetter.utils.applyStatusBarPadding
+import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 
 class MainActivity : AppCompatActivity() {
 
@@ -91,26 +84,49 @@ class MainActivity : AppCompatActivity() {
                     finish()
                 }
             }
-            setInfoData {
-                val msg = android.text.SpannableStringBuilder()
-                    .append(getString(R.string.info_text))
-                    .append("\n\n")
-                    .append(buildSpannableHiperLink())
-                    .append("\n\n")
-                    .append("(${BuildConfig.VERSION_NAME})")
+            setInfoData { showInfoDialog() }
+        }
+    }
 
-                showCustomViewAlertDialog(
-                    titleResId = R.string.info,
-                    customView = CustomTextView(this@MainActivity).apply {
-                        setText(msg, TextView.BufferType.SPANNABLE)
-                        movementMethod = LinkMovementMethod.getInstance()
-                        linksClickable = true
-                        highlightColor = Color.TRANSPARENT
-                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-                        setPaddingRelative(dp(24), dp(16), dp(24), dp(8))
-                    },
-                    confirmButtonData = ButtonData(R.string.ok)
-                )
+    private fun showInfoDialog() {
+        val dialogBinding = DialogInfoBinding.inflate(layoutInflater)
+        dialogBinding.ctvVersion.text = getString(R.string.info_dialog_version, BuildConfig.VERSION_NAME)
+
+        bindInfoAppLink(
+            textView = dialogBinding.ctvPetishNutrackTitle,
+            uriStr = getString(R.string.petish_nutrack_url)
+        )
+        bindInfoAppLink(
+            textView = dialogBinding.ctvGentleComplimentsTitle,
+            uriStr = getString(R.string.gentle_compliments_url)
+        )
+        bindInfoAppLink(
+            textView = dialogBinding.ctvMySongPleaseTitle,
+            uriStr = getString(R.string.my_song_please_url)
+        )
+
+        showCustomViewAlertDialog(
+            titleResId = R.string.info,
+            customView = dialogBinding.root,
+            confirmButtonData = ButtonData(R.string.ok)
+        )
+    }
+
+    private fun bindInfoAppLink(
+        textView: TextView,
+        uriStr: String,
+    ) {
+        val themeAppearance = textView.context.currentThemeAppearance()
+        textView.setTextColor(
+            ContextCompat.getColor(
+                textView.context,
+                themeAppearance.dialogActionTextColorRes
+            )
+        )
+        textView.paintFlags = textView.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+        textView.setOnClickListener {
+            runCatching {
+                startActivity(Intent(Intent.ACTION_VIEW, uriStr.toUri()))
             }
         }
     }
@@ -160,29 +176,4 @@ class MainActivity : AppCompatActivity() {
     fun setCustomTitle(title: String) {
         binding.toolbarMain.setTitle(title)
     }
-}
-
-private fun Context.dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
-
-private fun Activity.buildSpannableHiperLink(
-    linkLabel: String = getString(R.string.click_here),
-    base: String = getString(R.string.my_song_please_promo_text, linkLabel),
-    uriStr: String = getString(R.string.my_song_please_url),
-): CharSequence {
-    val span = SpannableString(base)
-    val start = base.indexOf(linkLabel)
-    if (start >= 0) {
-        val end = start + linkLabel.length
-        span.setSpan(object : ClickableSpan() {
-            override fun onClick(widget: View) {
-                startActivity(Intent(Intent.ACTION_VIEW, uriStr.toUri()))
-            }
-
-            override fun updateDrawState(ds: TextPaint) {
-                super.updateDrawState(ds)
-                ds.isUnderlineText = true
-            }
-        }, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-    }
-    return span
 }

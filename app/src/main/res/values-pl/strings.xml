@@ -51,7 +51,12 @@
     <string name="loading">Ladowanie. . .</string>
     <string name="error">Blad</string>
     <string name="info">Informacje</string>
-    <string name="info_text">Aby uzyskac najlepsze dzialanie:\n- Upewnij sie, ze przyznano wszystkie wymagane uprawnienia.\n- Zaloguj sie na konto Google.\n- Unikaj dodawania kontaktu do wielu grup.</string>
+    <string name="info_text">Aby uzyskać jak najlepsze działanie:\n- Upewnij się, że przyznano wszystkie wymagane uprawnienia.\n- Wybierz źródło kontaktów, w którym zapisane są Twoje kontakty.\n- Unikaj dodawania tego samego kontaktu do wielu grup.</string>
+    <string name="useful_apps_heading">Te aplikacje również mogą okazać się przydatne</string>
+    <string name="petish_nutrack_info_description">Śledź posiłki, przypomnienia i informacje o zdrowiu swojego pupila w jednym miejscu.</string>
+    <string name="gentle_compliments_info_description">Otrzymuj delikatne komplementy i życzliwe przypomnienia w ciągu dnia.</string>
+    <string name="my_song_please_info_description">Twórz spersonalizowane piosenki i wyjątkowe muzyczne prezenty dla kogoś bliskiego.</string>
+    <string name="info_dialog_version">Wersja %1$s</string>
     <string name="no_ringtone_selected">Nie wybrano zadnych dzwonkow</string>
     <string name="no_contacts">W grupie nie ma kontaktow</string>
     <string name="group_contacts_count">Liczba kontaktow w grupie</string>

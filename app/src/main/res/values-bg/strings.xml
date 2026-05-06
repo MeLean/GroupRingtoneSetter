@@ -51,7 +51,12 @@
     <string name="loading">Зареждане. . .</string>
     <string name="error">Грешка</string>
     <string name="info">Информация</string>
-    <string name="info_text">За най-добра работа:\n- Уверете се, че всички необходими разрешения са предоставени.\n- Влезте с вашия Google акаунт.\n- Избягвайте да добавяте контакт в множество групи.</string>
+    <string name="info_text">За най-добра работа:\n- Уверете се, че всички необходими разрешения са предоставени.\n- Изберете източника на контакти, където са записани вашите контакти.\n- Избягвайте да добавяте един и същ контакт в множество групи.</string>
+    <string name="useful_apps_heading">Тези приложения също може да са ви полезни</string>
+    <string name="petish_nutrack_info_description">Следете храненията, напомнянията и здравните данни на вашия любимец на едно място.</string>
+    <string name="gentle_compliments_info_description">Получавайте нежни комплименти и мили напомняния през деня.</string>
+    <string name="my_song_please_info_description">Създавайте персонализирани песни и специални музикални подаръци за любим човек.</string>
+    <string name="info_dialog_version">Версия %1$s</string>
     <string name="no_ringtone_selected">Няма избрана мелодия за звънене</string>
     <string name="no_contacts">Няма контакти в групата</string>
     <string name="group_contacts_count" translatable="false">Брой на контактите в групата</string>

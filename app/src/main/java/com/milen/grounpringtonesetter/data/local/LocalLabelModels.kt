@@ -36,10 +36,27 @@ internal fun recoverLocalLabels(
 ): LocalLabelDocument {
     if (mirrored.isEmpty()) return stored
 
-    val normalizedMirrored = mirrored.filter { it.labelName.isNotBlank() && it.lookupKey.isNotBlank() }
+    val normalizedMirrored = mirrored.mapNotNull { assignment ->
+        val normalizedLabelName = assignment.labelName.trim()
+        val normalizedLookupKey = assignment.lookupKey.trim()
+        if (normalizedLabelName.isBlank() || normalizedLookupKey.isBlank()) {
+            null
+        } else {
+            assignment.copy(
+                labelName = normalizedLabelName,
+                lookupKey = normalizedLookupKey
+            )
+        }
+    }
     if (normalizedMirrored.isEmpty()) return stored
 
-    val storedLabelIdByName = stored.labels.associate { label -> label.name to label.id }
+    val storedLabelIdByName = linkedMapOf<String, String>()
+    stored.labels.forEach { label ->
+        val normalizedStoredName = label.name.trim()
+        if (normalizedStoredName.isNotBlank()) {
+            storedLabelIdByName.putIfAbsent(normalizedStoredName, label.id)
+        }
+    }
     val existingMembersByLabelId = stored.labels.associate { label ->
         label.id to LinkedHashMap(
             label.members.associateBy { member -> member.lookupKey }

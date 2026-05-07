@@ -1,22 +1,26 @@
 package com.milen.grounpringtonesetter.data.repos
 
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.core.net.toUri
 import com.milen.grounpringtonesetter.App
+import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.LabelStorageKind
+import com.milen.grounpringtonesetter.data.local.ExpectedMirrorAssignment
 import com.milen.grounpringtonesetter.data.local.LocalContactLabelMirror
 import com.milen.grounpringtonesetter.data.local.LocalLabelDocument
 import com.milen.grounpringtonesetter.data.local.LocalLabelsStore
 import com.milen.grounpringtonesetter.data.local.LocalStoredLabel
 import com.milen.grounpringtonesetter.data.local.LocalStoredLabelMember
+import com.milen.grounpringtonesetter.data.local.MirroredLocalLabelAssignment
 import com.milen.grounpringtonesetter.data.local.recoverLocalLabels
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.data.sources.ContactSource
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
-import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -402,14 +406,7 @@ internal class ContactsRepositoryImpl(
         if (uniqueUris.isEmpty()) return emptyList()
 
         return uniqueUris.map { uriStr ->
-            val displayName = prefs.getString(uriStr)
-                ?.takeIf { it.isNotBlank() }
-                ?: runCatching { uriStr.toUri().lastPathSegment }
-                    .getOrNull()
-                    ?.takeIf { it.isNotBlank() }
-                ?: uriStr
-
-            RingtoneChoiceOption(uri = uriStr, displayName = displayName)
+            RingtoneChoiceOption(uri = uriStr, displayName = resolveRingtoneDisplayName(uriStr))
         }
     }
 
@@ -482,7 +479,10 @@ internal class ContactsRepositoryImpl(
         val updatedDocument = document.copy(labels = document.labels + label)
         localLabelsStore.write(updatedDocument)
         lock.withLock {
-            _labels.value = readLocalLabelItems(writeBackIfNeeded = false)
+            _labels.value = readLocalLabelItems(
+                writeBackIfNeeded = true,
+                recoverFromMirror = false
+            )
         }
     }
 
@@ -496,11 +496,11 @@ internal class ContactsRepositoryImpl(
             }
         )
         localLabelsStore.write(updatedDocument)
-        runMirrorOperationSafely("rename_local_group_mirror") {
-            localLabelMirror.updateLabelName(localId, newName)
-        }
         lock.withLock {
-            _labels.value = readLocalLabelItems(writeBackIfNeeded = false)
+            _labels.value = readLocalLabelItems(
+                writeBackIfNeeded = true,
+                recoverFromMirror = false
+            )
         }
     }
 
@@ -510,11 +510,11 @@ internal class ContactsRepositoryImpl(
         val document = localLabelsStore.read()
         val updatedDocument = document.copy(labels = document.labels.filterNot { it.id == localId })
         localLabelsStore.write(updatedDocument)
-        runMirrorOperationSafely("delete_local_group_mirror") {
-            localLabelMirror.deleteAssignmentsForLabel(localId)
-        }
         lock.withLock {
-            _labels.value = readLocalLabelItems(writeBackIfNeeded = false)
+            _labels.value = readLocalLabelItems(
+                writeBackIfNeeded = true,
+                recoverFromMirror = false
+            )
         }
     }
 
@@ -564,53 +564,59 @@ internal class ContactsRepositoryImpl(
 
         localLabelsStore.write(document.copy(labels = updatedLabels))
 
-        runMirrorOperationSafely("update_local_group_members_mirror") {
-            toRemove.forEach { removed ->
-                localLabelMirror.clearAssignment(removed.id)
-            }
-            normalizedNew.forEach { selected ->
-                val rawContactId = helper.resolveMirrorRawContactIdForPureLocalContact(selected.id)
-                if (rawContactId != null) {
-                    localLabelMirror.upsertAssignment(
-                        contactId = selected.id,
-                        rawContactId = rawContactId,
-                        labelId = localId,
-                        labelName = group.groupName
-                    )
-                } else {
-                    tracker.trackEvent(
-                        "local_label_mirror_raw_contact_missing",
-                        mapOf("contact_id" to selected.id.toString())
-                    )
-                }
-            }
-        }
-
         val appliedRingtoneByContactId =
             applyRingtoneToAddedContacts(toAdd, ringtoneForNewContactsUri)
         applyRingtoneToContactsState(appliedRingtoneByContactId)
 
         lock.withLock {
-            _labels.value = readLocalLabelItems(writeBackIfNeeded = true)
+            _labels.value = readLocalLabelItems(
+                writeBackIfNeeded = true,
+                recoverFromMirror = false
+            )
         }
     }
 
-    private suspend fun readLocalLabelItems(writeBackIfNeeded: Boolean): List<LabelItem> {
+    private suspend fun readLocalLabelItems(
+        writeBackIfNeeded: Boolean,
+        recoverFromMirror: Boolean = true,
+    ): List<LabelItem> {
         val storedDocument = localLabelsStore.read()
-        val mirroredAssignments = runCatching { localLabelMirror.readAssignments() }
-            .onFailure(tracker::trackError)
-            .getOrDefault(emptyList())
-        val recoveredDocument = recoverLocalLabels(storedDocument, mirroredAssignments)
-        val (cleanDocument, labelItems) = hydrateLocalLabels(recoveredDocument)
-        if (writeBackIfNeeded && cleanDocument != storedDocument) {
-            localLabelsStore.write(cleanDocument)
+        val mirroredAssignments = if (recoverFromMirror) {
+            runCatching { localLabelMirror.readAssignments() }
+                .onFailure(tracker::trackError)
+                .getOrDefault(emptyList())
+        } else {
+            emptyList()
         }
-        return labelItems
+        val recoveredDocument = if (recoverFromMirror) {
+            recoverLocalLabels(storedDocument, mirroredAssignments)
+        } else {
+            storedDocument
+        }
+        if (recoverFromMirror && recoveredDocument != storedDocument) {
+            trackLocalLabelRecoveryApplied(
+                storedDocument = storedDocument,
+                recoveredDocument = recoveredDocument,
+                mirroredAssignments = mirroredAssignments
+            )
+        }
+        val hydrated = hydrateLocalLabels(recoveredDocument)
+        if (hydrated.document != recoveredDocument) {
+            trackLocalLabelHydrationAdjusted(
+                sourceDocument = recoveredDocument,
+                hydratedDocument = hydrated.document
+            )
+        }
+        if (writeBackIfNeeded && hydrated.document != storedDocument) {
+            localLabelsStore.write(hydrated.document)
+        }
+        syncLocalLabelMirrorAssignments(hydrated)
+        return hydrated.labelItems
     }
 
     private suspend fun hydrateLocalLabels(
         document: LocalLabelDocument,
-    ): Pair<LocalLabelDocument, List<LabelItem>> {
+    ): HydratedLocalLabels {
         val contactsByLookupKey = helper.getContactsByLookupKeys(
             document.labels.flatMap { label -> label.members.map { it.lookupKey } }
         ).associateBy { it.lookupKey }
@@ -632,7 +638,11 @@ internal class ContactsRepositoryImpl(
                 ringtoneFileNameResolver = ::deriveGroupRingtoneFileName
             )
         }
-        return LocalLabelDocument(version = document.version, labels = cleanedLabels) to items
+        return HydratedLocalLabels(
+            document = LocalLabelDocument(version = document.version, labels = cleanedLabels),
+            labelItems = items,
+            contactsByLookupKey = contactsByLookupKey
+        )
     }
 
     private suspend fun applyRingtoneToAddedContacts(
@@ -659,6 +669,80 @@ internal class ContactsRepositoryImpl(
                 } ?: contact
             }
         }
+    }
+
+    private suspend fun syncLocalLabelMirrorAssignments(hydrated: HydratedLocalLabels) {
+        val expectedAssignments = buildExpectedMirrorAssignments(
+            document = hydrated.document,
+            contactsByLookupKey = hydrated.contactsByLookupKey
+        )
+        runMirrorOperationSafely("sync_local_group_mirror") {
+            localLabelMirror.syncAssignments(
+                expectedAssignments = expectedAssignments,
+                resolveRawContactId = helper::resolveMirrorRawContactIdForPureLocalContact,
+                onMissingRawContact = { contactId ->
+                    tracker.trackEvent(
+                        "local_label_mirror_raw_contact_missing",
+                        mapOf("contact_id" to contactId.toString())
+                    )
+                }
+            )
+        }
+    }
+
+    private fun buildExpectedMirrorAssignments(
+        document: LocalLabelDocument,
+        contactsByLookupKey: Map<String, Contact>,
+    ): List<ExpectedMirrorAssignment> {
+        val expectedByContactId = linkedMapOf<Long, ExpectedMirrorAssignment>()
+        document.labels.forEach { label ->
+            val normalizedLabelName = label.name.trim()
+            if (normalizedLabelName.isBlank()) return@forEach
+
+            label.members.forEach { member ->
+                val contact = contactsByLookupKey[member.lookupKey] ?: return@forEach
+                expectedByContactId.putIfAbsent(
+                    contact.id,
+                    ExpectedMirrorAssignment(
+                        contactId = contact.id,
+                        labelName = normalizedLabelName
+                    )
+                )
+            }
+        }
+        return expectedByContactId.values.toList()
+    }
+
+    private fun trackLocalLabelRecoveryApplied(
+        storedDocument: LocalLabelDocument,
+        recoveredDocument: LocalLabelDocument,
+        mirroredAssignments: List<MirroredLocalLabelAssignment>,
+    ) {
+        tracker.trackEvent(
+            "local_label_recovery_applied",
+            mapOf(
+                "stored_label_count" to storedDocument.labels.size,
+                "recovered_label_count" to recoveredDocument.labels.size,
+                "stored_member_count" to storedDocument.memberCount(),
+                "recovered_member_count" to recoveredDocument.memberCount(),
+                "mirrored_assignment_count" to mirroredAssignments.size
+            )
+        )
+    }
+
+    private fun trackLocalLabelHydrationAdjusted(
+        sourceDocument: LocalLabelDocument,
+        hydratedDocument: LocalLabelDocument,
+    ) {
+        tracker.trackEvent(
+            "local_label_hydration_adjusted",
+            mapOf(
+                "source_label_count" to sourceDocument.labels.size,
+                "hydrated_label_count" to hydratedDocument.labels.size,
+                "source_member_count" to sourceDocument.memberCount(),
+                "hydrated_member_count" to hydratedDocument.memberCount()
+            )
+        )
     }
 
     private suspend fun runMirrorOperationSafely(
@@ -702,17 +786,41 @@ internal class ContactsRepositoryImpl(
         val distinctUris = uris.toSet()
         if (distinctUris.isEmpty()) return ""
 
-        val names = distinctUris.mapNotNull { uriStr ->
-            val uri = runCatching { uriStr.toUri() }.getOrNull() ?: return@mapNotNull null
-            val fromExt = runCatching { uri.getFileNameOrEmpty(app) }.getOrNull()
-            when {
-                !fromExt.isNullOrBlank() -> fromExt
-                !uri.lastPathSegment.isNullOrBlank() -> uri.lastPathSegment
-                else -> null
-            }
-        }.distinct()
+        val names = distinctUris
+            .map { uriStr -> resolveRingtoneDisplayName(uriStr) }
+            .filter { it.isNotBlank() }
+            .distinct()
 
         return if (names.isEmpty()) "" else names.joinToString(", ")
+    }
+
+    private fun resolveRingtoneDisplayName(uriStr: String): String {
+        val uri = runCatching { uriStr.toUri() }.getOrNull()
+        val queriedDisplayName = uri?.let(::queryDisplayNameForUri)
+
+        return chooseRingtoneDisplayName(
+            persistedDisplayName = prefs.getString(uriStr),
+            queriedDisplayName = queriedDisplayName,
+            unavailableMarker = app.getString(R.string.file_name_not_accessible),
+            uriLastPathSegment = uri?.lastPathSegment,
+            fallbackUri = uriStr
+        )
+    }
+
+    private fun queryDisplayNameForUri(uri: Uri): String? {
+        return runCatching {
+            app.contentResolver.query(
+                uri,
+                arrayOf(OpenableColumns.DISPLAY_NAME),
+                null,
+                null,
+                null
+            )?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use null
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex < 0) null else cursor.getString(nameIndex)
+            }
+        }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
     private fun LabelItem.withContactsSummary(updatedContacts: List<Contact>): LabelItem {
@@ -754,4 +862,29 @@ internal class ContactsRepositoryImpl(
     companion object {
         private const val LOCAL_LABEL_PREFIX = "local:"
     }
+}
+
+private fun LocalLabelDocument.memberCount(): Int =
+    labels.sumOf { label -> label.members.size }
+
+private data class HydratedLocalLabels(
+    val document: LocalLabelDocument,
+    val labelItems: List<LabelItem>,
+    val contactsByLookupKey: Map<String, Contact>,
+)
+
+internal fun chooseRingtoneDisplayName(
+    persistedDisplayName: String?,
+    queriedDisplayName: String?,
+    unavailableMarker: String,
+    uriLastPathSegment: String?,
+    fallbackUri: String,
+): String {
+    return persistedDisplayName
+        ?.takeIf { it.isNotBlank() }
+        ?: queriedDisplayName
+            ?.takeUnless { it.isBlank() || it == unavailableMarker }
+        ?: uriLastPathSegment
+            ?.takeIf { it.isNotBlank() }
+        ?: fallbackUri
 }

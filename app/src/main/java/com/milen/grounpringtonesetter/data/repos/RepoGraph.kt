@@ -45,7 +45,10 @@ internal object RepoGraph {
                 localLabelsStore = LocalLabelsStore(
                     dataSource = EncryptedLocalLabelsDataSource(prefs)
                 ),
-                localLabelMirror = LocalContactLabelMirror(app),
+                localLabelMirror = LocalContactLabelMirror(
+                    appContext = app,
+                    tracker = app.tracker
+                ),
                 sourceProvider = { sr.selected.value }
             ).also { repo = it }
         }

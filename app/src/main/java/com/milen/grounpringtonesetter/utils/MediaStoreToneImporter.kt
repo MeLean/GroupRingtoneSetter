@@ -12,6 +12,11 @@ import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import java.security.MessageDigest
 
+private val allowedToneExtensions = setOf("mp3", "wav", "ogg", "m4a", "aac")
+private val forbiddenToneFileNameCharsRegex = Regex("""[\\/:*?"<>|\p{Cntrl}]""")
+private const val fallbackToneBaseName = "tone"
+private const val fallbackToneExtension = "mp3"
+
 internal class MediaStoreToneImporter {
 
     internal data class ImportToneResult(
@@ -175,7 +180,6 @@ internal class MediaStoreToneImporter {
     }
 
     fun getNormalizedFileName(context: Context, uri: Uri): String {
-        val allowedExtensions = setOf("mp3", "wav", "ogg", "m4a", "aac")
         val actualMimeType = runCatching {
             context.contentResolver.getType(uri)
         }.getOrNull()
@@ -196,46 +200,16 @@ internal class MediaStoreToneImporter {
             }
         }.getOrNull()
 
-        val sanitizedBaseName = (
-                displayName?.takeIf { it.isNotBlank() }
-                    ?: uri.lastPathSegment?.substringAfterLast('/')
-                    ?: generateFallbackFileName(context, uri)
-                ).replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        val rawName = displayName?.takeIf { it.isNotBlank() }
+            ?: uri.lastPathSegment?.substringAfterLast('/')
+            ?: generateFallbackFileName(context, uri)
 
-        val dotIndex = sanitizedBaseName.lastIndexOf('.')
-        val currentExtension = if (dotIndex > 0) {
-            sanitizedBaseName.substring(dotIndex + 1).lowercase()
-        } else {
-            null
-        }
-
-        val hasAllowedExtension = currentExtension != null && currentExtension in allowedExtensions
-        if (hasAllowedExtension && actualMimeType != null) {
-            val mimeExtension = MimeTypeMap.getSingleton()
-                .getExtensionFromMimeType(actualMimeType)
-                ?.lowercase()
-
-            if (mimeExtension != null && mimeExtension != currentExtension && mimeExtension in allowedExtensions) {
-                val baseWithoutExtension = sanitizedBaseName.substring(0, dotIndex)
-                return "$baseWithoutExtension.$mimeExtension"
-            }
-
-            return sanitizedBaseName
-        }
-
-        val guessedExtension = runCatching {
+        val mimeExtension = runCatching {
             actualMimeType?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
         }.getOrNull()
             ?.lowercase()
-            ?.takeIf { it in allowedExtensions }
-            ?: "mp3"
 
-        val baseWithoutExtension = if (dotIndex > 0) {
-            sanitizedBaseName.substring(0, dotIndex)
-        } else {
-            sanitizedBaseName
-        }
-        return "$baseWithoutExtension.$guessedExtension"
+        return normalizeToneFileName(rawName, mimeExtension)
     }
 
     fun getDeterministicFileName(context: Context, uri: Uri): String {
@@ -298,12 +272,11 @@ internal class MediaStoreToneImporter {
     }
 
     private fun generateFallbackFileName(context: Context, uri: Uri): String {
-        val allowed = setOf("mp3", "wav", "ogg", "m4a", "aac")
         val guessedExt = runCatching {
             context.contentResolver.getType(uri)
                 ?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it)?.lowercase() }
-                ?.takeIf { it in allowed }
-        }.getOrNull() ?: "mp3"
+                ?.takeIf { it in allowedToneExtensions }
+        }.getOrNull() ?: fallbackToneExtension
 
         val signature = (uri.authority.orEmpty() + ":" + (uri.lastPathSegment ?: uri.toString()))
             .hashCode().toUInt().toString(16)
@@ -344,4 +317,46 @@ internal class MediaStoreToneImporter {
         val signatureSource = uri.toString()
         return signatureSource.hashCode().toUInt().toString(16).padStart(8, '0').takeLast(8)
     }
+}
+
+internal fun normalizeToneFileName(
+    rawName: String,
+    mimeExtension: String?,
+): String {
+    val sanitizedFileName = sanitizeToneFileName(rawName)
+    val dotIndex = sanitizedFileName.lastIndexOf('.')
+    val currentExtension = if (dotIndex > 0) {
+        sanitizedFileName.substring(dotIndex + 1).lowercase()
+    } else {
+        null
+    }
+    val normalizedMimeExtension = mimeExtension
+        ?.lowercase()
+        ?.takeIf { it in allowedToneExtensions }
+
+    val hasAllowedExtension = currentExtension != null && currentExtension in allowedToneExtensions
+    if (hasAllowedExtension) {
+        if (normalizedMimeExtension != null && normalizedMimeExtension != currentExtension) {
+            val baseWithoutExtension = sanitizedFileName.substring(0, dotIndex)
+            return "$baseWithoutExtension.$normalizedMimeExtension"
+        }
+        return sanitizedFileName
+    }
+
+    val baseWithoutExtension = if (dotIndex > 0) {
+        sanitizedFileName.substring(0, dotIndex)
+    } else {
+        sanitizedFileName
+    }
+    return "$baseWithoutExtension.${normalizedMimeExtension ?: fallbackToneExtension}"
+}
+
+private fun sanitizeToneFileName(rawName: String): String {
+    val sanitized = rawName
+        .trim()
+        .replace(forbiddenToneFileNameCharsRegex, "_")
+        .trimEnd('.')
+
+    val hasMeaningfulContent = sanitized.any { it != '_' && !it.isWhitespace() }
+    return if (hasMeaningfulContent) sanitized else fallbackToneBaseName
 }

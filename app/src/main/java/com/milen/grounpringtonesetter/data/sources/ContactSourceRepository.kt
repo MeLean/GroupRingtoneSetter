@@ -82,12 +82,16 @@ internal class ContactSourceRepositoryImpl(
 
     override fun getSourcesAvailable(): Set<ContactSource> {
         val sources = linkedSetOf<ContactSource>()
-        if (contactsHelper.hasPureOnDeviceContacts()) {
+        val hasPureOnDeviceContacts = contactsHelper.hasPureOnDeviceContacts()
+
+        if (hasPureOnDeviceContacts) {
             sources += ContactSource.OnDevice
         }
+
         resolver.getAccounts()
             .sortedBy { it.name.lowercase() }
             .mapTo(sources) { ContactSource.CloudAccount(it) }
+
         return sources
     }
 }

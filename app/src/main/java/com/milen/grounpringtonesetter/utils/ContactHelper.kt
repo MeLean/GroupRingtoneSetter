@@ -1,6 +1,7 @@
 package com.milen.grounpringtonesetter.utils
 
 import android.Manifest
+import android.accounts.AccountManager
 import android.app.Application
 import android.content.ContentProviderOperation
 import android.content.ContentResolver
@@ -414,8 +415,12 @@ internal class ContactsHelper(
     fun resolveMirrorRawContactIdForPureLocalContact(contactId: Long): Long? {
         val rawContacts = getRawContactDescriptors().filter { it.contactId == contactId }
         if (rawContacts.isEmpty()) return null
-        return if (rawContacts.all(::isLocalRawContact)) {
-            rawContacts.minByOrNull { it.rawContactId }?.rawContactId
+        val detectionContext = buildLocalContactDetectionContext()
+        return if (isOnDeviceEligibleContact(rawContacts, detectionContext)) {
+            rawContacts
+                .filter { descriptor -> isLocalRawContact(descriptor, detectionContext) }
+                .minByOrNull { it.rawContactId }
+                ?.rawContactId
         } else {
             null
         }
@@ -1407,10 +1412,42 @@ internal class ContactsHelper(
     private fun pureLocalContactIds(): Set<Long> {
         val rawContacts = getRawContactDescriptors()
         if (rawContacts.isEmpty()) return emptySet()
+        return pureLocalContactIds(
+            rawContacts = rawContacts,
+            detectionContext = buildLocalContactDetectionContext()
+        )
+    }
+
+    private fun pureLocalContactIds(
+        rawContacts: List<RawContactDescriptor>,
+        detectionContext: LocalContactDetectionContext,
+    ): Set<Long> {
         return rawContacts
             .groupBy { it.contactId }
-            .filterValues { descriptors -> descriptors.isNotEmpty() && descriptors.all(::isLocalRawContact) }
+            .filterValues { descriptors ->
+                isOnDeviceEligibleContact(descriptors, detectionContext)
+            }
             .keys
+    }
+
+    private fun isOnDeviceEligibleContact(
+        descriptors: List<RawContactDescriptor>,
+        detectionContext: LocalContactDetectionContext,
+    ): Boolean {
+        if (descriptors.isEmpty()) return false
+
+        val classifications = descriptors.map { descriptor ->
+            classifyLocalRawContact(
+                descriptor = descriptor,
+                detectionContext = detectionContext
+            )
+        }
+        val hasLocalLike = classifications.any { classification -> classification.isLocal }
+        if (!hasLocalLike) return false
+
+        return classifications.all { classification ->
+            classification.isLocal || classification.communicationLike
+        }
     }
 
     private fun getRawContactDescriptors(): List<RawContactDescriptor> {
@@ -1441,6 +1478,80 @@ internal class ContactsHelper(
     }
 
     private fun isLocalRawContact(descriptor: RawContactDescriptor): Boolean {
+        return isLocalRawContact(
+            descriptor = descriptor,
+            detectionContext = buildLocalContactDetectionContext()
+        )
+    }
+
+    private fun isLocalRawContact(
+        descriptor: RawContactDescriptor,
+        detectionContext: LocalContactDetectionContext,
+    ): Boolean =
+        classifyLocalRawContact(
+            descriptor = descriptor,
+            detectionContext = detectionContext
+        ).isLocal
+
+    private fun classifyLocalRawContact(
+        descriptor: RawContactDescriptor,
+        detectionContext: LocalContactDetectionContext,
+    ): LocalRawContactClassification {
+        val localType = detectionContext.localType
+        val localName = detectionContext.localName
+
+        val accountType = descriptor.accountType?.trim()
+        val accountName = descriptor.accountName?.trim()
+
+        val officialAndroidLocal = if (!localType.isNullOrBlank() && !localName.isNullOrBlank()) {
+            accountType == localType && accountName == localName
+        } else {
+            accountType.isNullOrBlank() && accountName.isNullOrBlank()
+        }
+
+        if (officialAndroidLocal) {
+            return LocalRawContactClassification(
+                isLocal = true,
+                communicationLike = false
+            )
+        }
+
+        val hasAccountPair = !accountType.isNullOrBlank() || !accountName.isNullOrBlank()
+        if (!hasAccountPair) {
+            return LocalRawContactClassification(
+                isLocal = true,
+                communicationLike = false
+            )
+        }
+
+        val hasContactsSyncAdapter =
+            accountType in detectionContext.contactSyncAccountTypes
+        val hasMatchingAccountManagerAccount =
+            LocalContactAccountKey(
+                accountType,
+                accountName
+            ) in detectionContext.accountManagerAccounts
+        val simLike = accountType.looksLikeSimSource() || accountName.looksLikeSimSource()
+        val cloudLike = accountType.looksLikeCloudSource() || accountName.looksLikeCloudSource()
+        val communicationLike =
+            accountType.looksLikeCommunicationSource() ||
+                    accountName.looksLikeCommunicationSource()
+        val managedExternalAccount =
+            hasContactsSyncAdapter && hasMatchingAccountManagerAccount
+
+        val deviceManagedLocalLike =
+            !managedExternalAccount &&
+                    !simLike &&
+                    !cloudLike &&
+                    !communicationLike
+
+        return LocalRawContactClassification(
+            isLocal = deviceManagedLocalLike,
+            communicationLike = communicationLike
+        )
+    }
+
+    private fun buildLocalContactDetectionContext(): LocalContactDetectionContext {
         val localType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             ContactsContract.RawContacts.getLocalAccountType(appContext)
         } else {
@@ -1452,11 +1563,69 @@ internal class ContactsHelper(
             null
         }
 
-        return if (!localType.isNullOrBlank() && !localName.isNullOrBlank()) {
-            descriptor.accountType == localType && descriptor.accountName == localName
-        } else {
-            descriptor.accountType.isNullOrBlank() && descriptor.accountName.isNullOrBlank()
-        }
+        val contactSyncAccountTypes = ContentResolver.getSyncAdapterTypes()
+            .asSequence()
+            .filter { syncAdapter -> syncAdapter.authority == ContactsContract.AUTHORITY }
+            .map { syncAdapter -> syncAdapter.accountType }
+            .toSet()
+
+        val accountManagerAccounts = AccountManager.get(appContext).accounts
+            .asSequence()
+            .map { account ->
+                LocalContactAccountKey(
+                    accountType = account.type,
+                    accountName = account.name
+                )
+            }
+            .toSet()
+
+        return LocalContactDetectionContext(
+            localType = localType,
+            localName = localName,
+            contactSyncAccountTypes = contactSyncAccountTypes,
+            accountManagerAccounts = accountManagerAccounts
+        )
+    }
+
+    private fun String?.looksLikeSimSource(): Boolean {
+        if (this.isNullOrBlank()) return false
+
+        val value = lowercase()
+        val simTokenRegex = Regex("(^|[._\\s:+\\-])(sim|usim|isim|icc|uicc)($|[._\\s:+\\-])")
+
+        return simTokenRegex.containsMatchIn(value) || value.contains("esim")
+    }
+
+    private fun String?.looksLikeCloudSource(): Boolean {
+        if (this.isNullOrBlank()) return false
+
+        val value = lowercase()
+
+        return value.contains("@") ||
+                value.contains("google") ||
+                value.contains("gmail") ||
+                value.contains("outlook") ||
+                value.contains("exchange") ||
+                value.contains("microsoft")
+    }
+
+    private fun String?.looksLikeCommunicationSource(): Boolean {
+        if (this.isNullOrBlank()) return false
+
+        val value = lowercase()
+
+        return value.contains("whatsapp") ||
+                value.contains("viber") ||
+                value.contains("telegram") ||
+                value.contains("signal") ||
+                value.contains("facebook") ||
+                value.contains("messenger") ||
+                value.contains("skype") ||
+                value.contains("tachyon") ||
+                value.contains("meet") ||
+                value.contains("duo") ||
+                value.contains("line") ||
+                value.contains("wechat")
     }
 
     private fun providerGroupKey(groupId: Long): String = "group:$groupId"
@@ -1471,6 +1640,23 @@ internal data class GroupDeletionCapability(
     val isDeleted: Boolean,
     val isReadOnly: Boolean,
     val systemId: String?,
+)
+
+private data class LocalContactAccountKey(
+    val accountType: String?,
+    val accountName: String?,
+)
+
+private data class LocalContactDetectionContext(
+    val localType: String?,
+    val localName: String?,
+    val contactSyncAccountTypes: Set<String>,
+    val accountManagerAccounts: Set<LocalContactAccountKey>,
+)
+
+private data class LocalRawContactClassification(
+    val isLocal: Boolean,
+    val communicationLike: Boolean,
 )
 
 internal fun canDeleteGroup(capability: GroupDeletionCapability): Boolean {

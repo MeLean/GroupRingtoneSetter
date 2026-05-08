@@ -45,6 +45,7 @@
     <string name="group_cannot_be_deleted">Ce groupe ne peut pas être supprimé.</string>
     <string name="manage_contacts_group_name">Gérer les contacts du groupe</string>
     <string name="manage_contacts_group_name_desc">Voulez-vous ajouter ou retirer des contacts de ce groupe ? Cette action assignera/retirera les contacts au/du groupe. Le changement de sonnerie prendra effet une fois le processus terminé !</string>
+    <string name="select_all_ungrouped_contacts_with_count">Sélectionner tous les non groupés (%1$d)</string>
     <string name="choose_ringtone_for_new_contacts_title">Choisissez la sonnerie pour les nouveaux contacts ajoutés</string>
     <string name="choose_ringtone_for_new_contacts_description">Ce groupe comporte plusieurs sonneries. Sélectionnez une sonnerie à appliquer aux contacts nouvellement ajoutés.</string>
     <string name="something_went_wrong">Quelque chose s\'est mal passé</string>

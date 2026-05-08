@@ -57,6 +57,15 @@ internal class CustomRoundedButton @JvmOverloads constructor(
         binding.btnMain.setTextColor(textColor)
     }
 
+    fun setText(text: CharSequence) {
+        binding.btnMain.text = text
+    }
+
+    fun setButtonEnabled(isEnabled: Boolean) {
+        binding.btnMain.isEnabled = isEnabled
+        binding.btnMain.alpha = if (isEnabled) 1f else 0.5f
+    }
+
     fun setOnClickListener(listener: () -> Unit) {
         binding.btnMain.setOnClickListener {
             val now = System.currentTimeMillis()

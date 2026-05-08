@@ -45,6 +45,7 @@
     <string name="group_cannot_be_deleted">Тази група не може да бъде изтрита.</string>
     <string name="manage_contacts_group_name">Управление на контактите на групата</string>
     <string name="manage_contacts_group_name_desc">Искате ли да добавите или премахнете контакти към тази група? Чрез това действие контактите ще бъдат присвоени/премахнати от групата. Промяната на мелодията за звънене ще влезе в сила, когато процесът бъде завършен!</string>
+    <string name="select_all_ungrouped_contacts_with_count">Избери всички негрупирани (%1$d)</string>
     <string name="choose_ringtone_for_new_contacts_title">Изберете мелодия за новодобавените контакти</string>
     <string name="choose_ringtone_for_new_contacts_description">Тази група има няколко мелодии. Изберете една мелодия, която да се приложи към новодобавените контакти.</string>
     <string name="something_went_wrong">Нещо се обърка</string>

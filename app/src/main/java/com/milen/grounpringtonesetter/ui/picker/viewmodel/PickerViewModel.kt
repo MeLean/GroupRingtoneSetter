@@ -8,7 +8,10 @@ import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.ui.picker.PickerEvent
 import com.milen.grounpringtonesetter.ui.picker.PickerScreenState
+import com.milen.grounpringtonesetter.ui.picker.addUngroupedContactsToSelection
+import com.milen.grounpringtonesetter.ui.picker.countSelectableUngroupedContacts
 import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
+import com.milen.grounpringtonesetter.ui.picker.findUngroupedContacts
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.Job
@@ -45,16 +48,22 @@ internal class PickerViewModel(
     val state: StateFlow<PickerScreenState> =
         combine(
             _state,
-            contactsRepo.allContacts
-        ) { base, allContacts ->
+            contactsRepo.allContacts,
+            contactsRepo.labelsFlow
+        ) { base, allContacts, labels ->
             if (base.pikerResultData is PickerResultData.ManageGroupContacts) {
                 if (allContacts == null) {
                     base.copy(isLoading = true)
                 } else {
+                    val ungroupedContacts = findUngroupedContacts(
+                        allContacts = allContacts,
+                        labels = labels
+                    )
                     base.copy(
                         isLoading = false,
                         pikerResultData = base.pikerResultData.copy(
-                            allContacts = allContacts
+                            allContacts = allContacts,
+                            ungroupedContacts = ungroupedContacts
                         )
                     )
                 }
@@ -86,7 +95,7 @@ internal class PickerViewModel(
 
     // Toggle from UI
     fun updateManageSelection(selectedContacts: List<Contact>) {
-        val cur = _state.value.pikerResultData as? PickerResultData.ManageGroupContacts ?: return
+        val cur = state.value.pikerResultData as? PickerResultData.ManageGroupContacts ?: return
 
         _state.update { st ->
             st.copy(
@@ -142,6 +151,30 @@ internal class PickerViewModel(
         startUpdateContactsForLabel(group.id)
     }
 
+    fun selectAllUngroupedContacts() {
+        val cur = state.value.pikerResultData as? PickerResultData.ManageGroupContacts ?: return
+        val selectableUngroupedCount = countSelectableUngroupedContacts(
+            ungroupedContacts = cur.ungroupedContacts,
+            selectedContacts = cur.selectedContacts
+        )
+        if (selectableUngroupedCount == 0) return
+
+        tracker.trackEvent(
+            "Picker_selectAllUngroupedContacts",
+            mapOf("count" to selectableUngroupedCount)
+        )
+
+        val updatedSelection = addUngroupedContactsToSelection(
+            selectedContacts = cur.selectedContacts,
+            ungroupedContacts = cur.ungroupedContacts
+        )
+        _state.update { st ->
+            st.copy(
+                pikerResultData = cur.copy(selectedContacts = updatedSelection)
+            )
+        }
+    }
+
     fun startCreateGroup() {
         tracker.trackEvent("Picker_startCreateGroup")
         clearPendingManageContactDecisions()
@@ -179,7 +212,7 @@ internal class PickerViewModel(
 
     fun confirmManageContacts(group: LabelItem) {
         clearPendingManageContactDecisions()
-        val cur = _state.value.pikerResultData as? PickerResultData.ManageGroupContacts ?: return
+        val cur = state.value.pikerResultData as? PickerResultData.ManageGroupContacts ?: return
         val newSelected = cur.selectedContacts.distinctBy { it.id }
         val oldSelected = group.contacts.distinctBy { it.id }
         val toAdd = calculateContactsToAdd(

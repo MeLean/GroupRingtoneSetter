@@ -5,8 +5,10 @@ import android.content.res.ColorStateList
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.ImageView
 import android.widget.LinearLayout
+import androidx.annotation.StringRes
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -43,11 +45,53 @@ internal class SearchContactView @JvmOverloads constructor(
         onCheckedChangeListener = listener
     }
 
+    fun setBulkActionClickListener(listener: () -> Unit) {
+        binding.selectAllUngroupedButton.setOnClickListener(listener)
+    }
+
+    fun showBulkAction(
+        @StringRes textResId: Int,
+        count: Int,
+        isEnabled: Boolean,
+    ) {
+        binding.selectAllUngroupedButton.apply {
+            isVisible = true
+            setText(context.getString(textResId, count))
+            setButtonEnabled(isEnabled)
+        }
+    }
+
+    fun hideBulkAction() {
+        binding.selectAllUngroupedButton.isVisible = false
+    }
+
     init {
         orientation = VERTICAL
         with(binding) {
             contactsRecyclerView.adapter = contactsAdapter
             emptyState.isVisible = false
+
+            val focusSearchInput = {
+                searchView.isIconified = false
+                searchView.requestFocusFromTouch()
+                searchView.findViewById<SearchView.SearchAutoComplete>(
+                    androidx.appcompat.R.id.search_src_text
+                )?.let { searchInput ->
+                    searchInput.requestFocusFromTouch()
+                    searchInput.setSelection(searchInput.text?.length ?: 0)
+                    val inputMethodManager = ContextCompat.getSystemService(
+                        context,
+                        InputMethodManager::class.java
+                    )
+                    inputMethodManager?.showSoftInput(searchInput, InputMethodManager.SHOW_IMPLICIT)
+                }
+            }
+
+            searchCard.setOnClickListener { focusSearchInput() }
+            searchView.setOnClickListener { focusSearchInput() }
+            searchView.findViewById<View>(
+                androidx.appcompat.R.id.search_plate
+            )?.setOnClickListener { focusSearchInput() }
 
             searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
                 override fun onQueryTextSubmit(query: String?) = true
@@ -113,6 +157,11 @@ internal class SearchContactView @JvmOverloads constructor(
         val hintColor = ContextCompat.getColor(context, themeAppearance.searchHintColorRes)
 
         binding.searchCard.setCardBackgroundColor(surfaceBackgroundColor)
+        binding.searchCard.strokeColor = ContextCompat.getColor(
+            context,
+            themeAppearance.searchStrokeColorRes
+        )
+        binding.searchCard.strokeWidth = (resources.displayMetrics.density * 1.5f).toInt()
         binding.contactsRecyclerView.setBackgroundColor(android.graphics.Color.TRANSPARENT)
         binding.emptyState.setTextColor(textColor)
         TextViewCompat.setCompoundDrawableTintList(

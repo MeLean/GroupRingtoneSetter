@@ -42,6 +42,7 @@
     <string name="group_cannot_be_deleted">无法删除此组。</string>
     <string name="manage_contacts_group_name">管理组联系人</string>
     <string name="manage_contacts_group_name_desc">您是否要向此组添加或删除联系人？通过这样做，联系人将被分配/取消分配到该组。更改铃声将在进程完成后生效！</string>
+    <string name="select_all_ungrouped_contacts_with_count">选择所有未分组联系人（%1$d）</string>
     <string name="choose_ringtone_for_new_contacts_title">为新添加的联系人选择铃声</string>
     <string name="choose_ringtone_for_new_contacts_description">此群组有多个铃声。请选择一个铃声应用到新添加的联系人。</string>
     <string name="something_went_wrong">出了些问题</string>

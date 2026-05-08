@@ -45,6 +45,7 @@
     <string name="group_cannot_be_deleted">This group cannot be deleted.</string>
     <string name="manage_contacts_group_name">Manage contacts to the group</string>
     <string name="manage_contacts_group_name_desc">Would you like to add or remove contacts to this group? By doing so, the contacts will be assigned/unassigned to the group. Changing the ringtone change will take effect once the process is completed!</string>
+    <string name="select_all_ungrouped_contacts_with_count">Select all ungrouped (%1$d)</string>
     <string name="choose_ringtone_for_new_contacts_title">Choose ringtone for newly added contacts</string>
     <string name="choose_ringtone_for_new_contacts_description">This group has multiple ringtones. Select one ringtone to apply to newly added contacts.</string>
     <string name="something_went_wrong">Something went wrong</string>

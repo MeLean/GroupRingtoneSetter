@@ -45,6 +45,7 @@
     <string name="group_cannot_be_deleted">इस समूह को हटाया नहीं जा सकता।</string>
     <string name="manage_contacts_group_name">समूह में संपर्क प्रबंधित करें</string>
     <string name="manage_contacts_group_name_desc">क्या आप इस समूह में संपर्क जोड़ना या हटाना चाहेंगे? इस क्रिया के द्वारा, संपर्क समूह में नियुक्त/अनियुक्त किए जाएंगे। रिंगटोन परिवर्तन लागू होगा जब प्रक्रिया पूरी होगी!</string>
+    <string name="select_all_ungrouped_contacts_with_count">सभी बिना समूह वाले चुनें (%1$d)</string>
     <string name="choose_ringtone_for_new_contacts_title">नए जोड़े गए संपर्कों के लिए रिंगटोन चुनें</string>
     <string name="choose_ringtone_for_new_contacts_description">इस समूह में एक से अधिक रिंगटोन हैं। नए जोड़े गए संपर्कों पर लागू करने के लिए एक रिंगटोन चुनें।</string>
     <string name="something_went_wrong">कुछ गलत हो गया</string>

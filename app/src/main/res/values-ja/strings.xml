@@ -45,6 +45,7 @@
     <string name="group_cannot_be_deleted">このグループは削除できません。</string>
     <string name="manage_contacts_group_name">グループの連絡先を管理</string>
     <string name="manage_contacts_group_name_desc">このグループに連絡先を追加または削除しますか？処理が完了すると、連絡先のグループへの追加・削除と着信音の変更が反映されます。</string>
+    <string name="select_all_ungrouped_contacts_with_count">未グループの連絡先をすべて選択 (%1$d)</string>
     <string name="choose_ringtone_for_new_contacts_title">新しく追加する連絡先の着信音を選択</string>
     <string name="choose_ringtone_for_new_contacts_description">このグループには複数の着信音が設定されています。新しく追加する連絡先に適用する着信音を1つ選んでください。</string>
     <string name="something_went_wrong">エラーが発生しました</string>

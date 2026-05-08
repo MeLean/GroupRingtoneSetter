@@ -45,6 +45,7 @@
     <string name="group_cannot_be_deleted">Nie można usunąć tej grupy.</string>
     <string name="manage_contacts_group_name">Zarzadzaj kontaktami w grupie</string>
     <string name="manage_contacts_group_name_desc">Czy chcesz dodac lub usunac kontakty z tej grupy? Kontakty zostana przypisane lub usuniete z grupy. Zmiana dzwonka zacznie obowiazywac po zakonczeniu procesu.</string>
+    <string name="select_all_ungrouped_contacts_with_count">Wybierz wszystkie nieprzypisane (%1$d)</string>
     <string name="choose_ringtone_for_new_contacts_title">Wybierz dzwonek dla nowo dodanych kontaktow</string>
     <string name="choose_ringtone_for_new_contacts_description">Ta grupa ma wiele dzwonkow. Wybierz jeden dzwonek, ktory zostanie zastosowany do nowo dodanych kontaktow.</string>
     <string name="something_went_wrong">Cos poszlo nie tak</string>

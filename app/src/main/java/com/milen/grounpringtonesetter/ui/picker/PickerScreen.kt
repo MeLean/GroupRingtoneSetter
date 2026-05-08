@@ -85,6 +85,9 @@ internal class PickerScreenFragment : Fragment() {
                     }
                     isVisible = !ui.isLoading
                 }
+                scvContacts.setBulkActionClickListener {
+                    viewModel.selectAllUngroupedContacts()
+                }
 
                 ui.pikerResultData?.run {
                     when (this) {
@@ -160,10 +163,21 @@ internal class PickerScreenFragment : Fragment() {
         binding.run {
             civNameInput.isVisible = false
             scvContacts.isVisible = true
+            crbResetRingtones.isVisible = false
 
             scvContacts.setOnCheckedChangeListener { list ->
                 viewModel.updateManageSelection(list)
             }
+
+            val selectableUngroupedCount = countSelectableUngroupedContacts(
+                ungroupedContacts = data.ungroupedContacts,
+                selectedContacts = data.selectedContacts
+            )
+            scvContacts.showBulkAction(
+                textResId = R.string.select_all_ungrouped_contacts_with_count,
+                count = selectableUngroupedCount,
+                isEnabled = selectableUngroupedCount > 0 && !loading
+            )
 
             val selectedIds = data.selectedContacts.map { it.id }.toHashSet()
             noItemDisclaimer.isVisible = data.allContacts.isEmpty() && !loading

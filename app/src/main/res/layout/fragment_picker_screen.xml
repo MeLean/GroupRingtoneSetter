@@ -18,16 +18,6 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:visibility="visible" />
 
-    <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
-        android:id="@+id/crbResetRingtones"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:visibility="gone"
-        app:buttonLabel="@string/reset_all_ringtones"
-        app:layout_constraintEnd_toEndOf="@+id/civNameInput"
-        app:layout_constraintTop_toBottomOf="@+id/civNameInput" />
-
     <com.milen.grounpringtonesetter.customviews.ui.texts.SearchContactView
         android:id="@+id/scvContacts"
         android:layout_width="0dp"
@@ -38,7 +28,7 @@
         app:layout_constraintBottom_toTopOf="@+id/crbDone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/crbResetRingtones"
+        app:layout_constraintTop_toBottomOf="@+id/civNameInput"
         tools:listitem="@layout/item_contact"
         tools:visibility="visible" />
 

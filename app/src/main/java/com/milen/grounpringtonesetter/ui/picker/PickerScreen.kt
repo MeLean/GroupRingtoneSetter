@@ -91,7 +91,7 @@ internal class PickerScreenFragment : Fragment() {
 
                 ui.pikerResultData?.run {
                     when (this) {
-                        is PickerResultData.ManageGroups -> handleSetName(this).also { manageResetButton() }
+                        is PickerResultData.ManageGroups -> handleSetName(this)
                         is PickerResultData.GroupNameChange -> handleChangeName(this)
                         is PickerResultData.Canceled -> Unit
                         is PickerResultData.ManageGroupContacts -> handleManageContacts(
@@ -129,20 +129,6 @@ internal class PickerScreenFragment : Fragment() {
         dialogHandler = DialogHandler(requireActivity())
     }
 
-    private fun FragmentPickerScreenBinding.manageResetButton() {
-        crbResetRingtones.apply {
-            isVisible = true
-            setOnClickListener {
-                requireActivity().showAlertDialog(
-                    titleResId = R.string.reset_all_ringtones,
-                    message = getString(R.string.reset_all_ringtones_description),
-                    cancelButtonData = ButtonData(R.string.cancel),
-                    confirmButtonData = ButtonData { viewModel.resetGroupRingtones() }
-                )
-            }
-        }
-    }
-
     private fun handleChangeName(data: PickerResultData.GroupNameChange) {
         binding.run {
             scvContacts.isVisible = false
@@ -163,7 +149,6 @@ internal class PickerScreenFragment : Fragment() {
         binding.run {
             civNameInput.isVisible = false
             scvContacts.isVisible = true
-            crbResetRingtones.isVisible = false
 
             scvContacts.setOnCheckedChangeListener { list ->
                 viewModel.updateManageSelection(list)

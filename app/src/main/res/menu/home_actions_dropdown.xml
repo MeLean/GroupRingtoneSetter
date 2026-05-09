@@ -9,6 +9,10 @@
         android:icon="@drawable/ic_settings_24"
         android:title="@string/user_preferences" />
     <item
+        android:id="@+id/actionResetAllRingtones"
+        android:icon="@drawable/ic_reset_24"
+        android:title="@string/reset_all_ringtones" />
+    <item
         android:id="@+id/actionChangeAccount"
         android:icon="@drawable/ic_attribution_24"
         android:title="@string/pick_contact_source_btn_label" />

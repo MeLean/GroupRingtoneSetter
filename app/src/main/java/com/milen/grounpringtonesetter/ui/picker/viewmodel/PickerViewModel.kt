@@ -328,23 +328,6 @@ internal class PickerViewModel(
         }
     }
 
-    fun resetGroupRingtones() {
-        showLoading()
-        viewModelScope.launch {
-            showLoading()
-            try {
-                contactsRepo.clearAllRingtones() // suspend; IO inside helper
-                closeScreen()
-            } catch (e: CancellationException) {
-                throw e
-            } catch (t: Throwable) {
-                handleError(t)
-            } finally {
-                hideLoading()
-            }
-        }
-    }
-
     fun close() {
         clearPendingManageContactDecisions()
         viewModelScope.launch { _events.send(PickerEvent.Close) }

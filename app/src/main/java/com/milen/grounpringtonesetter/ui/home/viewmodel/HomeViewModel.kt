@@ -141,6 +141,22 @@ internal class HomeViewModel(
         tracker.trackEvent("home_user_preferences_opened")
     }
 
+    fun onResetAllRingtonesConfirmed() {
+        viewModelScope.launch {
+            showLoading()
+            runCatching {
+                contactsRepo.clearAllRingtones()
+            }.onSuccess {
+                refreshContactsSilently()
+                showDoneMessage()
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
+                handleError(error)
+            }
+            hideLoading()
+        }
+    }
+
     suspend fun persistHomeDisplayPreferences(preferences: HomeDisplayPreferences): Boolean =
         saveHomeDisplayPreferencesIfChanged(
             current = _state.value.displayPreferences,

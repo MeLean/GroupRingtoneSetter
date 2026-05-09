@@ -597,6 +597,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     true
                 }
 
+                R.id.actionResetAllRingtones -> {
+                    showResetAllRingtonesDialog()
+                    true
+                }
+
                 R.id.actionChangeAccount -> {
                     viewModel.onSelectAccountClicked()
                     true
@@ -606,6 +611,20 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             }
         }
         popup.show()
+    }
+
+    private fun showResetAllRingtonesDialog() {
+        if (!requireContext().areAllPermissionsGranted(permissions)) {
+            requestMultiplePermissions.launch(permissions.toTypedArray())
+            return
+        }
+
+        requireActivity().showAlertDialog(
+            titleResId = R.string.reset_all_ringtones,
+            message = getString(R.string.reset_all_ringtones_description),
+            cancelButtonData = ButtonData(R.string.cancel),
+            confirmButtonData = ButtonData { viewModel.onResetAllRingtonesConfirmed() }
+        )
     }
 
     private fun showUserPreferencesDialog(currentPreferences: HomeDisplayPreferences) {

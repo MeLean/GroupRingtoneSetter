@@ -8,7 +8,6 @@ import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.LabelStorageKind
-import com.milen.grounpringtonesetter.data.local.ExpectedMirrorAssignment
 import com.milen.grounpringtonesetter.data.local.LocalContactLabelMirror
 import com.milen.grounpringtonesetter.data.local.LocalLabelDocument
 import com.milen.grounpringtonesetter.data.local.LocalLabelsStore
@@ -97,6 +96,7 @@ internal class ContactsRepositoryImpl(
 
     override suspend fun loadAccountLabels() {
         lock.withLock {
+            migrateLocalLabelMirrorIfNeeded()
             _labels.value = when (val source = sourceProvider()) {
                 null -> {
                     tracker.trackError(RuntimeException("The contacts are queried with no source selected"))
@@ -114,6 +114,7 @@ internal class ContactsRepositoryImpl(
 
     override suspend fun loadAccountLabelsShallow() {
         lock.withLock {
+            migrateLocalLabelMirrorIfNeeded()
             _labels.value = when (val source = sourceProvider()) {
                 null -> {
                     tracker.trackError(RuntimeException("The contacts are queried with no source selected"))
@@ -536,9 +537,6 @@ internal class ContactsRepositoryImpl(
         val toAdd = normalizedNew.filter { candidate ->
             normalizedOld.none { it.lookupKey == candidate.lookupKey }
         }
-        val toRemove = normalizedOld.filter { candidate ->
-            normalizedNew.none { it.lookupKey == candidate.lookupKey }
-        }
 
         val movedLookupKeys = toAdd.mapTo(hashSetOf()) { it.lookupKey }
         val updatedLabels = document.labels.map { label ->
@@ -610,8 +608,39 @@ internal class ContactsRepositoryImpl(
         if (writeBackIfNeeded && hydrated.document != storedDocument) {
             localLabelsStore.write(hydrated.document)
         }
-        syncLocalLabelMirrorAssignments(hydrated)
+        if (recoverFromMirror && writeBackIfNeeded) {
+            purgeLocalLabelMirror()
+        }
         return hydrated.labelItems
+    }
+
+    private suspend fun migrateLocalLabelMirrorIfNeeded() {
+        val storedDocument = localLabelsStore.read()
+        val mirroredAssignments = runCatching { localLabelMirror.readAssignments() }
+            .onFailure(tracker::trackError)
+            .getOrDefault(emptyList())
+        if (mirroredAssignments.isEmpty()) return
+
+        val recoveredDocument = recoverLocalLabels(storedDocument, mirroredAssignments)
+        if (recoveredDocument != storedDocument) {
+            trackLocalLabelRecoveryApplied(
+                storedDocument = storedDocument,
+                recoveredDocument = recoveredDocument,
+                mirroredAssignments = mirroredAssignments
+            )
+        }
+
+        val hydrated = hydrateLocalLabels(recoveredDocument)
+        if (hydrated.document != recoveredDocument) {
+            trackLocalLabelHydrationAdjusted(
+                sourceDocument = recoveredDocument,
+                hydratedDocument = hydrated.document
+            )
+        }
+        if (hydrated.document != storedDocument) {
+            localLabelsStore.write(hydrated.document)
+        }
+        purgeLocalLabelMirror()
     }
 
     private suspend fun hydrateLocalLabels(
@@ -640,8 +669,7 @@ internal class ContactsRepositoryImpl(
         }
         return HydratedLocalLabels(
             document = LocalLabelDocument(version = document.version, labels = cleanedLabels),
-            labelItems = items,
-            contactsByLookupKey = contactsByLookupKey
+            labelItems = items
         )
     }
 
@@ -671,46 +699,11 @@ internal class ContactsRepositoryImpl(
         }
     }
 
-    private suspend fun syncLocalLabelMirrorAssignments(hydrated: HydratedLocalLabels) {
-        val expectedAssignments = buildExpectedMirrorAssignments(
-            document = hydrated.document,
-            contactsByLookupKey = hydrated.contactsByLookupKey
-        )
-        runMirrorOperationSafely("sync_local_group_mirror") {
-            localLabelMirror.syncAssignments(
-                expectedAssignments = expectedAssignments,
-                resolveRawContactId = helper::resolveMirrorRawContactIdForPureLocalContact,
-                onMissingRawContact = { contactId ->
-                    tracker.trackEvent(
-                        "local_label_mirror_raw_contact_missing",
-                        mapOf("contact_id" to contactId.toString())
-                    )
-                }
-            )
+    private suspend fun purgeLocalLabelMirror() {
+        // One-time migration path: import existing rows if needed, then remove them forever.
+        runMirrorOperationSafely("purge_local_group_mirror") {
+            localLabelMirror.purgeOwnedRows()
         }
-    }
-
-    private fun buildExpectedMirrorAssignments(
-        document: LocalLabelDocument,
-        contactsByLookupKey: Map<String, Contact>,
-    ): List<ExpectedMirrorAssignment> {
-        val expectedByContactId = linkedMapOf<Long, ExpectedMirrorAssignment>()
-        document.labels.forEach { label ->
-            val normalizedLabelName = label.name.trim()
-            if (normalizedLabelName.isBlank()) return@forEach
-
-            label.members.forEach { member ->
-                val contact = contactsByLookupKey[member.lookupKey] ?: return@forEach
-                expectedByContactId.putIfAbsent(
-                    contact.id,
-                    ExpectedMirrorAssignment(
-                        contactId = contact.id,
-                        labelName = normalizedLabelName
-                    )
-                )
-            }
-        }
-        return expectedByContactId.values.toList()
     }
 
     private fun trackLocalLabelRecoveryApplied(
@@ -870,7 +863,6 @@ private fun LocalLabelDocument.memberCount(): Int =
 private data class HydratedLocalLabels(
     val document: LocalLabelDocument,
     val labelItems: List<LabelItem>,
-    val contactsByLookupKey: Map<String, Contact>,
 )
 
 internal fun chooseRingtoneDisplayName(

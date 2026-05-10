@@ -73,116 +73,27 @@ class LocalContactLabelMirrorTest {
     }
 
     @Test
-    fun `buildMirrorSyncPlan backfills missing relation rows`() {
-        val plan = buildMirrorSyncPlan(
-            currentRows = emptyList(),
-            expectedAssignments = listOf(
-                ExpectedMirrorAssignment(contactId = 10L, labelName = "Family")
-            ),
-            resolveRawContactId = { 100L }
-        )
+    fun `buildMirrorPurgePlan keeps purge a no-op when there are no rows`() {
+        val plan = buildMirrorPurgePlan(currentRows = emptyList())
 
         assertTrue(plan.deleteRowIds.isEmpty())
-        assertTrue(plan.missingRawContactIds.isEmpty())
-        assertTrue(plan.duplicateRelationContactIds.isEmpty())
-        assertEquals(
-            listOf(
-                MirrorInsertAssignment(
-                    contactId = 10L,
-                    rawContactId = 100L,
-                    labelName = "Family"
-                )
-            ),
-            plan.insertAssignments
-        )
+        assertEquals(0, plan.relationRowCount)
+        assertEquals(0, plan.legacyRowCount)
     }
 
     @Test
-    fun `buildMirrorSyncPlan updates renamed relation marker and migrates legacy rows`() {
-        val plan = buildMirrorSyncPlan(
-            currentRows = listOf(
-                relationRow(rowId = 1L, contactId = 10L, labelName = "Old name"),
-                legacyRow(rowId = 2L, contactId = 20L, labelName = "Gym", labelId = "gym-id")
-            ),
-            expectedAssignments = listOf(
-                ExpectedMirrorAssignment(contactId = 10L, labelName = "New name"),
-                ExpectedMirrorAssignment(contactId = 20L, labelName = "Gym")
-            ),
-            resolveRawContactId = { contactId -> if (contactId == 10L) 100L else 200L }
-        )
-
-        assertEquals(setOf(1L, 2L), plan.deleteRowIds)
-        assertEquals(
-            listOf(
-                MirrorInsertAssignment(
-                    contactId = 10L,
-                    rawContactId = 100L,
-                    labelName = "New name"
-                ),
-                MirrorInsertAssignment(
-                    contactId = 20L,
-                    rawContactId = 200L,
-                    labelName = "Gym"
-                )
-            ),
-            plan.insertAssignments
-        )
-        assertTrue(plan.missingRawContactIds.isEmpty())
-    }
-
-    @Test
-    fun `buildMirrorSyncPlan removes stale rows and reports missing raw contact ids`() {
-        val plan = buildMirrorSyncPlan(
+    fun `buildMirrorPurgePlan deletes all recognized rows including malformed ones`() {
+        val plan = buildMirrorPurgePlan(
             currentRows = listOf(
                 relationRow(rowId = 1L, contactId = 10L, labelName = "Family"),
-                legacyRow(rowId = 2L, contactId = 11L, labelName = "Work", labelId = "work-id")
-            ),
-            expectedAssignments = listOf(
-                ExpectedMirrorAssignment(contactId = 10L, labelName = "Family"),
-                ExpectedMirrorAssignment(contactId = 11L, labelName = "Work")
-            ),
-            resolveRawContactId = { contactId -> if (contactId == 10L) 100L else null }
+                legacyRow(rowId = 2L, contactId = 10L, labelName = "Legacy Family", labelId = "family-id"),
+                relationRow(rowId = 3L, contactId = 11L, labelName = "   ")
+            )
         )
 
-        assertEquals(setOf(2L), plan.deleteRowIds)
-        assertEquals(setOf(11L), plan.missingRawContactIds)
-        assertTrue(plan.insertAssignments.isEmpty())
-    }
-
-    @Test
-    fun `buildMirrorSyncPlan removes stale rows for deleted local groups`() {
-        val plan = buildMirrorSyncPlan(
-            currentRows = listOf(
-                relationRow(rowId = 1L, contactId = 10L, labelName = "Family"),
-                legacyRow(rowId = 2L, contactId = 11L, labelName = "Work", labelId = "work-id")
-            ),
-            expectedAssignments = emptyList(),
-            resolveRawContactId = { 100L }
-        )
-
-        assertEquals(setOf(1L, 2L), plan.deleteRowIds)
-        assertTrue(plan.insertAssignments.isEmpty())
-        assertTrue(plan.missingRawContactIds.isEmpty())
-        assertTrue(plan.duplicateRelationContactIds.isEmpty())
-    }
-
-    @Test
-    fun `buildMirrorSyncPlan keeps first duplicate relation row and deletes the rest`() {
-        val plan = buildMirrorSyncPlan(
-            currentRows = listOf(
-                relationRow(rowId = 1L, contactId = 10L, labelName = "Family"),
-                relationRow(rowId = 2L, contactId = 10L, labelName = "Family")
-            ),
-            expectedAssignments = listOf(
-                ExpectedMirrorAssignment(contactId = 10L, labelName = "Family")
-            ),
-            resolveRawContactId = { 100L }
-        )
-
-        assertEquals(setOf(10L), plan.duplicateRelationContactIds)
-        assertEquals(setOf(2L), plan.deleteRowIds)
-        assertTrue(plan.insertAssignments.isEmpty())
-        assertTrue(plan.missingRawContactIds.isEmpty())
+        assertEquals(linkedSetOf(1L, 2L, 3L), plan.deleteRowIds)
+        assertEquals(2, plan.relationRowCount)
+        assertEquals(1, plan.legacyRowCount)
     }
 
     private fun relationRow(

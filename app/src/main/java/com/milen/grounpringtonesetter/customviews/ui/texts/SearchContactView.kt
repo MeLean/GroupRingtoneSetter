@@ -6,6 +6,7 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.annotation.StringRes
@@ -61,10 +62,6 @@ internal class SearchContactView @JvmOverloads constructor(
         }
     }
 
-    fun hideBulkAction() {
-        binding.selectAllUngroupedButton.isVisible = false
-    }
-
     init {
         orientation = VERTICAL
         with(binding) {
@@ -74,7 +71,7 @@ internal class SearchContactView @JvmOverloads constructor(
             val focusSearchInput = {
                 searchView.isIconified = false
                 searchView.requestFocusFromTouch()
-                searchView.findViewById<SearchView.SearchAutoComplete>(
+                searchView.findViewById<EditText>(
                     androidx.appcompat.R.id.search_src_text
                 )?.let { searchInput ->
                     searchInput.requestFocusFromTouch()
@@ -169,7 +166,7 @@ internal class SearchContactView @JvmOverloads constructor(
             ColorStateList.valueOf(iconTintColor)
         )
 
-        binding.searchView.findViewById<SearchView.SearchAutoComplete>(
+        binding.searchView.findViewById<EditText>(
             androidx.appcompat.R.id.search_src_text
         )?.apply {
             setTextColor(textColor)

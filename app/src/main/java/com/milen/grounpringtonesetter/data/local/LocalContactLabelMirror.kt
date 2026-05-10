@@ -1,7 +1,6 @@
 package com.milen.grounpringtonesetter.data.local
 
 import android.app.Application
-import android.content.ContentValues
 import android.provider.ContactsContract
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Tracker
@@ -50,51 +49,25 @@ internal class LocalContactLabelMirror(
             parsed.assignments
         }
 
-    suspend fun syncAssignments(
-        expectedAssignments: List<ExpectedMirrorAssignment>,
-        resolveRawContactId: (Long) -> Long?,
-        onMissingRawContact: (Long) -> Unit,
-    ) = withContext(DispatchersProvider.io) {
-        val plan = buildMirrorSyncPlan(
-            currentRows = queryMirrorRows(),
-            expectedAssignments = expectedAssignments,
-            resolveRawContactId = resolveRawContactId
-        )
-
-        plan.duplicateRelationContactIds.forEach(::trackDuplicateRelationRows)
+    suspend fun purgeOwnedRows() = withContext(DispatchersProvider.io) {
+        val plan = buildMirrorPurgePlan(queryMirrorRows())
         plan.deleteRowIds.forEach(::deleteRowById)
-        plan.insertAssignments.forEach { assignment ->
-            insertRelationAssignment(
-                rawContactId = assignment.rawContactId,
-                labelName = assignment.labelName
-            )
-        }
-        plan.missingRawContactIds.forEach(onMissingRawContact)
-        trackSyncTelemetry(plan, expectedAssignments.size)
+        trackPurgeTelemetry(plan)
     }
 
-    private fun insertRelationAssignment(
-        rawContactId: Long,
-        labelName: String,
+    private fun trackPurgeTelemetry(
+        plan: MirrorPurgePlan,
     ) {
-        val values = ContentValues().apply {
-            put(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
-            put(
-                ContactsContract.Data.MIMETYPE,
-                ContactsContract.CommonDataKinds.Relation.CONTENT_ITEM_TYPE
+        if (plan.deleteRowIds.isEmpty()) return
+
+        tracker.trackEvent(
+            "local_label_mirror_purge",
+            mapOf(
+                "delete_count" to plan.deleteRowIds.size,
+                "relation_row_count" to plan.relationRowCount,
+                "legacy_row_count" to plan.legacyRowCount
             )
-            put(ContactsContract.CommonDataKinds.Relation.TYPE, ContactsContract.CommonDataKinds.Relation.TYPE_CUSTOM)
-            put(ContactsContract.CommonDataKinds.Relation.LABEL, RELATION_MARKER_LABEL)
-            put(ContactsContract.CommonDataKinds.Relation.NAME, labelName)
-        }
-        val inserted = appContext.contentResolver.insert(ContactsContract.Data.CONTENT_URI, values)
-        if (inserted == null) {
-            tracker.trackError(
-                IllegalStateException(
-                    "Failed to insert local label relation marker for rawContactId=$rawContactId"
-                )
-            )
-        }
+        )
     }
 
     private fun deleteRowById(rowId: Long) {
@@ -209,38 +182,7 @@ internal class LocalContactLabelMirror(
             )
         )
     }
-
-    private fun trackSyncTelemetry(
-        plan: MirrorSyncPlan,
-        expectedAssignmentCount: Int,
-    ) {
-        if (
-            plan.deleteRowIds.isEmpty() &&
-            plan.insertAssignments.isEmpty() &&
-            plan.missingRawContactIds.isEmpty() &&
-            plan.duplicateRelationContactIds.isEmpty()
-        ) {
-            return
-        }
-
-        tracker.trackEvent(
-            "local_label_mirror_sync_plan",
-            mapOf(
-                "expected_count" to expectedAssignmentCount,
-                "delete_count" to plan.deleteRowIds.size,
-                "insert_count" to plan.insertAssignments.size,
-                "missing_raw_count" to plan.missingRawContactIds.size,
-                "duplicate_relation_count" to plan.duplicateRelationContactIds.size
-            )
-        )
-    }
-
 }
-
-internal data class ExpectedMirrorAssignment(
-    val contactId: Long,
-    val labelName: String,
-)
 
 internal data class LocalLabelMirrorProviderRow(
     val rowId: Long,
@@ -274,17 +216,10 @@ internal data class ParsedMirrorAssignments(
     val legacyRowCount: Int,
 )
 
-internal data class MirrorInsertAssignment(
-    val contactId: Long,
-    val rawContactId: Long,
-    val labelName: String,
-)
-
-internal data class MirrorSyncPlan(
+internal data class MirrorPurgePlan(
     val deleteRowIds: Set<Long>,
-    val insertAssignments: List<MirrorInsertAssignment>,
-    val missingRawContactIds: Set<Long>,
-    val duplicateRelationContactIds: Set<Long>,
+    val relationRowCount: Int,
+    val legacyRowCount: Int,
 )
 
 internal fun parseMirrorAssignments(
@@ -343,80 +278,17 @@ internal fun parseMirrorAssignments(
     )
 }
 
-internal fun buildMirrorSyncPlan(
+internal fun buildMirrorPurgePlan(
     currentRows: List<LocalLabelMirrorRow>,
-    expectedAssignments: List<ExpectedMirrorAssignment>,
-    resolveRawContactId: (Long) -> Long?,
-): MirrorSyncPlan {
-    val expectedByContactId = linkedMapOf<Long, ExpectedMirrorAssignment>()
-    expectedAssignments.forEach { assignment ->
-        expectedByContactId.putIfAbsent(assignment.contactId, assignment)
-    }
-
-    val deleteRowIds = linkedSetOf<Long>()
-    val insertAssignments = mutableListOf<MirrorInsertAssignment>()
-    val missingRawContactIds = linkedSetOf<Long>()
-    val duplicateRelationContactIds = linkedSetOf<Long>()
-    val currentRowsByContactId = currentRows.groupBy { it.contactId }
-
-    currentRowsByContactId.forEach { (contactId, contactRows) ->
-        val expected = expectedByContactId[contactId]
-        val relationRows = contactRows
-            .filter { it.kind == LocalLabelMirrorRowKind.RELATION_MARKER }
-            .sortedBy { it.rowId }
-        val legacyRows = contactRows.filter { it.kind == LocalLabelMirrorRowKind.LEGACY_CUSTOM }
-
-        if (relationRows.size > 1) {
-            duplicateRelationContactIds += contactId
-            relationRows.drop(1).forEach { row -> deleteRowIds += row.rowId }
+): MirrorPurgePlan {
+    return MirrorPurgePlan(
+        deleteRowIds = currentRows.mapTo(linkedSetOf()) { row -> row.rowId },
+        relationRowCount = currentRows.count { row ->
+            row.kind == LocalLabelMirrorRowKind.RELATION_MARKER
+        },
+        legacyRowCount = currentRows.count { row ->
+            row.kind == LocalLabelMirrorRowKind.LEGACY_CUSTOM
         }
-
-        val primaryRelation = relationRows.firstOrNull()
-        if (expected == null) {
-            contactRows.forEach { row -> deleteRowIds += row.rowId }
-            return@forEach
-        }
-
-        legacyRows.forEach { row -> deleteRowIds += row.rowId }
-        if (primaryRelation?.labelName == expected.labelName) {
-            return@forEach
-        }
-
-        primaryRelation?.let { row -> deleteRowIds += row.rowId }
-        val rawContactId = resolveRawContactId(contactId)
-        if (rawContactId == null) {
-            missingRawContactIds += contactId
-            return@forEach
-        }
-
-        insertAssignments += MirrorInsertAssignment(
-            contactId = contactId,
-            rawContactId = rawContactId,
-            labelName = expected.labelName
-        )
-    }
-
-    expectedByContactId.forEach { (contactId, expected) ->
-        if (contactId in currentRowsByContactId) return@forEach
-
-        val rawContactId = resolveRawContactId(contactId)
-        if (rawContactId == null) {
-            missingRawContactIds += contactId
-            return@forEach
-        }
-
-        insertAssignments += MirrorInsertAssignment(
-            contactId = contactId,
-            rawContactId = rawContactId,
-            labelName = expected.labelName
-        )
-    }
-
-    return MirrorSyncPlan(
-        deleteRowIds = deleteRowIds,
-        insertAssignments = insertAssignments,
-        missingRawContactIds = missingRawContactIds,
-        duplicateRelationContactIds = duplicateRelationContactIds
     )
 }
 

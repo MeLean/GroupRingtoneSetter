@@ -18,7 +18,7 @@ internal enum class GroupSortOption {
 
 internal data class HomeDisplayPreferences(
     val themeOption: HomeThemeOption = HomeThemeOption.CLASSIC,
-    val groupSortOption: GroupSortOption = GroupSortOption.CURRENT_ORDER,
+    val groupSortOption: GroupSortOption = GroupSortOption.ALPHABETICAL_ASC,
 )
 
 internal data class HomeThemeAppearance(

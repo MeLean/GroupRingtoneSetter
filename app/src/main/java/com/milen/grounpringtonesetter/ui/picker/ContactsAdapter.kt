@@ -134,14 +134,8 @@ internal class ContactsAdapter :
         onContactCheckedStateChanged: (SelectableContact) -> Unit,
     ) {
         this.onContactCheckedStateChanged = onContactCheckedStateChanged
-        super.submitList(
-            list
-                ?.map { it } // defensive copy
-                ?.sortedWith(
-                    compareByDescending<SelectableContact> { it.isChecked }
-                        .thenBy { it.name }
-                )
-        )
+        val locale = java.util.Locale.getDefault()
+        super.submitList(list?.let { contacts -> sortSelectableContacts(contacts, locale) })
     }
 
     companion object DiffCallback : DiffUtil.ItemCallback<SelectableContact>() {

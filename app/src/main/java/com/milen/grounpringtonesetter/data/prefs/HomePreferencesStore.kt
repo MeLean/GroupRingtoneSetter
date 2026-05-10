@@ -49,7 +49,7 @@ internal fun parseHomeThemeOption(rawValue: String?): HomeThemeOption =
 
 internal fun parseGroupSortOption(rawValue: String?): GroupSortOption =
     runCatching { GroupSortOption.valueOf(rawValue.orEmpty()) }
-        .getOrDefault(GroupSortOption.CURRENT_ORDER)
+        .getOrDefault(GroupSortOption.ALPHABETICAL_ASC)
 
 internal fun readHomeDisplayPreferencesSync(
     prefs: EncryptedPreferencesHelper,

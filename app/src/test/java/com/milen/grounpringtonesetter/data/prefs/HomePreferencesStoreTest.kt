@@ -31,6 +31,13 @@ class HomePreferencesStoreTest {
     }
 
     @Test
+    fun `read defaults group sorting to alphabetical ascending`() = runTest {
+        val store = HomePreferencesStore(FakeHomePreferencesDataSource())
+
+        assertEquals(GroupSortOption.ALPHABETICAL_ASC, store.read().groupSortOption)
+    }
+
+    @Test
     fun `write persists preferences for later reads`() = runTest {
         val dataSource = FakeHomePreferencesDataSource()
         val store = HomePreferencesStore(dataSource)

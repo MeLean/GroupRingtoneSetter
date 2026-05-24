@@ -76,6 +76,7 @@
     <string name="click_here">点击这里</string>
     <string name="my_song_please_promo_text">为你或你所爱的人定制专属铃声 — %1$s 试用我们的音乐应用。</string>
     <string name="ringtone_lable">铃声</string>
+    <string name="privacy_choices">隐私选项</string>
     <string name="purchase_unavailable">购买不可用</string>
     <string name="billing_service_unavailable">结算服务暂时不可用。请稍后重试。</string>
     <string name="billing_configuration_error">Google Play 结算服务配置不正确。请检查您的 Google Play 商店应用并重试。</string>

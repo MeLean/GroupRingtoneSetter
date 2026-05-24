@@ -4,18 +4,16 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.drawable.ColorDrawable
-import android.os.Build
 import android.os.Bundle
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.isVisible
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
-import com.google.android.gms.ads.MobileAds
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.showCustomViewAlertDialog
 import com.milen.grounpringtonesetter.databinding.ActivityMainBinding
@@ -44,7 +42,7 @@ class MainActivity : AppCompatActivity() {
         binding.toolbarMain.applyStatusBarPadding()
         binding.container.applyNavAndImePadding()
 
-        MobileAds.initialize(this)
+        (application as App).adsManager.requestConsent(this)
 
         val navHostFragment =
             supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
@@ -65,7 +63,7 @@ class MainActivity : AppCompatActivity() {
                     this,
                     themeOption.toAppearance().screenBackgroundColorRes
                 )
-                window.setBackgroundDrawable(ColorDrawable(backgroundColor))
+                window.setBackgroundDrawable(backgroundColor.toDrawable())
             }
         }.onFailure {
             val fallbackColor = if (themeOption == HomeThemeOption.LIGHT_HIGH_CONTRAST) {
@@ -105,6 +103,20 @@ class MainActivity : AppCompatActivity() {
             textView = dialogBinding.ctvMySongPleaseTitle,
             uriStr = getString(R.string.my_song_please_url)
         )
+        dialogBinding.ctvPrivacyChoices.apply {
+            isVisible = (application as App).adsManager.isPrivacyOptionsRequired.value
+            if (isVisible) {
+                bindInfoActionLink(this) {
+                    (application as App).adsManager.showPrivacyOptionsForm(this@MainActivity)
+                }
+            }
+        }
+        if (BuildConfig.DEBUG) {
+            dialogBinding.ctvVersion.setOnLongClickListener {
+                (application as App).adsManager.openAdInspector(this)
+                true
+            }
+        }
 
         showCustomViewAlertDialog(
             titleResId = R.string.info,
@@ -130,6 +142,21 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(Intent.ACTION_VIEW, uriStr.toUri()))
             }
         }
+    }
+
+    private fun bindInfoActionLink(
+        textView: TextView,
+        action: () -> Unit,
+    ) {
+        val themeAppearance = textView.context.currentThemeAppearance()
+        textView.setTextColor(
+            ContextCompat.getColor(
+                textView.context,
+                themeAppearance.dialogActionTextColorRes
+            )
+        )
+        textView.paintFlags = textView.paintFlags or Paint.UNDERLINE_TEXT_FLAG
+        textView.setOnClickListener { action() }
     }
 
     private fun applyCurrentTheme() {
@@ -165,9 +192,7 @@ class MainActivity : AppCompatActivity() {
         val insetsController = WindowCompat.getInsetsController(window, binding.root)
         val isLightTheme = themeOption == HomeThemeOption.LIGHT_HIGH_CONTRAST
         insetsController.isAppearanceLightStatusBars = isLightTheme
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            insetsController.isAppearanceLightNavigationBars = isLightTheme
-        }
+        insetsController.isAppearanceLightNavigationBars = isLightTheme
     }
 
     fun handleLoading(isLoading: Boolean) {

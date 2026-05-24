@@ -79,6 +79,7 @@
     <string name="click_here">нажмите здесь</string>
     <string name="my_song_please_promo_text">Получите рингтон, сделанный специально для вас или вашего близкого — %1$s, чтобы попробовать наше музыкальное приложение.</string>
     <string name="ringtone_lable">мелодия звонка</string>
+    <string name="privacy_choices">Настройки конфиденциальности</string>
     <string name="purchase_unavailable">Покупка недоступна</string>
     <string name="billing_service_unavailable">Сервис оплаты временно недоступен. Пожалуйста, попробуйте позже.</string>
     <string name="billing_configuration_error">Система оплаты Google Play неправильно настроена. Пожалуйста, проверьте приложение Google Play Маркет и попробуйте снова.</string>

@@ -21,7 +21,7 @@ internal sealed interface DeviceDefaultTonesEvent {
     data object ShowWriteSettingsDialog : DeviceDefaultTonesEvent
     data object ShowApplyFailedDialog : DeviceDefaultTonesEvent
     data class OpenIntent(val intent: Intent) : DeviceDefaultTonesEvent
+    data class ShowInterstitialThenInfo(@param:StringRes val messageResId: Int) : DeviceDefaultTonesEvent
     data class ShowInfoById(@param:StringRes val messageResId: Int) : DeviceDefaultTonesEvent
     data class ShowErrorById(@param:StringRes val messageResId: Int) : DeviceDefaultTonesEvent
-    data object ShowInterstitialAd : DeviceDefaultTonesEvent
 }

@@ -91,5 +91,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp" />
+
+        <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+            android:id="@+id/ctvPrivacyChoices"
+            style="@style/TextAppearance.MaterialComponents.Body2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:text="@string/privacy_choices"
+            android:visibility="gone" />
     </LinearLayout>
 </ScrollView>

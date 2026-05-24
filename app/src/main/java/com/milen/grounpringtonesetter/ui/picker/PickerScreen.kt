@@ -11,6 +11,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
@@ -41,6 +42,11 @@ internal class PickerScreenFragment : Fragment() {
     private val billing by lazy(LazyThreadSafetyMode.NONE) {
         (requireActivity().application as App).billingManager
     }
+    private val adsManager by lazy(LazyThreadSafetyMode.NONE) {
+        (requireActivity().application as App).adsManager
+    }
+    private var currentEntitlement = EntitlementState.UNKNOWN
+    private var canLoadAds = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -121,12 +127,24 @@ internal class PickerScreenFragment : Fragment() {
             }
         }
 
-        binding.adBannerPicker.isVisible = false
+        binding.adBannerPicker.apply {
+            isVisible = false
+            setPlacement("picker_banner")
+        }
         billing.state.collectStateIn(viewLifecycleOwner) { st ->
-            binding.adBannerPicker.manageVisibility(st)
+            currentEntitlement = st
+            renderBannerVisibility()
+        }
+        adsManager.canLoadAds.collectStateIn(viewLifecycleOwner) { canLoadAds ->
+            this.canLoadAds = canLoadAds
+            renderBannerVisibility()
         }
 
         dialogHandler = DialogHandler(requireActivity())
+    }
+
+    private fun renderBannerVisibility() {
+        binding.adBannerPicker.manageVisibility(currentEntitlement, canLoadAds)
     }
 
     private fun handleChangeName(data: PickerResultData.GroupNameChange) {

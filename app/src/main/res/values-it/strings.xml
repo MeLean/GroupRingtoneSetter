@@ -79,6 +79,7 @@
     <string name="click_here">clicca qui</string>
     <string name="my_song_please_promo_text">Ottieni una suoneria fatta su misura per te o per una persona cara - %1$s per provare la nostra app musicale.</string>
     <string name="ringtone_lable">suoneria</string>
+    <string name="privacy_choices">Scelte sulla privacy</string>
     <string name="purchase_unavailable">Acquisto non disponibile</string>
     <string name="billing_service_unavailable">Il servizio di fatturazione non è temporaneamente disponibile. Riprova più tardi.</string>
     <string name="billing_configuration_error">La fatturazione di Google Play non è configurata correttamente. Controlla l\'app Google Play Store e riprova.</string>

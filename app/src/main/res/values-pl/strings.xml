@@ -79,6 +79,7 @@
     <string name="click_here">kliknij tutaj</string>
     <string name="my_song_please_promo_text">Zdobadz dzwonek stworzony specjalnie dla Ciebie lub bliskiej osoby - %1$s, aby wyprobowac nasza aplikacje muzyczna.</string>
     <string name="ringtone_lable">dzwonek</string>
+    <string name="privacy_choices">Ustawienia prywatności</string>
     <string name="purchase_unavailable">Zakup niedostepny</string>
     <string name="billing_service_unavailable">Usluga platnosci jest tymczasowo niedostepna. Sprobuj ponownie pozniej.</string>
     <string name="billing_configuration_error">Platnosci Google Play nie sa poprawnie skonfigurowane. Sprawdz aplikacje Sklep Google Play i sprobuj ponownie.</string>

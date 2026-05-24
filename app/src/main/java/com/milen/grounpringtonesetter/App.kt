@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.NoopBillingResultActivity
+import com.milen.grounpringtonesetter.customviews.ui.ads.AdsManager
 import com.milen.grounpringtonesetter.data.prefs.EncryptedHomePreferencesDataSource
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.data.prefs.HomePreferencesStore
@@ -24,6 +25,7 @@ import kotlinx.coroutines.launch
 
 class App : Application() {
     internal val tracker: Tracker by lazy { Tracker() }
+    internal val adsManager: AdsManager by lazy { AdsManager(this, tracker) }
     internal val preferencesHelper: EncryptedPreferencesHelper by lazy { EncryptedPreferencesHelper(this) }
     internal val homePreferencesStore: HomePreferencesStore by lazy {
         HomePreferencesStore(
@@ -66,6 +68,8 @@ class App : Application() {
                     .penaltyLog().build()
             )
         }
+
+        adsManager.initialize()
 
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityPreCreated(a: Activity, s: Bundle?) {

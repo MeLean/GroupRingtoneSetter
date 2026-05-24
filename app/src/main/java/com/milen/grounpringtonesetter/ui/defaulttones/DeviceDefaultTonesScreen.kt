@@ -15,7 +15,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -34,6 +33,7 @@ import com.milen.grounpringtonesetter.utils.collectEventsIn
 import com.milen.grounpringtonesetter.utils.collectStateIn
 import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 import com.milen.grounpringtonesetter.utils.handleLoading
+import com.milen.grounpringtonesetter.utils.manageVisibility
 
 internal class DeviceDefaultTonesScreen : Fragment() {
     private lateinit var binding: FragmentDeviceDefaultTonesBinding
@@ -47,6 +47,11 @@ internal class DeviceDefaultTonesScreen : Fragment() {
     private val billing by lazy(LazyThreadSafetyMode.NONE) {
         (requireActivity().application as App).billingManager
     }
+    private val adsManager by lazy(LazyThreadSafetyMode.NONE) {
+        (requireActivity().application as App).adsManager
+    }
+    private var currentEntitlement = EntitlementState.UNKNOWN
+    private var canLoadAds = false
 
     private var activePickerToneType: DeviceDefaultToneType? = null
     private var activeFilePickerToneType: DeviceDefaultToneType? = null
@@ -102,8 +107,9 @@ internal class DeviceDefaultTonesScreen : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         dialogHandler = DialogHandler(requireActivity())
-        adHelper = AdLoadingHelper(requireActivity())
+        adHelper = AdLoadingHelper(requireActivity(), placement = "default_tones_interstitial")
         applyScreenTheme()
+        binding.adBannerDefaultTones.setPlacement("default_tones_banner")
 
         binding.apply {
             crbChangeDefaultRingtone.setOnClickListener {
@@ -150,28 +156,30 @@ internal class DeviceDefaultTonesScreen : Fragment() {
                     dialogHandler.showErrorById(event.messageResId)
                 }
 
-                is DeviceDefaultTonesEvent.ShowInfoById -> {
-                    dialogHandler.showInfo(event.messageResId)
+                is DeviceDefaultTonesEvent.ShowInterstitialThenInfo -> {
+                    adHelper.showInterstitialAd {
+                        dialogHandler.showInfo(event.messageResId)
+                    }
                 }
 
-                is DeviceDefaultTonesEvent.ShowInterstitialAd -> {
-                    adHelper.showInterstitialAd()
+                is DeviceDefaultTonesEvent.ShowInfoById -> {
+                    dialogHandler.showInfo(event.messageResId)
                 }
             }
         }
 
         billing.state.collectStateIn(viewLifecycleOwner) { entitlement ->
-            binding.adBannerDefaultTones.apply {
-                when (entitlement) {
-                    EntitlementState.NOT_OWNED -> isVisible = true
-                    EntitlementState.UNKNOWN,
-                    EntitlementState.PENDING -> isVisible = false
-
-                    EntitlementState.OWNED -> {
-                        isVisible = false
-                        destroyBanner()
-                    }
-                }
+            currentEntitlement = entitlement
+            renderBannerVisibility()
+            if (entitlement == EntitlementState.NOT_OWNED && canLoadAds) {
+                adHelper.preloadInterstitialAd()
+            }
+        }
+        adsManager.canLoadAds.collectStateIn(viewLifecycleOwner) { canLoadAds ->
+            this.canLoadAds = canLoadAds
+            renderBannerVisibility()
+            if (currentEntitlement == EntitlementState.NOT_OWNED && canLoadAds) {
+                adHelper.preloadInterstitialAd()
             }
         }
     }
@@ -180,6 +188,13 @@ internal class DeviceDefaultTonesScreen : Fragment() {
         super.onResume()
         changeMainTitle(getString(R.string.device_default_tones_title))
         viewModel.onScreenResumed()
+        if (currentEntitlement == EntitlementState.NOT_OWNED && canLoadAds) {
+            adHelper.preloadInterstitialAd()
+        }
+    }
+
+    private fun renderBannerVisibility() {
+        binding.adBannerDefaultTones.manageVisibility(currentEntitlement, canLoadAds)
     }
 
     private fun applyScreenTheme() {

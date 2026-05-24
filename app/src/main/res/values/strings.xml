@@ -79,6 +79,7 @@
     <string name="click_here">click here</string>
     <string name="my_song_please_promo_text">Get a ringtone made just for you or your loved one — %1$s to try our music app.</string>
     <string name="ringtone_lable">ringtone</string>
+    <string name="privacy_choices">Privacy choices</string>
     <string name="purchase_unavailable">Purchase Unavailable</string>
     <string name="billing_service_unavailable">Billing service is temporarily unavailable. Please try again later.</string>
     <string name="billing_configuration_error">Google Play Billing is not properly configured. Please check your Google Play Store app and try again.</string>

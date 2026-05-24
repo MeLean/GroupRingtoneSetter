@@ -100,6 +100,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private val tracker by lazy(LazyThreadSafetyMode.NONE) {
         (requireActivity().application as App).tracker
     }
+    private val adsManager by lazy(LazyThreadSafetyMode.NONE) {
+        (requireActivity().application as App).adsManager
+    }
+    private var currentEntitlement = EntitlementState.UNKNOWN
+    private var canLoadAds = false
 
     private val permissions = mutableListOf(
         Manifest.permission.READ_CONTACTS,
@@ -197,11 +202,13 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             setupGroupSearch()
             btnAddGroup.setOnClickListener { openCreateGroup() }
             btnEmptyAddGroup.setOnClickListener { openCreateGroup() }
+            abHome.setPlacement("home_banner")
         }
 
         dialogHandler = DialogHandler(requireActivity())
 
         viewModel.state.collectStateIn(viewLifecycleOwner) { state ->
+            currentEntitlement = state.entitlement
             handleLoading(state.loadingVisible)
             if (renderedThemeOption != state.displayPreferences.themeOption) {
                 applyHomeTheme(
@@ -278,7 +285,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
                     )
                 }
 
-                abHome.manageVisibility(state.entitlement)
+                renderBannerVisibility()
 
                 llBillingsActions.isVisible = state.entitlement != EntitlementState.OWNED
 
@@ -294,6 +301,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
 
                 ctvValidationPurchases.isVisible = state.entitlement == EntitlementState.PENDING
             }
+        }
+
+        adsManager.canLoadAds.collectStateIn(viewLifecycleOwner) { canLoadAds ->
+            this.canLoadAds = canLoadAds
+            renderBannerVisibility()
         }
 
         viewModel.events.collectEventsIn(viewLifecycleOwner) { event ->
@@ -366,6 +378,10 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         super.onResume()
         viewModel.onHomeResumed(requireActivity())
         changeMainTitle(getString(R.string.app_name))
+    }
+
+    private fun renderBannerVisibility() {
+        binding.abHome.manageVisibility(currentEntitlement, canLoadAds)
     }
 
     private fun checkPermissions() {

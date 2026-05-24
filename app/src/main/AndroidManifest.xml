@@ -48,7 +48,7 @@
 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-6177746105485183~9226068349" />
+            android:value="${admobAppId}" />
 
         <property
             android:name="android.adservices.AD_SERVICES_CONFIG"

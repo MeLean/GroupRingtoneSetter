@@ -79,6 +79,7 @@
     <string name="click_here">こちら</string>
     <string name="my_song_please_promo_text">あなたや大切な人のためだけの着信音を作れます。音楽アプリを試すには%1$sをタップしてください。</string>
     <string name="ringtone_lable">着信音</string>
+    <string name="privacy_choices">プライバシーの選択</string>
     <string name="purchase_unavailable">購入できません</string>
     <string name="billing_service_unavailable">課金サービスを一時的に利用できません。しばらくしてからもう一度お試しください。</string>
     <string name="billing_configuration_error">Google Play の課金設定に問題があります。Google Play ストアアプリを確認して、もう一度お試しください。</string>

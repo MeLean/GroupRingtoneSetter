@@ -39,7 +39,11 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            manifestPlaceholders["admobAppId"] = "ca-app-pub-3940256099942544~3347511713"
+        }
         getByName("release") {
+            manifestPlaceholders["admobAppId"] = "ca-app-pub-6177746105485183~9226068349"
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -98,6 +102,7 @@ dependencies {
 
     // Google Play Services (Ads)
     implementation(libs.playServicesAds)
+    implementation(libs.userMessagingPlatform)
 
     // Firebase (BoM + libs)
     implementation(platform(libs.firebase.bom))

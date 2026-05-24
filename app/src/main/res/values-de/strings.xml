@@ -79,6 +79,7 @@
     <string name="click_here">Tippen Sie hier</string>
     <string name="my_song_please_promo_text">Erhalten Sie einen nur für Sie oder Ihre Liebsten erstellten Klingelton — %1$s, um unsere Musik-App auszuprobieren.</string>
     <string name="ringtone_lable">Klingelton</string>
+    <string name="privacy_choices">Datenschutzeinstellungen</string>
     <string name="purchase_unavailable">Kauf nicht verfügbar</string>
     <string name="billing_service_unavailable">Der Abrechnungsdienst ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.</string>
     <string name="billing_configuration_error">Google Play-Abrechnung ist nicht ordnungsgemäß konfiguriert. Bitte überprüfen Sie Ihre Google Play Store-App und versuchen Sie es erneut.</string>

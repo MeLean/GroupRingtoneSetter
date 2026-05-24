@@ -35,7 +35,7 @@ internal object HomeViewModelFactory {
             prefs = prefs
         )
 
-        val ads = AdLoadingHelper(activity)
+        val ads = AdLoadingHelper(activity, placement = "home_interstitial")
 
         return object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

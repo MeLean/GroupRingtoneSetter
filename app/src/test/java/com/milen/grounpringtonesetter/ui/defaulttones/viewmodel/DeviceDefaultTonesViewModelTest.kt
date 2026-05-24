@@ -70,7 +70,7 @@ class DeviceDefaultTonesViewModelTest {
         }
 
     @Test
-    fun `successful apply emits interstitial only for NOT_OWNED entitlement`() =
+    fun `successful apply emits post ad success event only for NOT_OWNED entitlement`() =
         runViewModelTest { dispatcher ->
             val toneManager = FakeDeviceDefaultToneManager(canWrite = true)
             val viewModel = createViewModel(
@@ -87,10 +87,10 @@ class DeviceDefaultTonesViewModelTest {
             advanceUntilIdle()
 
             val event = withTimeout(1_000) {
-                viewModel.events.filterIsInstance<DeviceDefaultTonesEvent.ShowInterstitialAd>()
+                viewModel.events.filterIsInstance<DeviceDefaultTonesEvent.ShowInterstitialThenInfo>()
                     .first()
             }
-            assertEquals(DeviceDefaultTonesEvent.ShowInterstitialAd, event)
+            assertEquals(R.string.everything_set, event.messageResId)
             assertEquals(1, toneManager.appliedSelections.size)
         }
 
@@ -119,7 +119,7 @@ class DeviceDefaultTonesViewModelTest {
                 advanceUntilIdle()
 
                 val maybeInterstitial = withTimeoutOrNull(200) {
-                    viewModel.events.filterIsInstance<DeviceDefaultTonesEvent.ShowInterstitialAd>()
+                    viewModel.events.filterIsInstance<DeviceDefaultTonesEvent.ShowInterstitialThenInfo>()
                         .first()
                 }
                 assertNull(maybeInterstitial)

@@ -20,7 +20,8 @@ accompanist-permissions = "0.37.3"
 security-crypto = "1.1.0"
 navigation = "2.9.3"
 
-play-services-ads = "24.5.0"
+play-services-ads = "24.9.0"
+ump = "4.0.0"
 billing = "8.0.0"
 
 junit4 = "4.13.2"
@@ -63,6 +64,7 @@ androidxNavigationTesting = { module = "androidx.navigation:navigation-testing",
 
 # --- Google Play Services / Billing ---
 playServicesAds = { module = "com.google.android.gms:play-services-ads", version.ref = "play-services-ads" }
+userMessagingPlatform = { module = "com.google.android.ump:user-messaging-platform", version.ref = "ump" }
 billingKtx = { module = "com.android.billingclient:billing-ktx", version.ref = "billing" }
 
 # --- Firebase BoM + libs (BoM separate on purpose) ---

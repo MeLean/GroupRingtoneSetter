@@ -387,6 +387,9 @@ internal class HomeViewModel(
 
     fun onHomeResumed(activity: Activity) {
         adHelper.updateActivity(activity)
+        if (_state.value.entitlement == EntitlementState.NOT_OWNED) {
+            adHelper.preloadInterstitialAd()
+        }
         if (_state.value.isPurchaseInProgress) {
             releasePurchaseUiGuard("home_resumed")
         }
@@ -602,6 +605,7 @@ internal class HomeViewModel(
                     hideLoading()
                     when (result) {
                         InterstitialAdShowResult.SHOWN -> showDoneMessage()
+                        InterstitialAdShowResult.SKIPPED -> showDoneMessage()
                         InterstitialAdShowResult.LOAD_FAILED,
                         InterstitialAdShowResult.SHOW_FAILED -> {
                             tracker.trackEvent(
@@ -613,11 +617,10 @@ internal class HomeViewModel(
                     }
                 }
 
-            EntitlementState.UNKNOWN, EntitlementState.PENDING ->
-                adHelper.showInterstitialAd {
-                    hideLoading()
-                    showDoneMessage()
-                }
+            EntitlementState.UNKNOWN, EntitlementState.PENDING -> {
+                hideLoading()
+                showDoneMessage()
+            }
         }
 
         refreshContactsSilently()

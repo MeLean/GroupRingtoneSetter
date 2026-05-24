@@ -27,6 +27,7 @@
     <string name="do_the_magic">Применить все рингтоны</string>
     <string name="file_name_not_accessible">Имя файла недоступно</string>
     <string name="contacts">Контакты</string>
+    <string name="phone_label">Телефон</string>
     <string name="close_app">Закрыть приложение</string>
     <string name="open_network_settings">Открыть настройки Wi-Fi</string>
     <string name="no_internet_description">Отсутствует интернет-соединение. Для правильной работы приложения необходимо подключение к интернету.</string>
@@ -52,7 +53,7 @@
     <string name="loading">Загрузка. . .</string>
     <string name="error">Ошибка</string>
     <string name="info">Информация</string>
-    <string name="info_text">Для лучшего использования:\n- Убедитесь, что предоставлены все необходимые разрешения.\n- Выберите источник контактов, в котором сохранены ваши контакты.\n- Избегайте добавления одного и того же контакта в несколько групп.</string>
+    <string name="info_text">Для лучшего использования:\n- Число в круге показывает, сколько контактов в группе.\n- Текст рядом с кругом показывает рингтон, назначенный этой группе.\n- Используйте «Выбрать рингтон», чтобы изменить рингтон, «Редактировать имя группы», чтобы переименовать, «Управлять контактами группы», чтобы изменить участников, и «Удалить группу», чтобы удалить группу.</string>
     <string name="useful_apps_heading">Эти приложения тоже могут быть вам полезны</string>
     <string name="petish_nutrack_info_description">Следите за кормлением, напоминаниями и данными о здоровье вашего питомца в одном месте.</string>
     <string name="gentle_compliments_info_description">Получайте нежные комплименты и добрые напоминания в течение дня.</string>
@@ -65,6 +66,8 @@
     <string name="image_button">Кнопка с изображением</string>
     <string name="click_to_check">Нажмите, чтобы отметить</string>
     <string name="click_to_uncheck">Нажмите, чтобы снять отметку</string>
+    <string name="include_contact_in_group">Добавить %1$s в %2$s</string>
+    <string name="remove_contact_from_group">Удалить %1$s из %2$s</string>
     <string name="remove_repeating_groups">Удалить повторяющиеся группы</string>
     <string name="pick_account">Выберите аккаунт, в котором будет создана группа</string>
     <string name="reset_all_ringtones">Сбросить все рингтоны</string>
@@ -78,7 +81,7 @@
     <string name="contact_source_on_device">На устройстве</string>
     <string name="click_here">нажмите здесь</string>
     <string name="my_song_please_promo_text">Получите рингтон, сделанный специально для вас или вашего близкого — %1$s, чтобы попробовать наше музыкальное приложение.</string>
-    <string name="ringtone_lable">мелодия звонка</string>
+    <string name="ringtone_lable">Мелодия звонка</string>
     <string name="privacy_choices">Настройки конфиденциальности</string>
     <string name="purchase_unavailable">Покупка недоступна</string>
     <string name="billing_service_unavailable">Сервис оплаты временно недоступен. Пожалуйста, попробуйте позже.</string>

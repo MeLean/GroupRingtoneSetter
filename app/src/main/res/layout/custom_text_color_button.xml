@@ -9,9 +9,9 @@
         android:layout_height="match_parent"
         android:background="@android:color/transparent"
         android:contentDescription="@string/image_button"
-        android:scaleType="fitXY"
+        android:padding="10dp"
+        android:scaleType="centerInside"
         app:tint="@color/textColor"
         app:srcCompat="@drawable/ic_launcher_background"
         tools:ignore="HardcodedText" />
 </merge>
-

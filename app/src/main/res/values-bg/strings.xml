@@ -27,6 +27,7 @@
     <string name="do_the_magic">Приложи всички мелодии</string>
     <string name="file_name_not_accessible">Името на файла не е достъпно</string>
     <string name="contacts">Контакти</string>
+    <string name="phone_label">Телефон</string>
     <string name="close_app">Затворете приложението</string>
     <string name="open_network_settings">Отворете настройките за Wi-Fi</string>
     <string name="no_internet_description">Няма интернет връзка. За правилната работа на приложението е необходим интернет.</string>
@@ -52,7 +53,7 @@
     <string name="loading">Зареждане. . .</string>
     <string name="error">Грешка</string>
     <string name="info">Информация</string>
-    <string name="info_text">За най-добра работа:\n- Уверете се, че всички необходими разрешения са предоставени.\n- Изберете източника на контакти, където са записани вашите контакти.\n- Избягвайте да добавяте един и същ контакт в множество групи.</string>
+    <string name="info_text">За най-добро използване:\n- Числото в кръга показва колко контакта има в групата.\n- Текстът до кръга показва мелодията, зададена за тази група.\n- Използвайте „Изберете мелодия“, за да я смените, „Редактиране“ за преименуване, „Управление на контакти“ за промяна на участниците и „Изтриване“ за премахване на група.</string>
     <string name="useful_apps_heading">Тези приложения също може да са ви полезни</string>
     <string name="petish_nutrack_info_description">Следете храненията, напомнянията и здравните данни на вашия любимец на едно място.</string>
     <string name="gentle_compliments_info_description">Получавайте нежни комплименти и мили напомняния през деня.</string>
@@ -65,6 +66,8 @@
     <string name="image_button">Бутон с зображение</string>
     <string name="click_to_check">Щракнете, за да маркирате</string>
     <string name="click_to_uncheck">Щракнете, за да премахнете отметката</string>
+    <string name="include_contact_in_group">Добавете %1$s в %2$s</string>
+    <string name="remove_contact_from_group">Премахнете %1$s от %2$s</string>
     <string name="remove_repeating_groups">Премахване на повтарящи се групи</string>
     <string name="pick_account">Изберете акаунта, в който ще бъде създадена групата</string>
     <string name="reset_all_ringtones">Нулиране на всички мелодии</string>
@@ -78,7 +81,7 @@
     <string name="contact_source_on_device">На устройството</string>
     <string name="click_here">натисни тук</string>
     <string name="my_song_please_promo_text">Вземи рингтон, направен специално за теб или за твой любим човек — %1$s, за да пробваш нашето музикално приложение.</string>
-    <string name="ringtone_lable">мелодия</string>
+    <string name="ringtone_lable">Мелодия</string>
     <string name="privacy_choices">Избори за поверителност</string>
     <string name="purchase_unavailable">Плащанията не недостъпни</string>
     <string name="billing_service_unavailable">Услугата за плащания временно е недостъпна. Моля, опитайте отново по-късно.</string>

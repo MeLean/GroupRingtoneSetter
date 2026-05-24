@@ -602,6 +602,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         popup.menu.findItem(R.id.actionChangeAccount)?.isVisible = canChangeAccount
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
+                R.id.actionHomeInfo -> {
+                    showHomeInfoDialog()
+                    true
+                }
+
                 R.id.actionSetDeviceDefaultTones -> {
                     viewModel.onDeviceDefaultTonesClicked()
                     true
@@ -627,6 +632,14 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             }
         }
         popup.show()
+    }
+
+    private fun showHomeInfoDialog() {
+        requireActivity().showAlertDialog(
+            titleResId = R.string.info,
+            message = getString(R.string.info_text),
+            confirmButtonData = ButtonData(R.string.ok)
+        )
     }
 
     private fun showResetAllRingtonesDialog() {
@@ -739,11 +752,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
     private fun updateSearchToggleIcon(isSearchVisible: Boolean) {
         if (isSearchVisible) {
             binding.ctcibToggleSearch.setIcon(R.drawable.ic_close_24)
-            binding.ctcibToggleSearch.contentDescription = getString(R.string.close)
+            binding.ctcibToggleSearch.applyButtonContentDescription(getString(R.string.close))
             return
         }
         binding.ctcibToggleSearch.setIcon(R.drawable.ic_search_24)
-        binding.ctcibToggleSearch.contentDescription = getString(R.string.search_group_hint)
+        binding.ctcibToggleSearch.applyButtonContentDescription(getString(R.string.search_group_hint))
     }
 
     override fun onManageContacts(labelItem: LabelItem): Unit =

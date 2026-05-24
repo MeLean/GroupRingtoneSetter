@@ -27,6 +27,7 @@
     <string name="do_the_magic">Applica tutte le suonerie</string>
     <string name="file_name_not_accessible">Il nome del file non è accessibile</string>
     <string name="contacts">Contatti</string>
+    <string name="phone_label">Telefono</string>
     <string name="close_app">Chiudi l\'applicazione</string>
     <string name="open_network_settings">Apri impostazioni Wi-Fi</string>
     <string name="no_internet_description">Nessuna connessione Internet. Per funzionare correttamente, l\'app necessita di Internet</string>
@@ -52,7 +53,7 @@
     <string name="loading">Caricamento in corso…</string>
     <string name="error">Errore</string>
     <string name="info">Informazioni</string>
-    <string name="info_text">Per un\'esperienza migliore:\n- Assicurati che tutte le autorizzazioni necessarie siano concesse.\n- Scegli la fonte dei contatti in cui sono salvati i tuoi contatti.\n- Evita di aggiungere lo stesso contatto a più gruppi.</string>
+    <string name="info_text">Per un\'esperienza migliore:\n- Il numero nel cerchio indica quanti contatti ci sono nel gruppo.\n- Il testo accanto al cerchio indica la suoneria assegnata a quel gruppo.\n- Usa «Scegli suoneria» per cambiarla, «Modifica nome gruppo» per rinominare, «Gestisci contatti del gruppo» per i membri e «Elimina gruppo» per rimuovere un gruppo.</string>
     <string name="useful_apps_heading">Anche queste app potrebbero esserti utili</string>
     <string name="petish_nutrack_info_description">Tieni traccia di pasti, promemoria e dati di salute del tuo animale in un unico posto.</string>
     <string name="gentle_compliments_info_description">Ricevi complimenti delicati e promemoria gentili durante la giornata.</string>
@@ -65,6 +66,8 @@
     <string name="image_button">Pulsante immagine</string>
     <string name="click_to_check">Tocca per selezionare</string>
     <string name="click_to_uncheck">Tocca per deselezionare</string>
+    <string name="include_contact_in_group">Aggiungi %1$s a %2$s</string>
+    <string name="remove_contact_from_group">Rimuovi %1$s da %2$s</string>
     <string name="remove_repeating_groups">Rimuovi i gruppi duplicati</string>
     <string name="pick_account">Seleziona l\'account in cui verrà creato il gruppo</string>
     <string name="reset_all_ringtones">Reimposta tutte le suonerie</string>
@@ -78,7 +81,7 @@
     <string name="contact_source_on_device">Sul dispositivo</string>
     <string name="click_here">clicca qui</string>
     <string name="my_song_please_promo_text">Ottieni una suoneria fatta su misura per te o per una persona cara - %1$s per provare la nostra app musicale.</string>
-    <string name="ringtone_lable">suoneria</string>
+    <string name="ringtone_lable">Suoneria</string>
     <string name="privacy_choices">Scelte sulla privacy</string>
     <string name="purchase_unavailable">Acquisto non disponibile</string>
     <string name="billing_service_unavailable">Il servizio di fatturazione non è temporaneamente disponibile. Riprova più tardi.</string>

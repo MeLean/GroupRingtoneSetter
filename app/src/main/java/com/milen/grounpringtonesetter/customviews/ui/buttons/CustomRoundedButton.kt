@@ -47,6 +47,9 @@ internal class CustomRoundedButton @JvmOverloads constructor(
                 themeAppearance.actionButtonTextColorRes
             )
         )
+
+        // Preserve any XML-set contentDescription after the inner button exists.
+        contentDescription?.let(::applyButtonContentDescription)
     }
 
     fun setColors(
@@ -64,6 +67,15 @@ internal class CustomRoundedButton @JvmOverloads constructor(
     fun setButtonEnabled(isEnabled: Boolean) {
         binding.btnMain.isEnabled = isEnabled
         binding.btnMain.alpha = if (isEnabled) 1f else 0.5f
+    }
+
+    fun applyButtonContentDescription(description: CharSequence?) {
+        super.setContentDescription(description)
+        binding.btnMain.contentDescription = description
+    }
+
+    fun setContentDescriptionText(contentDescription: CharSequence) {
+        applyButtonContentDescription(contentDescription)
     }
 
     fun setOnClickListener(listener: () -> Unit) {

@@ -27,6 +27,7 @@
     <string name="do_the_magic">सभी रिंगटोन्स लागू करें</string>
     <string name="file_name_not_accessible">फ़ाइल का नाम अनुपलब्ध है</string>
     <string name="contacts">संपर्क</string>
+    <string name="phone_label">फ़ोन</string>
     <string name="close_app">ऐप्लिकेशन बंद करें</string>
     <string name="open_network_settings">वाईफ़ाई सेटिंग्स खोलें</string>
     <string name="no_internet_description">कोई इंटरनेट कनेक्शन नहीं है। सही ढंग से काम करने के लिए ऐप को इंटरनेट की आवश्यकता होती है</string>
@@ -52,7 +53,7 @@
     <string name="loading">लोड हो रहा है. . .</string>
     <string name="error">त्रुटि</string>
     <string name="info">जानकारी</string>
-    <string name="info_text">बेहतर अनुभव के लिए:\n- सुनिश्चित करें कि सभी आवश्यक अनुमतियां दी गई हैं।\n- वही संपर्क स्रोत चुनें जहां आपके संपर्क सहेजे गए हैं।\n- एक ही संपर्क को कई समूहों में जोड़ने से बचें।</string>
+    <string name="info_text">बेहतर अनुभव के लिए:\n- गोले के अंदर दिया गया नंबर बताता है कि उस समूह में कितने संपर्क हैं।\n- गोले के पास दिया गया टेक्स्ट उस समूह के लिए चुनी गई रिंगटोन दिखाता है।\n- बदलने के लिए «रिंगटोन चुनें», नाम बदलने के लिए «समूह नाम संपादित करें», सदस्यों के लिए «समूह के संपर्क प्रबंधित करें», और हटाने के लिए «समूह हटाएं» का उपयोग करें।</string>
     <string name="useful_apps_heading">ये ऐप्स भी आपके लिए उपयोगी हो सकते हैं</string>
     <string name="petish_nutrack_info_description">अपने पालतू के भोजन, रिमाइंडर और स्वास्थ्य विवरण एक ही जगह पर ट्रैक करें।</string>
     <string name="gentle_compliments_info_description">दिन भर कोमल प्रशंसाएं और स्नेहभरे रिमाइंडर पाएं।</string>
@@ -65,6 +66,8 @@
     <string name="image_button">चित्र वाला बटन</string>
     <string name="click_to_check">चेक करने के लिए क्लिक करें</string>
     <string name="click_to_uncheck">अनचेक करने के लिए क्लिक करें</string>
+    <string name="include_contact_in_group">%1$s को %2$s में शामिल करें</string>
+    <string name="remove_contact_from_group">%1$s को %2$s से हटाएं</string>
     <string name="remove_repeating_groups">दोहराए जाने वाले समूहों को हटाएं</string>
     <string name="pick_account">उस खाते को चुनें जहाँ समूह बनाया जाएगा</string>
     <string name="reset_all_ringtones">सभी रिंगटोन रीसेट करें</string>

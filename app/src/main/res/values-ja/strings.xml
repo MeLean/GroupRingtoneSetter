@@ -27,6 +27,7 @@
     <string name="do_the_magic">すべての着信音を設定</string>
     <string name="file_name_not_accessible">ファイル名を取得できません</string>
     <string name="contacts">連絡先</string>
+    <string name="phone_label">電話</string>
     <string name="close_app">アプリを閉じる</string>
     <string name="open_network_settings">Wi-Fi設定を開く</string>
     <string name="no_internet_description">インターネットに接続されていません。アプリを正常に利用するには接続が必要です。</string>
@@ -52,7 +53,7 @@
     <string name="loading">読み込み中…</string>
     <string name="error">エラー</string>
     <string name="info">情報</string>
-    <string name="info_text">より快適にご利用いただくために:\n- 必要な権限をすべて許可してください。\n- 連絡先が保存されている連絡先ソースを選択してください。\n- 同じ連絡先を複数のグループに追加しないでください。</string>
+    <string name="info_text">より快適にご利用いただくために:\n- 円の中の数字は、そのグループに含まれる連絡先の数です。\n- 円の横のテキストは、そのグループに設定されている着信音です。\n- 変更は「着信音を選択」、名前変更は「グループ名を編集」、メンバー変更は「グループの連絡先を管理」、削除は「グループを削除」を使ってください。</string>
     <string name="useful_apps_heading">こちらのアプリも役立つかもしれません</string>
     <string name="petish_nutrack_info_description">ペットの食事、リマインダー、健康情報をひとつの場所で管理できます。</string>
     <string name="gentle_compliments_info_description">やさしい褒め言葉や思いやりのあるリマインダーを一日を通して受け取れます。</string>
@@ -65,6 +66,8 @@
     <string name="image_button">アイコンボタン</string>
     <string name="click_to_check">タップして選択</string>
     <string name="click_to_uncheck">タップして選択解除</string>
+    <string name="include_contact_in_group">%1$sを%2$sに追加</string>
+    <string name="remove_contact_from_group">%1$sを%2$sから削除</string>
     <string name="remove_repeating_groups">重複したグループを削除</string>
     <string name="pick_account">グループを作成するアカウントを選択してください</string>
     <string name="reset_all_ringtones">すべての着信音をリセット</string>

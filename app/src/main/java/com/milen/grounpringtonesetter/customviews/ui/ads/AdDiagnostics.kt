@@ -101,13 +101,15 @@ internal object AdDiagnostics {
                 "ad_format" to format,
                 "placement" to placement,
                 "stage" to stage,
-                "reason" to reason
+                "reason" to reason,
+                "throwable_type" to (throwable?.javaClass?.simpleName ?: "none"),
+                "throwable_message" to (throwable?.message ?: "none")
             )
         )
         logDebugEvent(
             format = format,
             placement = placement,
-            message = "unexpected stage=$stage reason=$reason"
+            message = "unexpected stage=$stage reason=$reason throwable=${throwable?.javaClass?.simpleName ?: "none"} message=${throwable?.message ?: "none"}"
         )
         tracker.trackError(
             IllegalStateException(

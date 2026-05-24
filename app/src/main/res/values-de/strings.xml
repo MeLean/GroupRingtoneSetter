@@ -27,6 +27,7 @@
     <string name="do_the_magic">Alle Klingeltöne anwenden</string>
     <string name="file_name_not_accessible">Der Dateiname ist nicht zugänglich</string>
     <string name="contacts">Kontakte</string>
+    <string name="phone_label">Telefon</string>
     <string name="close_app">App schließen</string>
     <string name="open_network_settings">WLAN-Einstellungen öffnen</string>
     <string name="no_internet_description">Keine Internetverbindung. Damit die App ordnungsgemäß funktioniert, wird eine Internetverbindung benötigt.</string>
@@ -52,7 +53,7 @@
     <string name="loading">Wird geladen …</string>
     <string name="error">Fehler</string>
     <string name="info">Information</string>
-    <string name="info_text">Für die beste Nutzung:\n- Stellen Sie sicher, dass alle erforderlichen Berechtigungen erteilt sind.\n- Wählen Sie die Kontaktquelle, in der Ihre Kontakte gespeichert sind.\n- Vermeiden Sie es, denselben Kontakt zu mehreren Gruppen hinzuzufügen.</string>
+    <string name="info_text">Für die beste Nutzung:\n- Die Zahl im Kreis zeigt, wie viele Kontakte in der Gruppe sind.\n- Der Text neben dem Kreis zeigt den dieser Gruppe zugewiesenen Klingelton.\n- Verwenden Sie „Klingelton auswählen“ zum Ändern, „Gruppennamen bearbeiten“ zum Umbenennen, „Kontakte der Gruppe verwalten“ für Mitglieder und „Gruppe löschen“ zum Entfernen einer Gruppe.</string>
     <string name="useful_apps_heading">Diese Apps könnten ebenfalls nützlich für Sie sein</string>
     <string name="petish_nutrack_info_description">Behalten Sie Mahlzeiten, Erinnerungen und Gesundheitsdaten Ihres Haustiers an einem Ort im Blick.</string>
     <string name="gentle_compliments_info_description">Erhalten Sie im Laufe des Tages liebevolle Komplimente und freundliche Erinnerungen.</string>
@@ -65,6 +66,8 @@
     <string name="image_button">Bildschaltfläche</string>
     <string name="click_to_check">Zum Auswählen tippen</string>
     <string name="click_to_uncheck">Zum Abwählen tippen</string>
+    <string name="include_contact_in_group">Fügen Sie %1$s zu %2$s hinzu</string>
+    <string name="remove_contact_from_group">Entfernen Sie %1$s aus %2$s</string>
     <string name="remove_repeating_groups">Doppelte Gruppen entfernen</string>
     <string name="pick_account">Wählen Sie das Konto aus, in dem die Gruppe erstellt wird</string>
     <string name="reset_all_ringtones">Alle Klingeltöne zurücksetzen</string>

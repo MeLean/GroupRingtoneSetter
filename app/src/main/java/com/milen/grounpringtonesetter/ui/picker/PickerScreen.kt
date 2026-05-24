@@ -171,6 +171,7 @@ internal class PickerScreenFragment : Fragment() {
             scvContacts.setOnCheckedChangeListener { list ->
                 viewModel.updateManageSelection(list)
             }
+            scvContacts.setTargetGroupName(data.group.groupName)
 
             val selectableUngroupedCount = countSelectableUngroupedContacts(
                 ungroupedContacts = data.ungroupedContacts,

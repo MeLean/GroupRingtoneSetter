@@ -19,7 +19,7 @@ internal class CustomTextColorImageButton @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
-    private var binding = CustomTextColorButtonBinding.inflate(LayoutInflater.from(context), this)
+    private val binding = CustomTextColorButtonBinding.inflate(LayoutInflater.from(context), this)
 
     init {
         attrs?.let {
@@ -43,10 +43,18 @@ internal class CustomTextColorImageButton @JvmOverloads constructor(
                 context.currentThemeAppearance().iconTintColorRes
             )
         )
+
+        // Preserve any XML-set contentDescription after the child button exists.
+        contentDescription?.let(::applyButtonContentDescription)
     }
 
     override fun setOnClickListener(listener: OnClickListener?) {
         binding.imageButton.setOnClickListener(listener)
+    }
+
+    fun applyButtonContentDescription(description: CharSequence?) {
+        super.setContentDescription(description)
+        binding.imageButton.contentDescription = description
     }
 
     fun setIcon(@DrawableRes drawableRes: Int) {

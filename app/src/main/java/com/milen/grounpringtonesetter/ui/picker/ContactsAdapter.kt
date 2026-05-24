@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -27,6 +28,7 @@ internal class ContactsAdapter :
     ListAdapter<SelectableContact, ContactsAdapter.ViewHolder>(DiffCallback) {
 
     private var onContactCheckedStateChanged: (SelectableContact) -> Unit = {}
+    private var targetGroupName: String = ""
 
     // Thread-safe in-memory caches
     private val labelCache = ConcurrentHashMap<String, String>()
@@ -52,17 +54,18 @@ internal class ContactsAdapter :
             with(binding) {
                 val themeAppearance = root.context.currentThemeAppearance()
                 ctvContactName.text = contact.name
-                ctvContactPhone.text = contact.phone
+                val phoneText = PickerContactAccessibilityText.buildPhoneText(
+                    phoneLabel = root.context.getString(R.string.phone_label),
+                    phoneNumber = contact.phone
+                )
+                ctvContactPhone.text = phoneText
+                ctvContactPhone.isVisible = phoneText.isNotBlank()
                 bindRingtoneLabel(contact)
 
                 checkbox.apply {
                     setOnCheckedChangeListener(null)
                     isChecked = contact.isChecked
-                    contentDescription = if (contact.isChecked) {
-                        context.getString(R.string.click_to_uncheck)
-                    } else {
-                        context.getString(R.string.click_to_check)
-                    }
+                    contentDescription = buildCheckboxDescription(contact, contact.isChecked)
                     buttonTintList = ColorStateList.valueOf(
                         ContextCompat.getColor(
                             context,
@@ -70,10 +73,22 @@ internal class ContactsAdapter :
                         )
                     )
                     setOnCheckedChangeListener { _, checked ->
+                        contentDescription = buildCheckboxDescription(contact, checked)
                         onChecked(contact.copy(isChecked = checked))
                     }
                 }
             }
+
+        private fun buildCheckboxDescription(
+            contact: SelectableContact,
+            isChecked: Boolean,
+        ): String = PickerContactAccessibilityText.buildCheckboxDescription(
+            isChecked = isChecked,
+            contactName = contact.name,
+            groupName = targetGroupName,
+            includeTemplate = binding.root.context.getString(R.string.include_contact_in_group),
+            removeTemplate = binding.root.context.getString(R.string.remove_contact_from_group)
+        )
 
         fun bindRingtoneLabel(contact: SelectableContact): Unit = with(binding) {
             val uri = contact.ringtoneUriString ?: ""
@@ -136,6 +151,10 @@ internal class ContactsAdapter :
         this.onContactCheckedStateChanged = onContactCheckedStateChanged
         val locale = java.util.Locale.getDefault()
         super.submitList(list?.let { contacts -> sortSelectableContacts(contacts, locale) })
+    }
+
+    fun updateTargetGroupName(groupName: String) {
+        targetGroupName = groupName
     }
 
     companion object DiffCallback : DiffUtil.ItemCallback<SelectableContact>() {

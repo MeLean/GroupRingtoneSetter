@@ -27,6 +27,7 @@
     <string name="do_the_magic">Appliquer toutes les sonneries</string>
     <string name="file_name_not_accessible">Le nom du fichier n\'est pas accessible</string>
     <string name="contacts">Contacts</string>
+    <string name="phone_label">Téléphone</string>
     <string name="close_app">Fermer l\'application</string>
     <string name="open_network_settings">Ouvrir les paramètres Wi-Fi</string>
     <string name="no_internet_description">Pas de connexion Internet. Une connexion Internet est nécessaire pour le bon fonctionnement de l\'application.</string>
@@ -52,7 +53,7 @@
     <string name="loading">Chargement. . .</string>
     <string name="error">Erreur</string>
     <string name="info">Information</string>
-    <string name="info_text">Pour une meilleure expérience :\n- Assurez-vous que toutes les autorisations nécessaires sont accordées.\n- Choisissez la source de contacts où vos contacts sont enregistrés.\n- Évitez d’ajouter le même contact à plusieurs groupes.</string>
+    <string name="info_text">Pour une meilleure expérience :\n- Le nombre dans le cercle indique combien de contacts sont dans le groupe.\n- Le texte à côté du cercle indique la sonnerie attribuée à ce groupe.\n- Utilisez « Choisir la sonnerie » pour la modifier, « Modifier le nom du groupe » pour renommer, « Gérer les contacts du groupe » pour les membres et « Supprimer le groupe » pour retirer un groupe.</string>
     <string name="useful_apps_heading">Ces applications peuvent aussi vous être utiles</string>
     <string name="petish_nutrack_info_description">Suivez les repas, les rappels et les informations de santé de votre animal au même endroit.</string>
     <string name="gentle_compliments_info_description">Recevez des compliments doux et des rappels bienveillants tout au long de la journée.</string>
@@ -65,6 +66,8 @@
     <string name="image_button">Bouton avec image</string>
     <string name="click_to_check">Cliquez pour cocher</string>
     <string name="click_to_uncheck">Cliquez pour décocher</string>
+    <string name="include_contact_in_group">Ajouter %1$s à %2$s</string>
+    <string name="remove_contact_from_group">Retirer %1$s de %2$s</string>
     <string name="remove_repeating_groups">Supprimer les groupes répétitifs</string>
     <string name="pick_account">Choisissez le compte où le groupe sera créé</string>
     <string name="reset_all_ringtones">Réinitialiser toutes les sonneries</string>
@@ -78,7 +81,7 @@
     <string name="contact_source_on_device">Sur l’appareil</string>
     <string name="click_here">cliquez ici</string>
     <string name="my_song_please_promo_text">Obtenez une sonnerie faite spécialement pour vous ou pour un proche — %1$s pour essayer notre application musicale.</string>
-    <string name="ringtone_lable">sonnerie</string>
+    <string name="ringtone_lable">Sonnerie</string>
     <string name="privacy_choices">Choix de confidentialité</string>
     <string name="purchase_unavailable">Achat indisponible</string>
     <string name="billing_service_unavailable">Le service de facturation est temporairement indisponible. Veuillez réessayer plus tard.</string>

@@ -7,8 +7,8 @@
 
     <ImageButton
         android:id="@+id/btnInfoAction"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_gravity="start|center_vertical"
         android:layout_marginStart="16dp"
         android:background="?attr/selectableItemBackgroundBorderless"
@@ -29,12 +29,12 @@
 
     <ImageButton
         android:id="@+id/btnCustomAction"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:layout_gravity="end|center_vertical"
         android:layout_marginEnd="16dp"
         android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="@string/done"
+        android:contentDescription="@string/close"
         android:src="@drawable/ic_close_24" />
 
 </merge>

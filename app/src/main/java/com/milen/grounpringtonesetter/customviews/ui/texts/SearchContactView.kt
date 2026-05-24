@@ -50,6 +50,10 @@ internal class SearchContactView @JvmOverloads constructor(
         binding.selectAllUngroupedButton.setOnClickListener(listener)
     }
 
+    fun setTargetGroupName(groupName: String) {
+        contactsAdapter.updateTargetGroupName(groupName)
+    }
+
     fun showBulkAction(
         @StringRes textResId: Int,
         count: Int,

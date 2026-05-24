@@ -19,6 +19,7 @@ import com.milen.grounpringtonesetter.customviews.dialog.showRequiredSingleChoic
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.SelectableContact
 import com.milen.grounpringtonesetter.databinding.FragmentPickerScreenBinding
+import com.milen.grounpringtonesetter.ui.ScreenInfoProvider
 import com.milen.grounpringtonesetter.ui.picker.data.PickerMode
 import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
 import com.milen.grounpringtonesetter.ui.picker.viewmodel.PickerViewModel
@@ -31,7 +32,7 @@ import com.milen.grounpringtonesetter.utils.hideSoftInput
 import com.milen.grounpringtonesetter.utils.manageVisibility
 import com.milen.grounpringtonesetter.utils.parcelableOrThrow
 
-internal class PickerScreenFragment : Fragment() {
+internal class PickerScreenFragment : Fragment(), ScreenInfoProvider {
     private lateinit var binding: FragmentPickerScreenBinding
     private lateinit var dialogHandler: DialogHandler
 
@@ -60,7 +61,7 @@ internal class PickerScreenFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val mode = requireArguments().getString(ARG_MODE)?.let(PickerMode::valueOf)
+        val mode = resolveMode()
             ?: error("Missing picker mode")
 
         if (savedInstanceState == null || viewModel.state.value.pikerResultData == null) {
@@ -288,5 +289,13 @@ internal class PickerScreenFragment : Fragment() {
         fun argsForCreate() = bundleOf(
             ARG_MODE to PickerMode.CREATE.name,
         )
+    }
+
+    override fun getScreenInfoMessageResId(): Int =
+        PickerScreenInfoText.getMessageResId(resolveMode() ?: PickerMode.CREATE)
+
+    private fun resolveMode(): PickerMode? {
+        val modeName = arguments?.getString(ARG_MODE) ?: return null
+        return runCatching { PickerMode.valueOf(modeName) }.getOrNull()
     }
 }

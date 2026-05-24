@@ -26,6 +26,7 @@ import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.databinding.FragmentDeviceDefaultTonesBinding
+import com.milen.grounpringtonesetter.ui.ScreenInfoProvider
 import com.milen.grounpringtonesetter.ui.defaulttones.viewmodel.DeviceDefaultTonesViewModel
 import com.milen.grounpringtonesetter.ui.defaulttones.viewmodel.DeviceDefaultTonesViewModelFactory
 import com.milen.grounpringtonesetter.utils.changeMainTitle
@@ -35,7 +36,7 @@ import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.manageVisibility
 
-internal class DeviceDefaultTonesScreen : Fragment() {
+internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
     private lateinit var binding: FragmentDeviceDefaultTonesBinding
     private lateinit var dialogHandler: DialogHandler
     private lateinit var adHelper: AdLoadingHelper
@@ -196,6 +197,8 @@ internal class DeviceDefaultTonesScreen : Fragment() {
     private fun renderBannerVisibility() {
         binding.adBannerDefaultTones.manageVisibility(currentEntitlement, canLoadAds)
     }
+
+    override fun getScreenInfoMessageResId(): Int = R.string.device_default_tones_info_text
 
     private fun applyScreenTheme() {
         val themeAppearance = requireContext().currentThemeAppearance()

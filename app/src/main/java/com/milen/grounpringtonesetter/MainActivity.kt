@@ -6,18 +6,22 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.os.Bundle
 import android.widget.TextView
+import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.isVisible
+import androidx.fragment.app.Fragment
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
+import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
 import com.milen.grounpringtonesetter.customviews.dialog.showCustomViewAlertDialog
 import com.milen.grounpringtonesetter.databinding.ActivityMainBinding
 import com.milen.grounpringtonesetter.databinding.DialogInfoBinding
+import com.milen.grounpringtonesetter.ui.ScreenInfoProvider
 import com.milen.grounpringtonesetter.ui.home.HomeThemeOption
 import com.milen.grounpringtonesetter.ui.home.toAppearance
 import com.milen.grounpringtonesetter.utils.applyNavAndImePadding
@@ -82,11 +86,11 @@ class MainActivity : AppCompatActivity() {
                     finish()
                 }
             }
-            setInfoData { showInfoDialog() }
+            setInfoData { showCurrentScreenInfoDialog() }
         }
     }
 
-    private fun showInfoDialog() {
+    fun showAppInfoDialog() {
         val dialogBinding = DialogInfoBinding.inflate(layoutInflater)
         dialogBinding.ctvVersion.text =
             getString(R.string.info_dialog_version, BuildConfig.VERSION_NAME)
@@ -121,6 +125,35 @@ class MainActivity : AppCompatActivity() {
         showCustomViewAlertDialog(
             titleResId = R.string.info,
             customView = dialogBinding.root,
+            confirmButtonData = ButtonData(R.string.ok)
+        )
+    }
+
+    private fun showCurrentScreenInfoDialog() {
+        val messageResId = (findCurrentScreenFragment() as? ScreenInfoProvider)
+            ?.getScreenInfoMessageResId()
+
+        if (messageResId != null) {
+            showScreenInfoDialog(messageResId)
+            return
+        }
+
+        showAppInfoDialog()
+    }
+
+    private fun findCurrentScreenFragment(): Fragment? {
+        val navHostFragment =
+            supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+                ?: return null
+
+        return navHostFragment.childFragmentManager.primaryNavigationFragment
+            ?: navHostFragment.childFragmentManager.fragments.lastOrNull { it.isVisible }
+    }
+
+    private fun showScreenInfoDialog(@StringRes messageResId: Int) {
+        showAlertDialog(
+            titleResId = R.string.info,
+            message = getString(messageResId),
             confirmButtonData = ButtonData(R.string.ok)
         )
     }

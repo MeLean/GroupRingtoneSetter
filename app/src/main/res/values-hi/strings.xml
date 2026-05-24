@@ -54,6 +54,12 @@
     <string name="error">त्रुटि</string>
     <string name="info">जानकारी</string>
     <string name="info_text">बेहतर अनुभव के लिए:\n- गोले के अंदर दिया गया नंबर बताता है कि उस समूह में कितने संपर्क हैं।\n- गोले के पास दिया गया टेक्स्ट उस समूह के लिए चुनी गई रिंगटोन दिखाता है।\n- बदलने के लिए «रिंगटोन चुनें», नाम बदलने के लिए «समूह नाम संपादित करें», सदस्यों के लिए «समूह के संपर्क प्रबंधित करें», और हटाने के लिए «समूह हटाएं» का उपयोग करें।</string>
+    <string name="about_app">ऐप के बारे में</string>
+    <string name="picker_create_info_text">समूह का नाम दर्ज करें, फिर समूह बनाने के लिए “Done” दबाएं.</string>
+    <string name="picker_rename_info_text">समूह का नाम बदलें, फिर परिवर्तन सहेजने के लिए “Done” दबाएं.</string>
+    <string name="picker_manage_info_text">इस समूह में शामिल होने वाले संपर्क चुनें, फिर सहेजने के लिए “Done” दबाएं.</string>
+    <string name="device_default_tones_info_text">डिवाइस की डिफ़ॉल्ट रिंगटोन, नोटिफिकेशन ध्वनि या अलार्म बदलें. सिस्टम ध्वनि या अपने डिवाइस की फ़ाइल चुनें.</string>
+    <string name="no_internet_info_text">यह स्क्रीन तब दिखाई देती है जब ऐप इंटरनेट तक नहीं पहुंच पाता. आप नेटवर्क सेटिंग्स खोल सकते हैं और कनेक्शन वापस आने पर लौट सकते हैं.</string>
     <string name="useful_apps_heading">ये ऐप्स भी आपके लिए उपयोगी हो सकते हैं</string>
     <string name="petish_nutrack_info_description">अपने पालतू के भोजन, रिमाइंडर और स्वास्थ्य विवरण एक ही जगह पर ट्रैक करें।</string>
     <string name="gentle_compliments_info_description">दिन भर कोमल प्रशंसाएं और स्नेहभरे रिमाइंडर पाएं।</string>

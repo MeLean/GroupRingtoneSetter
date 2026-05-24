@@ -54,6 +54,12 @@
     <string name="error">Error</string>
     <string name="info">information</string>
     <string name="info_text">For the best experience:\n- The number in the circle is how many contacts are in the group.\n- The text next to the circle is the ringtone assigned to that group.\n- Use Choose Ringtone to change it, Edit to rename, Manage Contacts to update members, and Delete to remove a group.</string>
+    <string name="about_app">About app</string>
+    <string name="picker_create_info_text">Enter a group name, then tap Done to create the group.</string>
+    <string name="picker_rename_info_text">Update the group name, then tap Done to save the change.</string>
+    <string name="picker_manage_info_text">Select the contacts that belong to this group, then tap Done to save.</string>
+    <string name="device_default_tones_info_text">Change the device default ringtone, notification sound, or alarm. Choose a system tone or a file from your device.</string>
+    <string name="no_internet_info_text">This screen appears when the app cannot reach the internet. You can open network settings and return once the connection is restored.</string>
     <string name="useful_apps_heading">You may also find these apps useful</string>
     <string name="petish_nutrack_info_description">Track pet meals, reminders, and health details in one place.</string>
     <string name="gentle_compliments_info_description">Receive gentle compliments and kind reminders throughout the day.</string>

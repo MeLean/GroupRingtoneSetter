@@ -36,6 +36,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.App
+import com.milen.grounpringtonesetter.MainActivity
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
@@ -46,6 +47,7 @@ import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.sources.ContactSource
 import com.milen.grounpringtonesetter.databinding.DialogHomePreferencesBinding
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
+import com.milen.grounpringtonesetter.ui.ScreenInfoProvider
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.EXTRA_SELECTED
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.RESULT_KEY
@@ -73,7 +75,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
+internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, ScreenInfoProvider {
 
     private companion object {
         private const val GROUP_SEARCH_DEBOUNCE_MS = 500L
@@ -603,7 +605,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
         popup.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.actionHomeInfo -> {
-                    showHomeInfoDialog()
+                    (requireActivity() as MainActivity).showAppInfoDialog()
                     true
                 }
 
@@ -632,14 +634,6 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             }
         }
         popup.show()
-    }
-
-    private fun showHomeInfoDialog() {
-        requireActivity().showAlertDialog(
-            titleResId = R.string.info,
-            message = getString(R.string.info_text),
-            confirmButtonData = ButtonData(R.string.ok)
-        )
     }
 
     private fun showResetAllRingtonesDialog() {
@@ -921,6 +915,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor {
             requireContext(),
             Manifest.permission.WRITE_EXTERNAL_STORAGE
         ) == PackageManager.PERMISSION_GRANTED
+
+    override fun getScreenInfoMessageResId(): Int = R.string.info_text
 }
 
 private fun DialogHomePreferencesBinding.selectThemeOption(option: HomeThemeOption) {

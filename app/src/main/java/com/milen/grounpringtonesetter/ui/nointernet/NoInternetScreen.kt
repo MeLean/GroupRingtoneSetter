@@ -20,6 +20,7 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.databinding.FragmentNoInternetScreenBinding
+import com.milen.grounpringtonesetter.ui.ScreenInfoProvider
 import com.milen.grounpringtonesetter.utils.currentThemeAppearance
 import com.milen.grounpringtonesetter.utils.trackSuppressedFailure
 import kotlinx.coroutines.channels.awaitClose
@@ -29,7 +30,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
-internal class NoInternetScreen : Fragment() {
+internal class NoInternetScreen : Fragment(), ScreenInfoProvider {
     private lateinit var binding: FragmentNoInternetScreenBinding
 
     override fun onCreateView(
@@ -97,6 +98,8 @@ internal class NoInternetScreen : Fragment() {
         binding.topBarEndButton.backgroundTintList = ColorStateList.valueOf(actionBackgroundColor)
         binding.topBarEndButton.setTextColor(actionTextColor)
     }
+
+    override fun getScreenInfoMessageResId(): Int = R.string.no_internet_info_text
 
     private fun navControllerOrNull(): NavController? {
         if (!isAdded) return null

@@ -54,6 +54,12 @@
     <string name="error">Blad</string>
     <string name="info">Informacje</string>
     <string name="info_text">Aby uzyskać jak najlepsze działanie:\n- Liczba w kółku pokazuje, ilu kontaktów jest w grupie.\n- Tekst obok kółka pokazuje dzwonek przypisany do tej grupy.\n- Użyj «Wybierz dzwonek», aby zmienić dzwonek, «Edytuj nazwę grupy», aby zmienić nazwę, «Zarządzaj kontaktami w grupie», aby zmienić członków, i «Usuń grupę», aby usunąć grupę.</string>
+    <string name="about_app">O aplikacji</string>
+    <string name="picker_create_info_text">Wpisz nazwę grupy, a potem naciśnij „Gotowe”, aby ją utworzyć.</string>
+    <string name="picker_rename_info_text">Zmień nazwę grupy, a potem naciśnij „Gotowe”, aby zapisać zmianę.</string>
+    <string name="picker_manage_info_text">Wybierz kontakty należące do tej grupy, a potem naciśnij „Gotowe”, aby zapisać.</string>
+    <string name="device_default_tones_info_text">Zmień domyślny dzwonek, dźwięk powiadomień lub alarm urządzenia. Wybierz dźwięk systemowy albo plik z urządzenia.</string>
+    <string name="no_internet_info_text">Ten ekran pojawia się, gdy aplikacja nie może połączyć się z Internetem. Możesz otworzyć ustawienia sieci i wrócić po przywróceniu połączenia.</string>
     <string name="useful_apps_heading">Te aplikacje również mogą okazać się przydatne</string>
     <string name="petish_nutrack_info_description">Śledź posiłki, przypomnienia i informacje o zdrowiu swojego pupila w jednym miejscu.</string>
     <string name="gentle_compliments_info_description">Otrzymuj delikatne komplementy i życzliwe przypomnienia w ciągu dnia.</string>

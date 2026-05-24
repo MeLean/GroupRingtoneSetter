@@ -54,6 +54,12 @@
     <string name="error">エラー</string>
     <string name="info">情報</string>
     <string name="info_text">より快適にご利用いただくために:\n- 円の中の数字は、そのグループに含まれる連絡先の数です。\n- 円の横のテキストは、そのグループに設定されている着信音です。\n- 変更は「着信音を選択」、名前変更は「グループ名を編集」、メンバー変更は「グループの連絡先を管理」、削除は「グループを削除」を使ってください。</string>
+    <string name="about_app">アプリについて</string>
+    <string name="picker_create_info_text">グループ名を入力し、「完了」をタップするとグループを作成できます。</string>
+    <string name="picker_rename_info_text">グループ名を変更し、「完了」をタップして保存します。</string>
+    <string name="picker_manage_info_text">このグループに含める連絡先を選び、「完了」をタップして保存します。</string>
+    <string name="device_default_tones_info_text">端末のデフォルトの着信音、通知音、アラーム音を変更できます。システム音または端末内のファイルを選択してください。</string>
+    <string name="no_internet_info_text">この画面は、アプリがインターネットに接続できないときに表示されます。ネットワーク設定を開き、接続が回復したら戻ってきてください。</string>
     <string name="useful_apps_heading">こちらのアプリも役立つかもしれません</string>
     <string name="petish_nutrack_info_description">ペットの食事、リマインダー、健康情報をひとつの場所で管理できます。</string>
     <string name="gentle_compliments_info_description">やさしい褒め言葉や思いやりのあるリマインダーを一日を通して受け取れます。</string>

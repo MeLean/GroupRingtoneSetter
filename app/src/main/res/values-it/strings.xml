@@ -54,6 +54,12 @@
     <string name="error">Errore</string>
     <string name="info">Informazioni</string>
     <string name="info_text">Per un\'esperienza migliore:\n- Il numero nel cerchio indica quanti contatti ci sono nel gruppo.\n- Il testo accanto al cerchio indica la suoneria assegnata a quel gruppo.\n- Usa «Scegli suoneria» per cambiarla, «Modifica nome gruppo» per rinominare, «Gestisci contatti del gruppo» per i membri e «Elimina gruppo» per rimuovere un gruppo.</string>
+    <string name="about_app">Informazioni sull\'app</string>
+    <string name="picker_create_info_text">Inserisci un nome per il gruppo, poi tocca «Fatto» per creare il gruppo.</string>
+    <string name="picker_rename_info_text">Aggiorna il nome del gruppo, poi tocca «Fatto» per salvare la modifica.</string>
+    <string name="picker_manage_info_text">Seleziona i contatti che appartengono a questo gruppo, poi tocca «Fatto» per salvare.</string>
+    <string name="device_default_tones_info_text">Cambia la suoneria, il suono di notifica o l’allarme predefiniti del dispositivo. Scegli un suono di sistema o un file dal dispositivo.</string>
+    <string name="no_internet_info_text">Questa schermata appare quando l’app non riesce a raggiungere Internet. Puoi aprire le impostazioni di rete e tornare quando la connessione è stata ripristinata.</string>
     <string name="useful_apps_heading">Anche queste app potrebbero esserti utili</string>
     <string name="petish_nutrack_info_description">Tieni traccia di pasti, promemoria e dati di salute del tuo animale in un unico posto.</string>
     <string name="gentle_compliments_info_description">Ricevi complimenti delicati e promemoria gentili durante la giornata.</string>

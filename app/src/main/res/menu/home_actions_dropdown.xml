@@ -3,7 +3,7 @@
     <item
         android:id="@+id/actionHomeInfo"
         android:icon="@drawable/ic_info_24"
-        android:title="@string/info" />
+        android:title="@string/about_app" />
     <item
         android:id="@+id/actionSetDeviceDefaultTones"
         android:icon="@drawable/ic_brand_awareness_24"

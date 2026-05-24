@@ -54,6 +54,12 @@
     <string name="error">Fehler</string>
     <string name="info">Information</string>
     <string name="info_text">Für die beste Nutzung:\n- Die Zahl im Kreis zeigt, wie viele Kontakte in der Gruppe sind.\n- Der Text neben dem Kreis zeigt den dieser Gruppe zugewiesenen Klingelton.\n- Verwenden Sie „Klingelton auswählen“ zum Ändern, „Gruppennamen bearbeiten“ zum Umbenennen, „Kontakte der Gruppe verwalten“ für Mitglieder und „Gruppe löschen“ zum Entfernen einer Gruppe.</string>
+    <string name="about_app">Über die App</string>
+    <string name="picker_create_info_text">Geben Sie einen Gruppennamen ein und tippen Sie dann auf „Fertig“, um die Gruppe zu erstellen.</string>
+    <string name="picker_rename_info_text">Ändern Sie den Gruppennamen und tippen Sie dann auf „Fertig“, um die Änderung zu speichern.</string>
+    <string name="picker_manage_info_text">Wählen Sie die Kontakte aus, die zu dieser Gruppe gehören, und tippen Sie dann auf „Fertig“, um zu speichern.</string>
+    <string name="device_default_tones_info_text">Ändern Sie den Standardklingelton, Benachrichtigungston oder Alarmton des Geräts. Wählen Sie einen Systemton oder eine Datei von Ihrem Gerät.</string>
+    <string name="no_internet_info_text">Dieser Bildschirm erscheint, wenn die App das Internet nicht erreichen kann. Sie können die Netzwerkeinstellungen öffnen und zurückkehren, sobald die Verbindung wiederhergestellt ist.</string>
     <string name="useful_apps_heading">Diese Apps könnten ebenfalls nützlich für Sie sein</string>
     <string name="petish_nutrack_info_description">Behalten Sie Mahlzeiten, Erinnerungen und Gesundheitsdaten Ihres Haustiers an einem Ort im Blick.</string>
     <string name="gentle_compliments_info_description">Erhalten Sie im Laufe des Tages liebevolle Komplimente und freundliche Erinnerungen.</string>

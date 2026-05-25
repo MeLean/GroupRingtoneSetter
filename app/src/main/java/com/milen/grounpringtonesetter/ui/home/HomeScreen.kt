@@ -49,6 +49,7 @@ import com.milen.grounpringtonesetter.databinding.DialogHomePreferencesBinding
 import com.milen.grounpringtonesetter.databinding.FragmentHomeScreenBinding
 import com.milen.grounpringtonesetter.ui.ScreenInfoProvider
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
+import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.EXTRA_CONFIRMED
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.EXTRA_SELECTED
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.RESULT_KEY
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModel
@@ -365,8 +366,13 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
             RESULT_KEY,
             viewLifecycleOwner
         ) { _, bundle ->
-            val selectedSource: ContactSource? = bundle.parcelableOrNull(EXTRA_SELECTED)
-            viewModel.onAccountsSelected(selectedSource)
+            val confirmed = bundle.getBoolean(EXTRA_CONFIRMED)
+            if (confirmed) {
+                val selectedSource: ContactSource? = bundle.parcelableOrNull(EXTRA_SELECTED)
+                viewModel.onAccountsSelected(selectedSource)
+            } else {
+                viewModel.onSourceSelectionDismissed()
+            }
         }
     }
 

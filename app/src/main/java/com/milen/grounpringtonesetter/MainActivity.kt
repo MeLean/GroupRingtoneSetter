@@ -6,7 +6,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.os.Bundle
 import android.widget.TextView
-import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toDrawable
@@ -130,11 +129,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showCurrentScreenInfoDialog() {
-        val messageResId = (findCurrentScreenFragment() as? ScreenInfoProvider)
+        val screenMessageResId = (findCurrentScreenFragment() as? ScreenInfoProvider)
             ?.getScreenInfoMessageResId()
+        val dialogSpec = resolveMainInfoDialogSpec(screenMessageResId)
 
-        if (messageResId != null) {
-            showScreenInfoDialog(messageResId)
+        if (!dialogSpec.shouldShowAppInfoDirectly) {
+            showScreenInfoDialog(dialogSpec)
             return
         }
 
@@ -150,10 +150,19 @@ class MainActivity : AppCompatActivity() {
             ?: navHostFragment.childFragmentManager.fragments.lastOrNull { it.isVisible }
     }
 
-    private fun showScreenInfoDialog(@StringRes messageResId: Int) {
+    private fun showScreenInfoDialog(dialogSpec: MainInfoDialogSpec) {
+        val messageResId = dialogSpec.screenMessageResId ?: run {
+            showAppInfoDialog()
+            return
+        }
         showAlertDialog(
             titleResId = R.string.info,
             message = getString(messageResId),
+            cancelButtonData = dialogSpec.secondaryActionTextResId?.let { textResId ->
+                ButtonData(textResId) {
+                    binding.root.post { showAppInfoDialog() }
+                }
+            },
             confirmButtonData = ButtonData(R.string.ok)
         )
     }

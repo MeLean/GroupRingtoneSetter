@@ -5,10 +5,11 @@ internal object PickerContactAccessibilityText {
     fun buildPhoneText(
         phoneLabel: String,
         phoneNumber: String?,
+        labelWithTextFormat: String,
     ): String = phoneNumber
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
-        ?.let { "$phoneLabel: $it" }
+        ?.let { labelWithTextFormat.format(phoneLabel, it) }
         .orEmpty()
 
     fun buildCheckboxDescription(

@@ -19,10 +19,11 @@ class HomeGroupCardAccessibilityTextTest {
     fun `buildContactsLine formats label and count`() {
         val result = HomeGroupCardAccessibilityText.buildContactsAccessibilityText(
             contactsLabel = "Contacts",
-            contactsCount = 7
+            contactsCount = 7,
+            labelWithNumberFormat = "%1\$s: %2\$d"
         )
 
-        assertEquals("Contacts 7", result)
+        assertEquals("Contacts: 7", result)
     }
 
     @Test
@@ -30,7 +31,8 @@ class HomeGroupCardAccessibilityTextTest {
         val result = HomeGroupCardAccessibilityText.buildRingtoneDisplayText(
             ringtoneLabel = "Ringtone",
             ringtoneText = "No ringtone assigned",
-            noRingtoneLabel = "No ringtone assigned"
+            noRingtoneLabel = "No ringtone assigned",
+            labelWithTextFormat = "%1\$s: %2\$s"
         )
 
         assertEquals("No ringtone assigned", result)
@@ -41,7 +43,8 @@ class HomeGroupCardAccessibilityTextTest {
         val result = HomeGroupCardAccessibilityText.buildRingtoneDisplayText(
             ringtoneLabel = "Ringtone",
             ringtoneText = "Song.mp3",
-            noRingtoneLabel = "No ringtone assigned"
+            noRingtoneLabel = "No ringtone assigned",
+            labelWithTextFormat = "%1\$s: %2\$s"
         )
 
         assertEquals("Ringtone: Song.mp3", result)

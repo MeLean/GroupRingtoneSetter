@@ -132,9 +132,7 @@ internal class AdBannerView @JvmOverloads constructor(
             }
         }
 
-        bannerAdView = adView
-        removeAllViews()
-        addView(adView)
+        replaceBannerView(adView)
         isBannerLoading = true
         AdDiagnostics.logDebugEvent(
             format = "banner",
@@ -189,6 +187,16 @@ internal class AdBannerView @JvmOverloads constructor(
     private fun cancelPendingRetry() {
         pendingRetry?.let(retryHandler::removeCallbacks)
         pendingRetry = null
+    }
+
+    private fun replaceBannerView(adView: AdView) {
+        val previousBannerView = bannerAdView
+        removeAllViews()
+        if (previousBannerView !== adView) {
+            previousBannerView?.destroy()
+        }
+        bannerAdView = adView
+        addView(adView)
     }
 
     private fun resolveAdaptiveSize(): AdSize {

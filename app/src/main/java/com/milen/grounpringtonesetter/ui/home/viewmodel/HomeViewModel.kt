@@ -8,6 +8,7 @@ import com.android.billingclient.api.BillingClient
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.BillingError
+import com.milen.grounpringtonesetter.billing.BillingResultMessageResolver
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
 import com.milen.grounpringtonesetter.customviews.ui.ads.InterstitialAdShowResult
@@ -56,6 +57,7 @@ internal class HomeViewModel(
 
     private val purchaseStartGuard = AtomicBoolean(false)
     private var purchaseUiGuardTimeoutJob: Job? = null
+    private var pendingCreateGroupRequest = false
 
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
     val events: Flow<HomeEvent> = _events.receiveAsFlow()
@@ -134,8 +136,10 @@ internal class HomeViewModel(
         }
     }
 
-    fun onSelectAccountClicked() =
+    fun onSelectAccountClicked() {
+        pendingCreateGroupRequest = false
         showSourcePicker(sourceRepo.getSourcesAvailable())
+    }
 
     fun onUserPreferencesClicked() {
         tracker.trackEvent("home_user_preferences_opened")
@@ -184,6 +188,8 @@ internal class HomeViewModel(
     }
 
     fun onAccountsSelected(selected: ContactSource?) {
+        val shouldNavigateToCreateGroup = pendingCreateGroupRequest
+        pendingCreateGroupRequest = false
         tracker.trackEvent(
             "on_contact_source_selected",
             mapOf(
@@ -202,6 +208,9 @@ internal class HomeViewModel(
                 result.onSuccess {
                     updateGroupList()
                     refreshContactsSilently()
+                    if (shouldNavigateToCreateGroup) {
+                        _events.trySend(HomeEvent.NavigateToCreateGroup)
+                    }
                 }.onFailure { e ->
                     if (e is CancellationException) throw e
                     handleError(e)
@@ -211,6 +220,10 @@ internal class HomeViewModel(
             tracker.trackError(RuntimeException("Contact source selected with null"))
             _events.trySend(HomeEvent.ShowErrorById(R.string.something_went_wrong))
         }
+    }
+
+    fun onSourceSelectionDismissed() {
+        pendingCreateGroupRequest = false
     }
 
     fun onGroupDeleted(labelItem: LabelItem) {
@@ -320,8 +333,37 @@ internal class HomeViewModel(
 
     fun setUpGroupCreateRequest() {
         tracker.trackEvent("setUpGroupCreateRequest")
-        sourceRepo.getSourcesAvailable()
-        _events.trySend(HomeEvent.NavigateToCreateGroup)
+        val availableSources = sourceRepo.getSourcesAvailable()
+        when (
+            val resolution = resolveCreateGroupSourceResolution(
+                selectedSource = sourceRepo.selected.value,
+                availableSources = availableSources
+            )
+        ) {
+            CreateGroupSourceResolution.UseSelectedSource -> {
+                pendingCreateGroupRequest = false
+                _events.trySend(HomeEvent.NavigateToCreateGroup)
+            }
+
+            CreateGroupSourceResolution.NoSourcesAvailable -> {
+                pendingCreateGroupRequest = false
+                _events.trySend(HomeEvent.ShowErrorById(R.string.items_not_found))
+            }
+
+            is CreateGroupSourceResolution.AutoSelectSingleSource -> {
+                pendingCreateGroupRequest = false
+                val source = resolution.source
+                sourceRepo.selectNewSource(source)
+                updateGroupList()
+                refreshContactsSilently()
+                _events.trySend(HomeEvent.NavigateToCreateGroup)
+            }
+
+            is CreateGroupSourceResolution.AskUserToSelectSource -> {
+                pendingCreateGroupRequest = true
+                showSourcePicker(resolution.sources)
+            }
+        }
     }
 
     fun onDeviceDefaultTonesClicked() {
@@ -375,7 +417,12 @@ internal class HomeViewModel(
                     )
                 )
                 tracker.trackError(e)
-                _events.trySend(HomeEvent.ShowErrorText(e.localizedMessage ?: "Purchase failed"))
+                val localizedMessage = e.localizedMessage
+                if (localizedMessage.isNullOrBlank()) {
+                    _events.trySend(HomeEvent.ShowErrorById(R.string.purchase_unavailable))
+                } else {
+                    _events.trySend(HomeEvent.ShowErrorText(localizedMessage))
+                }
             } finally {
                 _state.update { it.copy(isLoading = false) }
                 if (!waitForResumeToRelease) {
@@ -428,7 +475,7 @@ internal class HomeViewModel(
                     "billing_result_item_already_owned",
                     mapOf("error_category" to billingError.category.name)
                 )
-                R.string.item_not_available
+                null
             }
             billingError.category == BillingError.ErrorCategory.CONFIGURATION -> {
                 tracker.trackEvent(
@@ -439,12 +486,7 @@ internal class HomeViewModel(
                         "error_category" to billingError.category.name
                     )
                 )
-                when (code) {
-                    BillingClient.BillingResponseCode.DEVELOPER_ERROR -> R.string.billing_service_unavailable
-                    BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> R.string.billing_product_not_found
-                    BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> R.string.billing_configuration_error
-                    else -> R.string.billing_configuration_error
-                }
+                BillingResultMessageResolver.resolveMessageResId(code)
             }
             billingError.category == BillingError.ErrorCategory.TEMPORARY -> {
                 tracker.trackEvent(
@@ -455,10 +497,7 @@ internal class HomeViewModel(
                         "error_category" to billingError.category.name
                     )
                 )
-                when (code) {
-                    BillingClient.BillingResponseCode.SERVICE_DISCONNECTED -> R.string.billing_connection_timeout
-                    else -> R.string.billing_temporary_unavailable
-                }
+                BillingResultMessageResolver.resolveMessageResId(code)
             }
             else -> {
                 tracker.trackEvent(
@@ -469,7 +508,7 @@ internal class HomeViewModel(
                         "error_category" to billingError.category.name
                     )
                 )
-                R.string.purchase_unavailable
+                BillingResultMessageResolver.resolveMessageResId(code)
             }
         }
 

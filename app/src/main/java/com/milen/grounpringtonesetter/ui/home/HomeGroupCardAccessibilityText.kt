@@ -10,13 +10,15 @@ internal object HomeGroupCardAccessibilityText {
     fun buildContactsAccessibilityText(
         contactsLabel: String,
         contactsCount: Int,
-    ): String = "$contactsLabel $contactsCount"
+        labelWithNumberFormat: String,
+    ): String = labelWithNumberFormat.format(contactsLabel, contactsCount)
 
     fun buildRingtoneDisplayText(
         ringtoneLabel: String,
         ringtoneText: String,
         noRingtoneLabel: String,
+        labelWithTextFormat: String,
     ): String =
         if (ringtoneText == noRingtoneLabel) noRingtoneLabel
-        else "$ringtoneLabel: $ringtoneText"
+        else labelWithTextFormat.format(ringtoneLabel, ringtoneText)
 }

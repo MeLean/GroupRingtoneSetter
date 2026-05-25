@@ -54,6 +54,7 @@ internal class BillingEntitlementManager(
     private companion object {
         const val CONNECTION_TIMEOUT_MS = 10_000L
         const val POST_CONNECTION_DELAY_MS = 200L
+        const val POST_LAUNCH_FOREGROUND_CHECK_DELAY_MS = 250L
         const val INITIAL_RETRY_DELAY_MS = 300L
         const val MAX_RETRY_DELAY_MS = 2000L
         const val MAX_RETRY_ATTEMPTS = 3
@@ -440,12 +441,14 @@ internal class BillingEntitlementManager(
 
             val billingError = BillingError.fromBillingResult(immediate)
 
-            val postLaunchResumed = withContext(Dispatchers.Main) {
-                (activity as? LifecycleOwner)?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
+            val postLaunchState = if (immediate.responseCode == BillingClient.BillingResponseCode.OK) {
+                delay(POST_LAUNCH_FOREGROUND_CHECK_DELAY_MS)
+                readActivityForegroundState(activity)
+            } else {
+                readActivityForegroundState(activity)
             }
-            val postLaunchFocus = withContext(Dispatchers.Main) {
-                runCatching { activity.hasWindowFocus() }.getOrDefault(false)
-            }
+            val postLaunchResumed = postLaunchState.resumed
+            val postLaunchFocus = postLaunchState.hasWindowFocus
 
             tracker.trackEvent(
                 "billing_launch_result",
@@ -460,9 +463,16 @@ internal class BillingEntitlementManager(
                     "post_launch_focus" to postLaunchFocus
                 )
             )
+            if (BillingDiagnosticsPolicy.shouldRecordLaunchResponseError(immediate.responseCode)) {
+                tracker.trackError(
+                    IllegalStateException(
+                        "Billing launch intent failed: ${immediate.responseCode} ${immediate.debugMessage}"
+                    )
+                )
+            }
 
             if (immediate.responseCode == BillingClient.BillingResponseCode.OK) {
-                // Normal handoff to Play purchase UI typically backgrounds/pauses current activity.
+                // Normal handoff to Play purchase UI typically backgrounds or obscures current activity.
                 if (postLaunchResumed && postLaunchFocus) {
                     tracker.trackEvent(
                         "billing_launch_ok_but_activity_still_foreground",
@@ -471,12 +481,8 @@ internal class BillingEntitlementManager(
                             "rc_code" to immediate.responseCode,
                             "post_launch_resumed" to postLaunchResumed,
                             "post_launch_focus" to postLaunchFocus,
+                            "foreground_check_delay_ms" to POST_LAUNCH_FOREGROUND_CHECK_DELAY_MS,
                             "product_id" to productId
-                        )
-                    )
-                    tracker.trackError(
-                        IllegalStateException(
-                            "Billing launch returned OK but activity stayed foregrounded: resumed=$postLaunchResumed, focus=$postLaunchFocus"
                         )
                     )
                 } else {
@@ -590,16 +596,13 @@ internal class BillingEntitlementManager(
                         "elapsed_ms" to (System.currentTimeMillis() - startTime)
                     )
                 )
-                if (retry.responseCode != BillingClient.BillingResponseCode.OK) {
+                if (BillingDiagnosticsPolicy.shouldRecordLaunchResponseError(retry.responseCode)) {
                     tracker.trackError(IllegalStateException("Billing launch retry failed: ${retry.responseCode} ${retry.debugMessage}"))
                 }
                 BillingGuard.endLaunch()
                 return retry.responseCode
             }
 
-            if (immediate.responseCode != BillingClient.BillingResponseCode.OK && immediate.responseCode != BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
-                tracker.trackError(IllegalStateException("Billing launch returned non-OK code: ${immediate.responseCode} ${immediate.debugMessage}"))
-            }
             return immediate.responseCode
         } catch (t: Throwable) {
             tracker.trackEvent(
@@ -625,6 +628,7 @@ internal class BillingEntitlementManager(
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {
         try {
+            val wasExpectingLaunch = BillingGuard.isExpecting()
             BillingGuard.endLaunch()
             purchaseInProgress.set(false)
 
@@ -640,7 +644,6 @@ internal class BillingEntitlementManager(
             if (result.responseCode != BillingClient.BillingResponseCode.OK || purchases.isNullOrEmpty()) {
                 val billingError = BillingError.fromBillingResult(result)
                 if (result.responseCode == BillingClient.BillingResponseCode.USER_CANCELED) {
-                    val wasExpectingLaunch = BillingGuard.isExpecting()
                     tracker.trackEvent(
                         "billing_updates_user_canceled",
                         mapOf(
@@ -664,8 +667,17 @@ internal class BillingEntitlementManager(
                                 "product_id" to productId
                             )
                         )
-                        tracker.trackError(IllegalStateException("Billing UI likely blocked by Android background activity launch restriction: ${result.debugMessage}"))
                     }
+                } else if (result.responseCode == BillingClient.BillingResponseCode.OK && purchases.isNullOrEmpty()) {
+                    tracker.trackEvent(
+                        "billing_updates_ok_but_empty",
+                        mapOf(
+                            "rc" to rcName(result.responseCode),
+                            "rc_code" to result.responseCode,
+                            "msg" to result.debugMessage,
+                            "product_id" to productId
+                        )
+                    )
                 } else {
                     tracker.trackEvent(
                         "billing_updates_failed",
@@ -678,7 +690,13 @@ internal class BillingEntitlementManager(
                             "product_id" to productId
                         )
                     )
-                    tracker.trackError(IllegalStateException("Billing updates failed: ${result.responseCode} ${result.debugMessage}"))
+                    if (BillingDiagnosticsPolicy.shouldRecordPurchasesUpdatedError(
+                            responseCode = result.responseCode,
+                            hasPurchases = !purchases.isNullOrEmpty()
+                        )
+                    ) {
+                        tracker.trackError(IllegalStateException("Billing updates failed: ${result.responseCode} ${result.debugMessage}"))
+                    }
                 }
                 return
             }
@@ -809,6 +827,24 @@ internal class BillingEntitlementManager(
             }
         }
     }
+
+    private suspend fun readActivityForegroundState(activity: Activity): ActivityForegroundState {
+        val resumed = withContext(Dispatchers.Main) {
+            (activity as? LifecycleOwner)?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true
+        }
+        val hasWindowFocus = withContext(Dispatchers.Main) {
+            runCatching { activity.hasWindowFocus() }.getOrDefault(false)
+        }
+        return ActivityForegroundState(
+            resumed = resumed,
+            hasWindowFocus = hasWindowFocus
+        )
+    }
+
+    private data class ActivityForegroundState(
+        val resumed: Boolean,
+        val hasWindowFocus: Boolean,
+    )
 
     // ---- internals ----
 

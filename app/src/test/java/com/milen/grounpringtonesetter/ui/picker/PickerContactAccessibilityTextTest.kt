@@ -9,7 +9,8 @@ class PickerContactAccessibilityTextTest {
     fun `buildPhoneText prefixes phone number`() {
         val result = PickerContactAccessibilityText.buildPhoneText(
             phoneLabel = "Phone",
-            phoneNumber = "+359123456"
+            phoneNumber = "+359123456",
+            labelWithTextFormat = "%1\$s: %2\$s"
         )
 
         assertEquals("Phone: +359123456", result)
@@ -19,7 +20,8 @@ class PickerContactAccessibilityTextTest {
     fun `buildPhoneText returns empty text when phone is missing`() {
         val result = PickerContactAccessibilityText.buildPhoneText(
             phoneLabel = "Phone",
-            phoneNumber = " "
+            phoneNumber = " ",
+            labelWithTextFormat = "%1\$s: %2\$s"
         )
 
         assertEquals("", result)

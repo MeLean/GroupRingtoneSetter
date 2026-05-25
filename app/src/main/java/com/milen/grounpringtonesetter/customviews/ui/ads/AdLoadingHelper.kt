@@ -153,17 +153,23 @@ internal class AdLoadingHelper(
         }
 
         val nowMs = SystemClock.elapsedRealtime()
-        if (clearExpiredInterstitialIfNeeded(nowMs)) {
-            preloadInterstitialAd()
-            onAdLoadingFinished(InterstitialAdShowResult.LOAD_FAILED)
-            return
-        }
+        clearExpiredInterstitialIfNeeded(nowMs)
 
         if (!policy.canShow(nowMs)) {
             AdDiagnostics.logDebugEvent(
                 format = "interstitial",
                 placement = placement,
                 message = "show skipped due to frequency cap"
+            )
+            onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
+            return
+        }
+
+        if (interstitialAd == null && !policy.canLoad(nowMs)) {
+            AdDiagnostics.logDebugEvent(
+                format = "interstitial",
+                placement = placement,
+                message = "show skipped load backoffUntil=${policy.nextAllowedLoadAtMs()}"
             )
             onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
             return

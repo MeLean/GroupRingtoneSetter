@@ -1,9 +1,12 @@
 package com.milen.grounpringtonesetter.ui.home
 
+import android.annotation.SuppressLint
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
@@ -64,8 +67,9 @@ internal class GroupsAdapter(
                         cwtContacts.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
                         cwtContacts.contentDescription =
                             HomeGroupCardAccessibilityText.buildContactsAccessibilityText(
-                                contactsLabel = context.getString(R.string.contacts),
-                                contactsCount = contactsCount
+                                contactsLabel = context.getString(R.string.group_contacts_count),
+                                contactsCount = contactsCount,
+                                labelWithNumberFormat = context.getString(R.string.accessibility_label_with_number)
                             )
                         cwtContacts.isClickable = false
                         cwtContacts.isLongClickable = false
@@ -90,7 +94,8 @@ internal class GroupsAdapter(
                     val ringtoneLine = HomeGroupCardAccessibilityText.buildRingtoneDisplayText(
                         ringtoneLabel = context.getString(R.string.ringtone_lable),
                         ringtoneText = ringtoneText,
-                        noRingtoneLabel = context.getString(R.string.no_ringtone_selected)
+                        noRingtoneLabel = context.getString(R.string.no_ringtone_selected),
+                        labelWithTextFormat = context.getString(R.string.accessibility_label_with_text)
                     )
                     ctwRingtone.text = ringtoneLine
                     ctwRingtone.setTextColor(textColor)
@@ -101,7 +106,11 @@ internal class GroupsAdapter(
                         interactor.onManageContacts(labelItem = this@run)
                     }
                     ctcibManageContacts.applyButtonContentDescription(
-                        context.getString(R.string.manage_contacts_group_name) + ": " + groupName
+                        buildGroupActionDescription(
+                            context = context,
+                            actionLabelResId = R.string.manage_contacts_group_name,
+                            groupName = groupName
+                        )
                     )
                     ctcibManageContacts.setIconTint(iconTintColor)
                     if (canDelete) {
@@ -111,7 +120,11 @@ internal class GroupsAdapter(
                             interactor.onGroupDelete(labelItem = this@run)
                         }
                         ctcibDelete.applyButtonContentDescription(
-                            context.getString(R.string.delete_group) + ": " + groupName
+                            buildGroupActionDescription(
+                                context = context,
+                                actionLabelResId = R.string.delete_group,
+                                groupName = groupName
+                            )
                         )
                     } else {
                         ctcibDelete.isVisible = false
@@ -123,15 +136,22 @@ internal class GroupsAdapter(
                         interactor.onEditName(labelItem = this@run)
                     }
                     ctcibEdit.applyButtonContentDescription(
-                        context.getString(R.string.edit_group_name) + ": " + groupName
+                        buildGroupActionDescription(
+                            context = context,
+                            actionLabelResId = R.string.edit_group_name,
+                            groupName = groupName
+                        )
                     )
                     ctcibEdit.setIconTint(iconTintColor)
                     crbChooseRingtone.setOnClickListener {
                         interactor.onChoseRingtoneIntent(labelItem = this@run)
                     }
                     crbChooseRingtone.setContentDescriptionText(
-                        context.getString(R.string.choose_ringtone)
-                            .replace("\n", " ") + ": " + groupName
+                        buildGroupActionDescription(
+                            context = context,
+                            actionLabelResId = R.string.choose_ringtone,
+                            groupName = groupName
+                        )
                     )
                     crbChooseRingtone.setColors(
                         backgroundColor = actionButtonBackground,
@@ -139,6 +159,21 @@ internal class GroupsAdapter(
                     )
                 }
             }
+
+        private fun buildGroupActionDescription(
+            context: Context,
+            @StringRes actionLabelResId: Int,
+            groupName: String,
+        ): String {
+            val actionLabel = context.getString(actionLabelResId)
+                .replace("\n", " ")
+                .trim()
+            return context.getString(
+                R.string.accessibility_group_action,
+                actionLabel,
+                groupName
+            )
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -156,6 +191,7 @@ internal class GroupsAdapter(
         holder.bind(group, interactor, themeAppearance)
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     fun updateThemeAppearance(themeAppearance: HomeThemeAppearance) {
         if (this.themeAppearance == themeAppearance) return
         this.themeAppearance = themeAppearance

@@ -56,7 +56,8 @@ internal class ContactsAdapter :
                 ctvContactName.text = contact.name
                 val phoneText = PickerContactAccessibilityText.buildPhoneText(
                     phoneLabel = root.context.getString(R.string.phone_label),
-                    phoneNumber = contact.phone
+                    phoneNumber = contact.phone,
+                    labelWithTextFormat = root.context.getString(R.string.accessibility_label_with_text)
                 )
                 ctvContactPhone.text = phoneText
                 ctvContactPhone.isVisible = phoneText.isNotBlank()

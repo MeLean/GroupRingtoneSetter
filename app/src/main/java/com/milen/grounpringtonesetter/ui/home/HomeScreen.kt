@@ -922,7 +922,9 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
             Manifest.permission.WRITE_EXTERNAL_STORAGE
         ) == PackageManager.PERMISSION_GRANTED
 
-    override fun getScreenInfoMessageResId(): Int = R.string.info_text
+    override fun getScreenInfoMessageResId(): Int = R.string.home_info_text
+
+    override fun getToolbarInfoMessageResId(): Int? = null
 }
 
 private fun DialogHomePreferencesBinding.selectThemeOption(option: HomeThemeOption) {

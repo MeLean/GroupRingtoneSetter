@@ -129,9 +129,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showCurrentScreenInfoDialog() {
-        val screenMessageResId = (findCurrentScreenFragment() as? ScreenInfoProvider)
-            ?.getScreenInfoMessageResId()
-        val dialogSpec = resolveMainInfoDialogSpec(screenMessageResId)
+        val dialogSpec = resolveMainInfoDialogSpec(
+            findCurrentScreenFragment() as? ScreenInfoProvider
+        )
 
         if (!dialogSpec.shouldShowAppInfoDirectly) {
             showScreenInfoDialog(dialogSpec)

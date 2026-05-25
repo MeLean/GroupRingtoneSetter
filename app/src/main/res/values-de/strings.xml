@@ -53,7 +53,8 @@
     <string name="loading">Wird geladen …</string>
     <string name="error">Fehler</string>
     <string name="info">Information</string>
-    <string name="info_text">Für die beste Nutzung:\n- Die Zahl im Kreis zeigt, wie viele Kontakte in der Gruppe sind.\n- Der Text neben dem Kreis zeigt den dieser Gruppe zugewiesenen Klingelton.\n- Verwenden Sie „Klingelton auswählen“ zum Ändern, „Gruppennamen bearbeiten“ zum Umbenennen, „Kontakte der Gruppe verwalten“ für Mitglieder und „Gruppe löschen“ zum Entfernen einer Gruppe.</string>
+    <string name="info_text">Für die beste Nutzung:\n- Stellen Sie sicher, dass alle erforderlichen Berechtigungen erteilt sind.\n- Wählen Sie die Kontaktquelle, in der Ihre Kontakte gespeichert sind.\n- Vermeiden Sie es, denselben Kontakt zu mehreren Gruppen hinzuzufügen.</string>
+    <string name="home_info_text">Für die beste Nutzung:\n- Die Zahl im Kreis zeigt, wie viele Kontakte in der Gruppe sind.\n- Der Text neben dem Kreis zeigt den dieser Gruppe zugewiesenen Klingelton.\n- Verwenden Sie „Klingelton auswählen“ zum Ändern, „Gruppennamen bearbeiten“ zum Umbenennen, „Kontakte der Gruppe verwalten“ für Mitglieder und „Gruppe löschen“ zum Entfernen einer Gruppe.</string>
     <string name="about_app">Über die App</string>
     <string name="picker_create_info_text">Geben Sie einen Gruppennamen ein und tippen Sie dann auf „Fertig“, um die Gruppe zu erstellen.</string>
     <string name="picker_rename_info_text">Ändern Sie den Gruppennamen und tippen Sie dann auf „Fertig“, um die Änderung zu speichern.</string>

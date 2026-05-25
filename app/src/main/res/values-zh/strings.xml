@@ -50,7 +50,8 @@
     <string name="loading">加载中…</string>
     <string name="error">错误</string>
     <string name="info">信息</string>
-    <string name="info_text">为了获得更好的体验：\n- 圆圈中的数字表示该分组包含的联系人数量。\n- 圆圈旁边的文字表示该分组当前分配的铃声。\n- 使用“选择铃声”可更改铃声，使用“编辑分组名称”可重命名，使用“管理分组联系人”可调整成员，使用“删除分组”可移除分组。</string>
+    <string name="info_text">为了获得更好的体验：\n- 请确保授予所有必要的权限。\n- 请选择保存联系人所在的联系人来源。\n- 避免将同一个联系人添加到多个分组中。</string>
+    <string name="home_info_text">为了获得更好的体验：\n- 圆圈中的数字表示该分组包含的联系人数量。\n- 圆圈旁边的文字表示该分组当前分配的铃声。\n- 使用“选择铃声”可更改铃声，使用“编辑分组名称”可重命名，使用“管理分组联系人”可调整成员，使用“删除分组”可移除分组。</string>
     <string name="about_app">关于应用</string>
     <string name="picker_create_info_text">输入分组名称，然后点击“完成”来创建分组。</string>
     <string name="picker_rename_info_text">修改分组名称，然后点击“完成”来保存更改。</string>

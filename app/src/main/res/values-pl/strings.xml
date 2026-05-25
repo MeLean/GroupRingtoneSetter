@@ -53,7 +53,8 @@
     <string name="loading">Ladowanie. . .</string>
     <string name="error">Blad</string>
     <string name="info">Informacje</string>
-    <string name="info_text">Aby uzyskać jak najlepsze działanie:\n- Liczba w kółku pokazuje, ilu kontaktów jest w grupie.\n- Tekst obok kółka pokazuje dzwonek przypisany do tej grupy.\n- Użyj «Wybierz dzwonek», aby zmienić dzwonek, «Edytuj nazwę grupy», aby zmienić nazwę, «Zarządzaj kontaktami w grupie», aby zmienić członków, i «Usuń grupę», aby usunąć grupę.</string>
+    <string name="info_text">Aby uzyskać jak najlepsze działanie:\n- Upewnij się, że przyznano wszystkie wymagane uprawnienia.\n- Wybierz źródło kontaktów, w którym zapisane są Twoje kontakty.\n- Unikaj dodawania tego samego kontaktu do wielu grup.</string>
+    <string name="home_info_text">Aby uzyskać jak najlepsze działanie:\n- Liczba w kółku pokazuje, ilu kontaktów jest w grupie.\n- Tekst obok kółka pokazuje dzwonek przypisany do tej grupy.\n- Użyj «Wybierz dzwonek», aby zmienić dzwonek, «Edytuj nazwę grupy», aby zmienić nazwę, «Zarządzaj kontaktami w grupie», aby zmienić członków, i «Usuń grupę», aby usunąć grupę.</string>
     <string name="about_app">O aplikacji</string>
     <string name="picker_create_info_text">Wpisz nazwę grupy, a potem naciśnij „Gotowe”, aby ją utworzyć.</string>
     <string name="picker_rename_info_text">Zmień nazwę grupy, a potem naciśnij „Gotowe”, aby zapisać zmianę.</string>

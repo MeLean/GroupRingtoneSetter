@@ -53,7 +53,8 @@
     <string name="loading">Chargement. . .</string>
     <string name="error">Erreur</string>
     <string name="info">Information</string>
-    <string name="info_text">Pour une meilleure expérience :\n- Le nombre dans le cercle indique combien de contacts sont dans le groupe.\n- Le texte à côté du cercle indique la sonnerie attribuée à ce groupe.\n- Utilisez « Choisir la sonnerie » pour la modifier, « Modifier le nom du groupe » pour renommer, « Gérer les contacts du groupe » pour les membres et « Supprimer le groupe » pour retirer un groupe.</string>
+    <string name="info_text">Pour une meilleure expérience :\n- Assurez-vous que toutes les autorisations nécessaires sont accordées.\n- Choisissez la source de contacts où vos contacts sont enregistrés.\n- Évitez d’ajouter le même contact à plusieurs groupes.</string>
+    <string name="home_info_text">Pour une meilleure expérience :\n- Le nombre dans le cercle indique combien de contacts sont dans le groupe.\n- Le texte à côté du cercle indique la sonnerie attribuée à ce groupe.\n- Utilisez « Choisir la sonnerie » pour la modifier, « Modifier le nom du groupe » pour renommer, « Gérer les contacts du groupe » pour les membres et « Supprimer le groupe » pour retirer un groupe.</string>
     <string name="about_app">À propos de l’application</string>
     <string name="picker_create_info_text">Saisissez un nom de groupe, puis appuyez sur « Terminé » pour créer le groupe.</string>
     <string name="picker_rename_info_text">Modifiez le nom du groupe, puis appuyez sur « Terminé » pour enregistrer la modification.</string>

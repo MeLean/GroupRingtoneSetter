@@ -53,7 +53,8 @@
     <string name="loading">Loading. . .</string>
     <string name="error">Error</string>
     <string name="info">information</string>
-    <string name="info_text">For the best experience:\n- The number in the circle is how many contacts are in the group.\n- The text next to the circle is the ringtone assigned to that group.\n- Use Choose Ringtone to change it, Edit to rename, Manage Contacts to update members, and Delete to remove a group.</string>
+    <string name="info_text">For the best experience:\n- Ensure all necessary permissions are granted.\n- Choose the contact source where your contacts are stored.\n- Avoid adding the same contact to multiple groups.</string>
+    <string name="home_info_text">For the best experience:\n- The number in the circle is how many contacts are in the group.\n- The text next to the circle is the ringtone assigned to that group.\n- Use Choose Ringtone to change it, Edit to rename, Manage Contacts to update members, and Delete to remove a group.</string>
     <string name="about_app">About app</string>
     <string name="picker_create_info_text">Enter a group name, then tap Done to create the group.</string>
     <string name="picker_rename_info_text">Update the group name, then tap Done to save the change.</string>

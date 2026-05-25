@@ -53,7 +53,8 @@
     <string name="loading">Caricamento in corso…</string>
     <string name="error">Errore</string>
     <string name="info">Informazioni</string>
-    <string name="info_text">Per un\'esperienza migliore:\n- Il numero nel cerchio indica quanti contatti ci sono nel gruppo.\n- Il testo accanto al cerchio indica la suoneria assegnata a quel gruppo.\n- Usa «Scegli suoneria» per cambiarla, «Modifica nome gruppo» per rinominare, «Gestisci contatti del gruppo» per i membri e «Elimina gruppo» per rimuovere un gruppo.</string>
+    <string name="info_text">Per un\'esperienza migliore:\n- Assicurati che tutte le autorizzazioni necessarie siano concesse.\n- Scegli la fonte dei contatti in cui sono salvati i tuoi contatti.\n- Evita di aggiungere lo stesso contatto a più gruppi.</string>
+    <string name="home_info_text">Per un\'esperienza migliore:\n- Il numero nel cerchio indica quanti contatti ci sono nel gruppo.\n- Il testo accanto al cerchio indica la suoneria assegnata a quel gruppo.\n- Usa «Scegli suoneria» per cambiarla, «Modifica nome gruppo» per rinominare, «Gestisci contatti del gruppo» per i membri e «Elimina gruppo» per rimuovere un gruppo.</string>
     <string name="about_app">Informazioni sull\'app</string>
     <string name="picker_create_info_text">Inserisci un nome per il gruppo, poi tocca «Fatto» per creare il gruppo.</string>
     <string name="picker_rename_info_text">Aggiorna il nome del gruppo, poi tocca «Fatto» per salvare la modifica.</string>

@@ -1,6 +1,7 @@
 package com.milen.grounpringtonesetter
 
 import androidx.annotation.StringRes
+import com.milen.grounpringtonesetter.ui.ScreenInfoProvider
 
 internal data class MainInfoDialogSpec(
     @param:StringRes val screenMessageResId: Int? = null,
@@ -21,3 +22,7 @@ internal fun resolveMainInfoDialogSpec(
             secondaryActionTextResId = R.string.about_app
         )
     }
+
+internal fun resolveMainInfoDialogSpec(
+    screenInfoProvider: ScreenInfoProvider?,
+): MainInfoDialogSpec = resolveMainInfoDialogSpec(screenInfoProvider?.getToolbarInfoMessageResId())

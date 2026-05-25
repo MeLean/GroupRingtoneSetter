@@ -53,7 +53,8 @@
     <string name="loading">読み込み中…</string>
     <string name="error">エラー</string>
     <string name="info">情報</string>
-    <string name="info_text">より快適にご利用いただくために:\n- 円の中の数字は、そのグループに含まれる連絡先の数です。\n- 円の横のテキストは、そのグループに設定されている着信音です。\n- 変更は「着信音を選択」、名前変更は「グループ名を編集」、メンバー変更は「グループの連絡先を管理」、削除は「グループを削除」を使ってください。</string>
+    <string name="info_text">より快適にご利用いただくために:\n- 必要な権限をすべて許可してください。\n- 連絡先が保存されている連絡先ソースを選択してください。\n- 同じ連絡先を複数のグループに追加しないでください。</string>
+    <string name="home_info_text">より快適にご利用いただくために:\n- 円の中の数字は、そのグループに含まれる連絡先の数です。\n- 円の横のテキストは、そのグループに設定されている着信音です。\n- 変更は「着信音を選択」、名前変更は「グループ名を編集」、メンバー変更は「グループの連絡先を管理」、削除は「グループを削除」を使ってください。</string>
     <string name="about_app">アプリについて</string>
     <string name="picker_create_info_text">グループ名を入力し、「完了」をタップするとグループを作成できます。</string>
     <string name="picker_rename_info_text">グループ名を変更し、「完了」をタップして保存します。</string>

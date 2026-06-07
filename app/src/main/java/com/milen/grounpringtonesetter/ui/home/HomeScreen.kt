@@ -52,6 +52,8 @@ import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.EXTRA_CONFIRMED
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.EXTRA_SELECTED
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.RESULT_KEY
+import com.milen.grounpringtonesetter.ui.backup.BACKUP_RESTORE_EXTRA_RESTORE_COMPLETED
+import com.milen.grounpringtonesetter.ui.backup.BACKUP_RESTORE_RESULT_KEY
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModel
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModelFactory
 import com.milen.grounpringtonesetter.ui.picker.PickerScreenFragment
@@ -346,6 +348,12 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
                         actionId = R.id.action_home_to_deviceDefaultTones
                     )
 
+                is HomeEvent.NavigateToBackupRestore ->
+                    navigateFromHome(
+                        eventName = "NavigateToBackupRestore",
+                        actionId = R.id.action_home_to_backupRestore
+                    )
+
                 is HomeEvent.ShowAdUnavailableDialog ->
                     requireActivity().showAlertDialog(
                         titleResId = R.string.info,
@@ -372,6 +380,15 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
                 viewModel.onAccountsSelected(selectedSource)
             } else {
                 viewModel.onSourceSelectionDismissed()
+            }
+        }
+
+        parentFragmentManager.setFragmentResultListener(
+            BACKUP_RESTORE_RESULT_KEY,
+            viewLifecycleOwner
+        ) { _, bundle ->
+            if (bundle.getBoolean(BACKUP_RESTORE_EXTRA_RESTORE_COMPLETED)) {
+                viewModel.onBackupRestoreCompleted()
             }
         }
     }
@@ -617,6 +634,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
 
                 R.id.actionSetDeviceDefaultTones -> {
                     viewModel.onDeviceDefaultTonesClicked()
+                    true
+                }
+
+                R.id.actionBackupRestore -> {
+                    viewModel.onBackupRestoreClicked()
                     true
                 }
 

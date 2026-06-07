@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:id="@+id/svBackupRestore"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        app:layout_constraintBottom_toTopOf="@+id/abBackupRestore"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:id="@+id/llBackupRestoreContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="24dp">
+
+            <LinearLayout
+                android:id="@+id/llBackupRestoreLocked"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_border_textcolored_border"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvBackupRestoreLockedTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/backup_restore_locked_title"
+                    android:textSize="18sp" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvBackupRestoreLockedMessage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/backup_restore_locked_message"
+                    android:textSize="16sp" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+                    android:id="@+id/crbBackupRestoreRemoveAds"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    app:buttonLabel="@string/ad_free_forever" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llBackupRestoreUnlocked"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvBackupRestoreDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/backup_restore_description"
+                    android:textSize="16sp" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+                    android:id="@+id/crbExportBackup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    app:buttonLabel="@string/backup_restore_export_action" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.buttons.CustomRoundedButton
+                    android:id="@+id/crbRestoreBackup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    app:buttonLabel="@string/backup_restore_restore_action" />
+
+                <com.milen.grounpringtonesetter.customviews.ui.texts.CustomTextView
+                    android:id="@+id/ctvBackupRestoreStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:accessibilityLiveRegion="polite"
+                    android:text="@string/backup_restore_ready_status"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <com.milen.grounpringtonesetter.customviews.ui.ads.AdBannerView
+        android:id="@+id/abBackupRestore"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>

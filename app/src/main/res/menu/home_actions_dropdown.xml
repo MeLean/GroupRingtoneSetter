@@ -9,6 +9,10 @@
         android:icon="@drawable/ic_brand_awareness_24"
         android:title="@string/set_device_default_tones" />
     <item
+        android:id="@+id/actionBackupRestore"
+        android:icon="@drawable/ic_backup_restore_24"
+        android:title="@string/backup_restore_title" />
+    <item
         android:id="@+id/actionUserPreferences"
         android:icon="@drawable/ic_settings_24"
         android:title="@string/user_preferences" />

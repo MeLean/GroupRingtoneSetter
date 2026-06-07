@@ -371,6 +371,16 @@ internal class HomeViewModel(
         _events.trySend(HomeEvent.NavigateToDeviceDefaultTones)
     }
 
+    fun onBackupRestoreClicked() {
+        tracker.trackEvent("onBackupRestoreClicked")
+        _events.trySend(HomeEvent.NavigateToBackupRestore)
+    }
+
+    fun onBackupRestoreCompleted() {
+        tracker.trackEvent("backup_restore_home_refresh_requested")
+        updateGroupList(refreshContacts = true)
+    }
+
     fun startPurchase(activity: Activity) {
         if (!purchaseStartGuard.compareAndSet(false, true)) {
             tracker.trackEvent("billing_purchase_ui_ignored_already_in_progress")
@@ -533,11 +543,16 @@ internal class HomeViewModel(
         return if (raw.isBlank()) "none" else raw.hashCode().toUInt().toString(16)
     }
 
-    private fun updateGroupList() {
+    private fun updateGroupList(refreshContacts: Boolean = false) {
         launch {
             showLoading()
 
-            runCatching { contactsRepo.loadAccountLabelsShallow() }
+            runCatching {
+                if (refreshContacts) {
+                    contactsRepo.refreshAllPhoneContacts()
+                }
+                contactsRepo.loadAccountLabelsShallow()
+            }
                 .onFailure { error ->
                     handleError(error)
                 }

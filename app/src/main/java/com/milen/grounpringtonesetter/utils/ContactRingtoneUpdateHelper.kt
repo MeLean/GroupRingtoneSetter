@@ -25,12 +25,30 @@ internal class ContactRingtoneUpdateHelper(
     private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider,
     private val toneImporter: MediaStoreToneImporter = MediaStoreToneImporter(),
 ) {
+    internal data class PreparedRingtone(
+        val uri: Uri,
+        val displayName: String,
+    )
 
     suspend fun scanAndUpdate(
         context: Context,
         ringtoneStr: String,
         contactId: Long,
-    ): ContactRingtoneWriteResult {
+    ): ContactRingtoneWriteResult =
+        preparePlayableRingtone(context, ringtoneStr)
+            ?.let { preparedRingtone ->
+                scanAndUpdatePrepared(
+                    context = context,
+                    preparedRingtone = preparedRingtone,
+                    contactId = contactId
+                )
+            }
+            ?: ContactRingtoneWriteResult(contactId = contactId, appliedUri = null)
+
+    suspend fun preparePlayableRingtone(
+        context: Context,
+        ringtoneStr: String,
+    ): PreparedRingtone? {
         val src = ringtoneStr.toUri()
         if (ringtoneStr.isBlank() || src == Uri.EMPTY) {
             tracker.trackError(IllegalArgumentException("Invalid ringtone URI"))
@@ -38,7 +56,7 @@ internal class ContactRingtoneUpdateHelper(
                 "invalid_ringtone_uri",
                 mapOf("uri_sig" to ringtoneStringSignature(ringtoneStr))
             )
-            return ContactRingtoneWriteResult(contactId = contactId, appliedUri = null)
+            return null
         }
 
         val finalUri = withContext(dispatcherProvider.io) {
@@ -46,16 +64,27 @@ internal class ContactRingtoneUpdateHelper(
         }
         if (finalUri == null) {
             tracker.trackEvent("ringtone_prepare_failed", scrubUriForTelemetry(src))
-            return ContactRingtoneWriteResult(contactId = contactId, appliedUri = null)
+            return null
         }
-        val finalUriString = finalUri.toString()
-
         val displayName = withContext(dispatcherProvider.io) {
             toneImporter.getNormalizedFileName(context, finalUri)
         }
         withContext(dispatcherProvider.io) {
-            preferenceHelper.saveStringAsync(finalUriString, displayName)
+            preferenceHelper.saveStringAsync(finalUri.toString(), displayName)
         }
+        return PreparedRingtone(
+            uri = finalUri,
+            displayName = displayName
+        )
+    }
+
+    suspend fun scanAndUpdatePrepared(
+        context: Context,
+        preparedRingtone: PreparedRingtone,
+        contactId: Long,
+    ): ContactRingtoneWriteResult {
+        val finalUri = preparedRingtone.uri
+        val finalUriString = finalUri.toString()
 
         val updated = withContext(dispatcherProvider.io) {
             tryUpdateCustomRingtone(context, contactId, finalUriString)
@@ -76,7 +105,7 @@ internal class ContactRingtoneUpdateHelper(
         }
         if (persistedUri != finalUriString) {
             withContext(dispatcherProvider.io) {
-                preferenceHelper.saveStringAsync(persistedUri, displayName)
+                preferenceHelper.saveStringAsync(persistedUri, preparedRingtone.displayName)
             }
         }
 

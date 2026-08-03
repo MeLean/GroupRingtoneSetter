@@ -96,7 +96,9 @@ class HomeFunctionalityUiTest {
             clickDialogButton("button1")
             onView(allOf(withText(R.string.ok), isDisplayed())).perform(click())
 
-            assertEquals(listOf("friends"), app.fakeContacts.deletedGroups.map { group -> group.id })
+            assertEquals(
+                listOf("friends"),
+                app.fakeContacts.deletedGroups.map { group -> group.id })
             onView(withText("Friends")).check(doesNotExist())
         }
     }
@@ -230,7 +232,12 @@ class HomeFunctionalityUiTest {
             selectedUri
         )
         intending(hasAction(RingtoneManager.ACTION_RINGTONE_PICKER))
-            .respondWith(android.app.Instrumentation.ActivityResult(Activity.RESULT_OK, resultIntent))
+            .respondWith(
+                android.app.Instrumentation.ActivityResult(
+                    Activity.RESULT_OK,
+                    resultIntent
+                )
+            )
 
         launchMain().use { scenario ->
             scenario.clickGroupAction(R.id.crb_choose_ringtone, "Friends", R.id.btnMain)
@@ -258,7 +265,12 @@ class HomeFunctionalityUiTest {
                         .getString(R.string.manage_contacts_group_name).replace("\n", " ").trim(),
                     "Friends"
                 )
-            onView(allOf(withId(R.id.ctcibManageContacts), withContentDescription(manageDescription)))
+            onView(
+                allOf(
+                    withId(R.id.ctcibManageContacts),
+                    withContentDescription(manageDescription)
+                )
+            )
                 .check(matches(isDisplayed()))
         }
     }

@@ -163,7 +163,8 @@ internal class InstrumentationContactsRepository : ContactsRepository {
 
     override suspend fun createGroup(name: String) {
         createdNames += name
-        val group = LabelItem(id = "test-${createdNames.size}", groupName = name, contacts = emptyList())
+        val group =
+            LabelItem(id = "test-${createdNames.size}", groupName = name, contacts = emptyList())
         labelsFlow.value = labelsFlow.value + group
     }
 
@@ -203,7 +204,10 @@ internal class InstrumentationContactsRepository : ContactsRepository {
         }
     }
 
-    override suspend fun getContactsByIdsPreferCache(ids: List<Long>, batchSize: Int): List<Contact> =
+    override suspend fun getContactsByIdsPreferCache(
+        ids: List<Long>,
+        batchSize: Int,
+    ): List<Contact> =
         allContacts.value.orEmpty().filter { it.id in ids }
 
     override suspend fun enrichGroupContactsBasics(labelId: String, batchSize: Int) = Unit

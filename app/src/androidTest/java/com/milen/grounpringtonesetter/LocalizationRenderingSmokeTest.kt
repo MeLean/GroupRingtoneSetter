@@ -34,7 +34,11 @@ class LocalizationRenderingSmokeTest {
             criticalStrings.forEach { stringId ->
                 val text = localizedContext.getString(stringId)
                 assertFalse("$languageTag resolved blank text for $stringId", text.isBlank())
-                assertNotEquals("$languageTag exposed a resource placeholder", true, text.startsWith("@"))
+                assertNotEquals(
+                    "$languageTag exposed a resource placeholder",
+                    true,
+                    text.startsWith("@")
+                )
             }
         }
     }

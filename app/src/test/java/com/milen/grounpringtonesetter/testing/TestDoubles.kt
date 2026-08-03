@@ -18,35 +18,6 @@ import com.milen.grounpringtonesetter.utils.DispatcherProvider
 import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlin.Any
-import kotlin.Int
-import kotlin.Long
-import kotlin.Pair
-import kotlin.String
-import kotlin.Throwable
-import kotlin.Triple
-import kotlin.Unit
-import kotlin.collections.List
-import kotlin.collections.Map
-import kotlin.collections.Set
-import kotlin.collections.emptyList
-import kotlin.collections.emptyMap
-import kotlin.collections.filter
-import kotlin.collections.listOf
-import kotlin.collections.mutableListOf
-import kotlin.collections.plusAssign
-import kotlin.collections.toList
-import kotlin.collections.toMutableMap
-import kotlin.collections.toSet
-import kotlin.let
-import kotlin.plus
-import kotlin.sequences.filter
-import kotlin.sequences.toList
-import kotlin.text.filter
-import kotlin.text.orEmpty
-import kotlin.text.toList
-import kotlin.to
-import kotlin.toList
 
 internal class TestDispatcherProvider(
     dispatcher: CoroutineDispatcher,
@@ -253,7 +224,10 @@ internal class FakeContactsRepository : ContactsRepository {
         clearError?.let { throw it }
     }
 
-    override suspend fun getContactsByIdsPreferCache(ids: List<Long>, batchSize: Int): List<Contact> =
+    override suspend fun getContactsByIdsPreferCache(
+        ids: List<Long>,
+        batchSize: Int,
+    ): List<Contact> =
         allContacts.value.orEmpty().filter { it.id in ids }
 
     override suspend fun enrichGroupContactsBasics(labelId: String, batchSize: Int) = Unit

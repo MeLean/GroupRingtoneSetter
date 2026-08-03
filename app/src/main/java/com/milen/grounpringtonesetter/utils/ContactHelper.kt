@@ -26,7 +26,7 @@ internal class ContactsHelper(
     private val appContext: Application,
     private val preferenceHelper: EncryptedPreferencesHelper,
     private val contactRingtoneUpdateHelper: ContactRingtoneUpdateHelper,
-    private val tracker: Tracker,
+    private val tracker: Telemetry,
 ) {
     private companion object {
         private const val MAX_CONTENT_PROVIDER_OPERATIONS_PER_BATCH = 400

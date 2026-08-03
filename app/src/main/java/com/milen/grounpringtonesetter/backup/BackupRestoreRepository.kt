@@ -6,7 +6,7 @@ import com.milen.grounpringtonesetter.data.sources.ContactSource
 import com.milen.grounpringtonesetter.data.sources.ContactSourceRepository
 import com.milen.grounpringtonesetter.ui.defaulttones.DeviceDefaultToneManager
 import com.milen.grounpringtonesetter.utils.ContactsHelper
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
@@ -28,11 +28,11 @@ internal class BackupRestoreRepository(
     private val contactsHelper: ContactsHelper,
     private val sourceRepository: ContactSourceRepository,
     private val defaultToneManager: DeviceDefaultToneManager,
-    private val tracker: Tracker,
-) {
-    suspend fun exportBackup(
+    private val tracker: Telemetry,
+) : BackupRestoreGateway {
+    override suspend fun exportBackup(
         output: OutputStream,
-        onProgress: (Int) -> Unit = {},
+        onProgress: (Int) -> Unit,
     ): BackupExportResult {
         val coroutineContext = currentCoroutineContext()
         requireReadContactsPermission()
@@ -77,9 +77,9 @@ internal class BackupRestoreRepository(
         )
     }
 
-    suspend fun readAndPlanRestore(
+    override suspend fun readAndPlanRestore(
         input: InputStream,
-        onProgress: (Int) -> Unit = {},
+        onProgress: (Int) -> Unit,
     ): PendingRestore {
         val coroutineContext = currentCoroutineContext()
         onProgress(0)
@@ -112,10 +112,10 @@ internal class BackupRestoreRepository(
         )
     }
 
-    suspend fun executeRestore(
+    override suspend fun executeRestore(
         input: InputStream,
         pendingRestore: PendingRestore,
-        onProgress: (Int) -> Unit = {},
+        onProgress: (Int) -> Unit,
     ): RestoreExecutionResult {
         val coroutineContext = currentCoroutineContext()
         requireRestoreContactsPermission()
@@ -140,22 +140,24 @@ internal class BackupRestoreRepository(
         )
     }
 
-    fun canWriteSystemSettings(): Boolean = defaultToneManager.canWriteSystemSettings()
+    override fun canWriteSystemSettings(): Boolean = defaultToneManager.canWriteSystemSettings()
 
-    fun createManageWriteSettingsIntent(): Intent =
+    override fun createManageWriteSettingsIntent(): Intent =
         defaultToneManager.createManageWriteSettingsIntent()
 
-    fun requireReadyForBackup() {
+    override fun requireReadyForBackup() {
         requireReadContactsPermission()
         currentSourceOrThrow()
     }
 
-    fun requireReadyForRestore() {
+    override fun requireReadyForRestore() {
         requireRestoreContactsPermission()
         currentSourceOrThrow()
     }
 
-    fun createDefaultBackupFileName(date: Date = Date()): String {
+    override fun createDefaultBackupFileName(): String = createDefaultBackupFileName(Date())
+
+    internal fun createDefaultBackupFileName(date: Date): String {
         val source = currentSourceOrThrow()
         val sourceName = when (source) {
             is ContactSource.CloudAccount -> source.account.name

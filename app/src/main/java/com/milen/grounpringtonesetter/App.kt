@@ -7,33 +7,80 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import com.milen.grounpringtonesetter.billing.BillingEntitlementGateway
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.NoopBillingResultActivity
+import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
+import com.milen.grounpringtonesetter.customviews.ui.ads.AdsGateway
 import com.milen.grounpringtonesetter.customviews.ui.ads.AdsManager
+import com.milen.grounpringtonesetter.customviews.ui.ads.InterstitialAdGateway
 import com.milen.grounpringtonesetter.data.prefs.EncryptedHomePreferencesDataSource
 import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.data.prefs.HomePreferencesStore
 import com.milen.grounpringtonesetter.data.prefs.readHomeDisplayPreferencesSync
+import com.milen.grounpringtonesetter.data.repos.ContactsRepository
+import com.milen.grounpringtonesetter.data.repos.RepoGraph
+import com.milen.grounpringtonesetter.data.sources.ContactSourceRepository
+import com.milen.grounpringtonesetter.ui.defaulttones.AndroidDeviceDefaultToneManager
+import com.milen.grounpringtonesetter.ui.defaulttones.DeviceDefaultToneManager
 import com.milen.grounpringtonesetter.ui.home.HomeThemeAppearance
 import com.milen.grounpringtonesetter.ui.home.HomeThemeOption
 import com.milen.grounpringtonesetter.ui.home.toAppearance
+import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
+import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
+import com.milen.grounpringtonesetter.utils.Telemetry
 import com.milen.grounpringtonesetter.utils.Tracker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-class App : Application() {
-    internal val tracker: Tracker by lazy { Tracker() }
-    internal val adsManager: AdsManager by lazy { AdsManager(this, tracker) }
+open class App : Application() {
+    internal val tracker: Telemetry by lazy { createTelemetry() }
+    internal val adsManager: AdsGateway by lazy { createAdsGateway() }
     internal val preferencesHelper: EncryptedPreferencesHelper by lazy { EncryptedPreferencesHelper(this) }
     internal val homePreferencesStore: HomePreferencesStore by lazy {
         HomePreferencesStore(
             dataSource = EncryptedHomePreferencesDataSource(preferencesHelper)
         )
     }
-    internal lateinit var billingManager: BillingEntitlementManager
+    private val contactRingtoneUpdateHelper: ContactRingtoneUpdateHelper by lazy {
+        ContactRingtoneUpdateHelper(
+            tracker = tracker,
+            preferenceHelper = preferencesHelper,
+        )
+    }
+    private val contactsHelper: ContactsHelper by lazy {
+        ContactsHelper(
+            appContext = this,
+            preferenceHelper = preferencesHelper,
+            contactRingtoneUpdateHelper = contactRingtoneUpdateHelper,
+            tracker = tracker,
+        )
+    }
+    internal lateinit var billingManager: BillingEntitlementGateway
         private set
+
+    internal open fun createTelemetry(): Telemetry = Tracker()
+
+    internal open fun createAdsGateway(): AdsGateway = AdsManager(this, tracker)
+
+    internal open fun createBillingGateway(): BillingEntitlementGateway =
+        BillingEntitlementManager(this, tracker)
+
+    internal open fun provideContactsRepository(): ContactsRepository =
+        RepoGraph.contactsRepo(this, contactsHelper, preferencesHelper)
+
+    internal open fun provideContactSourceRepository(): ContactSourceRepository =
+        RepoGraph.contactSourceRepo(this, contactsHelper, preferencesHelper)
+
+    internal open fun provideDefaultToneManager(): DeviceDefaultToneManager =
+        AndroidDeviceDefaultToneManager(this)
+
+    internal open fun provideInterstitialAdGateway(
+        activity: Activity,
+        placement: String,
+    ): InterstitialAdGateway = AdLoadingHelper(activity, placement)
 
     @Volatile
     private var activeThemeOption: HomeThemeOption? = null
@@ -90,7 +137,7 @@ class App : Application() {
             override fun onActivityDestroyed(a: Activity) {}
         })
 
-        billingManager = BillingEntitlementManager(this, tracker)
+        billingManager = createBillingGateway()
         tracker.trackEvent("billing_manager_created", mapOf("app_onCreate_complete" to true))
         val billingScope = CoroutineScope(SupervisorJob() + DispatchersProvider.io)
         billingScope.launch {

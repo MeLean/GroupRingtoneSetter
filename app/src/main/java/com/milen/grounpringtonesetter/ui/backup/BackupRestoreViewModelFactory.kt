@@ -65,7 +65,7 @@ internal object BackupRestoreViewModelFactory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 return BackupRestoreViewModel(
-                    contentResolver = app.contentResolver,
+                    documents = ContentResolverBackupDocumentGateway(app.contentResolver),
                     repository = repository,
                     billing = app.billingManager,
                     tracker = tracker

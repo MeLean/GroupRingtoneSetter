@@ -8,9 +8,15 @@ import com.google.firebase.crashlytics.crashlytics
 import kotlin.coroutines.cancellation.CancellationException
 
 
-internal class Tracker {
+internal interface Telemetry {
+    fun trackEvent(eventName: String, params: Map<String, Any>? = null)
 
-    fun trackEvent(eventName: String, params: Map<String, Any>? = null) {
+    fun trackError(error: Throwable)
+}
+
+internal class Tracker : Telemetry {
+
+    override fun trackEvent(eventName: String, params: Map<String, Any>?) {
         "$eventName: ${params?.toString().orEmpty()}".log()
 
         try {
@@ -30,7 +36,7 @@ internal class Tracker {
         }
     }
 
-    fun trackError(error: Throwable) {
+    override fun trackError(error: Throwable) {
         if (error.isCancellationLike()) {
             "Ignored cancellation: ${error.message}".log()
             return

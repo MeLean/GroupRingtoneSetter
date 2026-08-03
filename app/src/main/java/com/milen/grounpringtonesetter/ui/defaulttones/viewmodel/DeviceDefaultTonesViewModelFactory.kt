@@ -4,12 +4,11 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
-import com.milen.grounpringtonesetter.ui.defaulttones.AndroidDeviceDefaultToneManager
 
 internal object DeviceDefaultTonesViewModelFactory {
     fun provideFactory(activity: FragmentActivity): ViewModelProvider.Factory {
         val app = activity.application as App
-        val toneManager = AndroidDeviceDefaultToneManager(app)
+        val toneManager = app.provideDefaultToneManager()
         val tracker = app.tracker
         val entitlementState = app.billingManager.state
 

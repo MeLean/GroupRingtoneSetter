@@ -11,20 +11,20 @@ import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.FormError
 import com.google.android.ump.UserMessagingPlatform
 import com.milen.grounpringtonesetter.BuildConfig
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal class AdsManager(
     private val application: Application,
-    private val tracker: Tracker,
-) {
+    private val tracker: Telemetry,
+) : AdsGateway {
     private val consentInformation: ConsentInformation =
         UserMessagingPlatform.getConsentInformation(application)
     private val hasRequestedConsentThisProcess = AtomicBoolean(false)
     private val hasStartedMobileAdsInitialization = AtomicBoolean(false)
-    internal val interstitialAdPolicy = InterstitialAdPolicy()
+    override val interstitialAdPolicy = InterstitialAdPolicy()
 
     private val _canRequestAds = MutableStateFlow(false)
     val canRequestAds: StateFlow<Boolean> = _canRequestAds
@@ -33,12 +33,12 @@ internal class AdsManager(
     val isMobileAdsInitialized: StateFlow<Boolean> = _isMobileAdsInitialized
 
     private val _canLoadAds = MutableStateFlow(false)
-    val canLoadAds: StateFlow<Boolean> = _canLoadAds
+    override val canLoadAds: StateFlow<Boolean> = _canLoadAds
 
     private val _isPrivacyOptionsRequired = MutableStateFlow(false)
-    val isPrivacyOptionsRequired: StateFlow<Boolean> = _isPrivacyOptionsRequired
+    override val isPrivacyOptionsRequired: StateFlow<Boolean> = _isPrivacyOptionsRequired
 
-    fun initialize() {
+    override fun initialize() {
         if (!hasStartedMobileAdsInitialization.compareAndSet(false, true)) return
 
         runCatching {
@@ -70,7 +70,7 @@ internal class AdsManager(
         }
     }
 
-    fun requestConsent(activity: Activity) {
+    override fun requestConsent(activity: Activity) {
         if (!hasRequestedConsentThisProcess.compareAndSet(false, true)) return
 
         val parameters = ConsentRequestParameters.Builder().build()
@@ -96,7 +96,7 @@ internal class AdsManager(
         )
     }
 
-    fun showPrivacyOptionsForm(activity: Activity) {
+    override fun showPrivacyOptionsForm(activity: Activity) {
         if (_isPrivacyOptionsRequired.value.not()) {
             AdDiagnostics.logDebugEvent(
                 format = "consent",
@@ -123,7 +123,7 @@ internal class AdsManager(
         }
     }
 
-    fun openAdInspector(activity: Activity) {
+    override fun openAdInspector(activity: Activity) {
         if (!BuildConfig.DEBUG) return
 
         runCatching {

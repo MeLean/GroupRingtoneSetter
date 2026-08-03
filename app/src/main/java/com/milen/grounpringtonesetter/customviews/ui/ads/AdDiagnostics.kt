@@ -5,7 +5,7 @@ import com.google.android.gms.ads.AdValue
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.ResponseInfo
 import com.milen.grounpringtonesetter.BuildConfig
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import com.milen.grounpringtonesetter.utils.log
 
 internal object AdDiagnostics {
@@ -65,7 +65,7 @@ internal object AdDiagnostics {
     }
 
     fun trackPaidEvent(
-        tracker: Tracker,
+        tracker: Telemetry,
         format: String,
         placement: String,
         adUnitId: String,
@@ -88,7 +88,7 @@ internal object AdDiagnostics {
     }
 
     fun trackUnexpectedState(
-        tracker: Tracker,
+        tracker: Telemetry,
         format: String,
         placement: String,
         stage: String,

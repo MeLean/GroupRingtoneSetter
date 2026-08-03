@@ -7,10 +7,14 @@ plugins {
     id("kotlin-parcelize")
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
+    jacoco
 }
 
+val keystorePropertiesFile: File = rootProject.file("keystore.properties")
 val keystoreProperties = Properties().apply {
-    load(FileInputStream(rootProject.file("keystore.properties")))
+    if (keystorePropertiesFile.isFile) {
+        load(FileInputStream(keystorePropertiesFile))
+    }
 }
 
 android {
@@ -21,20 +25,23 @@ android {
     defaultConfig {
         applicationId = "com.milen.grounpringtonesetter"
         minSdk = 27
-        targetSdk = 35
-        versionCode = 840
-        versionName = "8.4.0"
+        targetSdk = 36
+        versionCode = 850
+        versionName = "8.5.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.milen.grounpringtonesetter.testing.RegressionTestRunner"
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
         vectorDrawables { useSupportLibrary = true }
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+        if (keystorePropertiesFile.isFile) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
         }
     }
 
@@ -50,7 +57,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            signingConfigs.findByName("release")?.let { signingConfig = it }
         }
     }
 
@@ -74,6 +81,38 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+        animationsDisabled = true
+    }
+}
+
+val validateReleaseSigning by tasks.registering {
+    group = "verification"
+    description = "Fails release builds when the private signing configuration is incomplete."
+    doLast {
+        check(keystorePropertiesFile.isFile) {
+            "Release signing requires keystore.properties. Debug and test builds do not."
+        }
+        listOf("keyAlias", "keyPassword", "storeFile", "storePassword").forEach { key ->
+            check(!keystoreProperties.getProperty(key).isNullOrBlank()) {
+                "Release signing property '$key' is missing."
+            }
+        }
+        val releaseStoreFile = project.file(keystoreProperties.getProperty("storeFile"))
+        check(releaseStoreFile.isFile) {
+            "Release signing store does not exist: ${releaseStoreFile.path}"
+        }
+    }
+}
+
+tasks.matching { task -> task.name == "preReleaseBuild" }.configureEach {
+    dependsOn(validateReleaseSigning)
+}
+
+jacoco {
+    toolVersion = "0.8.12"
 }
 
 dependencies {
@@ -117,5 +156,118 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.androidx.test.espresso.intents)
+    androidTestImplementation(libs.androidx.test.espresso.accessibility)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.uiautomator)
     androidTestImplementation(libs.androidxNavigationTesting)
+    androidTestUtil(libs.androidx.test.orchestrator)
+}
+
+val coverageExcludes = listOf(
+    "**/R.class",
+    "**/R$*.class",
+    "**/BuildConfig.*",
+    "**/*Binding.*",
+    "**/*Fragment.*",
+    "**/*Activity.*",
+    "**/*Adapter.*",
+    "**/customviews/**",
+)
+
+val coreCoverageIncludes = listOf(
+    "**/MainInfoDialogSpecKt.class",
+    "**/backup/GrsManifestCodec.class",
+    "**/backup/RestoreDefaultTonePermissionPolicy.class",
+    "**/backup/RestorePlanner.class",
+    "**/billing/BillingDiagnosticsPolicy.class",
+    "**/billing/BillingResultMessageResolver.class",
+    "**/ui/defaulttones/NotificationToneDurationPolicy.class",
+    "**/ui/home/HomeEmptyStateMessageKt.class",
+    "**/ui/home/HomeLabelItemsPresentationKt.class",
+    "**/ui/picker/PickerContactSortingKt.class",
+    "**/ui/picker/PickerManageContactsSelectionKt.class",
+    "**/utils/ContentProviderBatchUtilsKt.class",
+    "**/utils/GroupDeletionCapabilityKt.class",
+    "**/utils/MediaStoreToneImporterKt.class",
+)
+
+val debugClassDirectories = files(
+    fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+        include(coreCoverageIncludes)
+        exclude(coverageExcludes)
+    },
+    fileTree(layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes")) {
+        include(coreCoverageIncludes)
+        exclude(coverageExcludes)
+    },
+)
+
+val debugSourceDirectories = files("src/main/java", "src/main/kotlin")
+val debugExecutionData = fileTree(layout.buildDirectory) {
+    include("jacoco/testDebugUnitTest.exec")
+}
+
+tasks.register<JacocoReport>("jacocoTestReportDebug") {
+    dependsOn("testDebugUnitTest")
+    classDirectories.setFrom(debugClassDirectories)
+    sourceDirectories.setFrom(debugSourceDirectories)
+    executionData.setFrom(debugExecutionData)
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+}
+
+tasks.register<JacocoCoverageVerification>("jacocoTestCoverageVerificationDebug") {
+    dependsOn("testDebugUnitTest")
+    classDirectories.setFrom(debugClassDirectories)
+    sourceDirectories.setFrom(debugSourceDirectories)
+    executionData.setFrom(debugExecutionData)
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.85".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "0.75".toBigDecimal()
+            }
+        }
+        rule {
+            element = "CLASS"
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.70".toBigDecimal()
+            }
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "0.60".toBigDecimal()
+            }
+        }
+    }
+}
+
+tasks.register("localRegressionGate") {
+    group = "verification"
+    description = "Runs unit tests, lint, localization checks, and core coverage verification."
+    dependsOn(
+        "testDebugUnitTest",
+        "lintDebug",
+        "jacocoTestReportDebug",
+        "jacocoTestCoverageVerificationDebug",
+    )
+}
+
+tasks.register("uiTestSuite") {
+    group = "verification"
+    description = "Runs the complete debug UI and Android contract test suite on connected devices."
+    dependsOn("connectedDebugAndroidTest")
 }

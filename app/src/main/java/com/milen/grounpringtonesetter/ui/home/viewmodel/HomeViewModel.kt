@@ -6,11 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
 import com.milen.grounpringtonesetter.R
-import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
+import com.milen.grounpringtonesetter.billing.BillingEntitlementGateway
 import com.milen.grounpringtonesetter.billing.BillingError
 import com.milen.grounpringtonesetter.billing.BillingResultMessageResolver
 import com.milen.grounpringtonesetter.billing.EntitlementState
-import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
+import com.milen.grounpringtonesetter.customviews.ui.ads.InterstitialAdGateway
 import com.milen.grounpringtonesetter.customviews.ui.ads.InterstitialAdShowResult
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelException
@@ -25,7 +25,7 @@ import com.milen.grounpringtonesetter.ui.home.HomeScreenState
 import com.milen.grounpringtonesetter.ui.home.deriveVisibleLabelItems
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.RingtoneFormatValidator
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import com.milen.grounpringtonesetter.utils.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -44,9 +44,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class HomeViewModel(
-    private val adHelper: AdLoadingHelper,
-    private val tracker: Tracker,
-    private val billing: BillingEntitlementManager,
+    private val adHelper: InterstitialAdGateway,
+    private val tracker: Telemetry,
+    private val billing: BillingEntitlementGateway,
     private val contactsRepo: ContactsRepository,
     private val sourceRepo: ContactSourceRepository,
     private val homePreferencesStore: HomePreferencesStore,

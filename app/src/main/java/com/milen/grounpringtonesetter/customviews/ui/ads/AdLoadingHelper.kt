@@ -23,7 +23,7 @@ internal enum class InterstitialAdShowResult {
 internal class AdLoadingHelper(
     activity: Activity,
     private val placement: String = activity::class.java.simpleName,
-) {
+) : InterstitialAdGateway {
     private companion object {
         private const val INTERSTITIAL_EXPIRATION_MS = 55 * 60 * 1000L
     }
@@ -38,7 +38,7 @@ internal class AdLoadingHelper(
     private val loadCallbacks = mutableListOf<(Boolean) -> Unit>()
     private var activityRef = WeakReference(activity)
 
-    fun updateActivity(activity: Activity) {
+    override fun updateActivity(activity: Activity) {
         activityRef = WeakReference(activity)
     }
 
@@ -140,12 +140,12 @@ internal class AdLoadingHelper(
             })
     }
 
-    fun preloadInterstitialAd() {
+    override fun preloadInterstitialAd() {
         loadInterstitialAd()
     }
 
-    fun showInterstitialAd(
-        onAdLoadingFinished: (InterstitialAdShowResult) -> Unit = {},
+    override fun showInterstitialAd(
+        onAdLoadingFinished: (InterstitialAdShowResult) -> Unit,
     ) {
         if (!adsManager.canLoadAds.value) {
             onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)

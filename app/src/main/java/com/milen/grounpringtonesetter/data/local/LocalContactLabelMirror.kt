@@ -3,7 +3,7 @@ package com.milen.grounpringtonesetter.data.local
 import android.app.Application
 import android.provider.ContactsContract
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.withContext
 
 private const val LEGACY_MIME_TYPE =
@@ -13,7 +13,7 @@ private const val RELATION_MARKER_LABEL =
 
 internal class LocalContactLabelMirror(
     private val appContext: Application,
-    private val tracker: Tracker,
+    private val tracker: Telemetry,
 ) {
     companion object {
         private val MIRROR_SELECTION = buildString {

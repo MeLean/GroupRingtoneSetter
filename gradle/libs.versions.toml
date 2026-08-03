@@ -27,6 +27,9 @@ billing = "8.0.0"
 junit4 = "4.13.2"
 androidx-junit = "1.3.0"
 espresso = "3.7.0"
+androidx-test-runner = "1.7.0"
+androidx-test-orchestrator = "1.6.1"
+uiautomator = "2.3.0"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -76,6 +79,12 @@ firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-junit" }
 androidx-test-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
+androidx-test-espresso-intents = { module = "androidx.test.espresso:espresso-intents", version.ref = "espresso" }
+androidx-test-espresso-accessibility = { module = "androidx.test.espresso:espresso-accessibility", version.ref = "espresso" }
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidx-test-runner" }
+androidx-test-rules = { module = "androidx.test:rules", version.ref = "androidx-test-runner" }
+androidx-test-orchestrator = { module = "androidx.test:orchestrator", version.ref = "androidx-test-orchestrator" }
+androidx-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
 
 [bundles]
 lifecycle = ["androidx-lifecycle-runtime-ktx", "androidx-lifecycle-livedata-ktx"]

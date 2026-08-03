@@ -4,10 +4,6 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.milen.grounpringtonesetter.App
-import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
-import com.milen.grounpringtonesetter.data.repos.RepoGraph
-import com.milen.grounpringtonesetter.utils.ContactRingtoneUpdateHelper
-import com.milen.grounpringtonesetter.utils.ContactsHelper
 
 internal object HomeViewModelFactory {
 
@@ -15,27 +11,8 @@ internal object HomeViewModelFactory {
         val app = activity.application as App
         val tracker = app.tracker
         val billing = app.billingManager
-        val prefs = app.preferencesHelper
-
-        val ringtoneUpdater = ContactRingtoneUpdateHelper(
-            tracker = tracker,
-            preferenceHelper = prefs
-        )
-
-        val contactsHelper = ContactsHelper(
-            appContext = app,
-            preferenceHelper = prefs,
-            contactRingtoneUpdateHelper = ringtoneUpdater,
-            tracker = tracker
-        )
-
-        val contactsRepo = RepoGraph.contactsRepo(
-            app = app,
-            helper = contactsHelper,
-            prefs = prefs
-        )
-
-        val ads = AdLoadingHelper(activity, placement = "home_interstitial")
+        val contactsRepo = app.provideContactsRepository()
+        val ads = app.provideInterstitialAdGateway(activity, placement = "home_interstitial")
 
         return object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
@@ -45,7 +22,7 @@ internal object HomeViewModelFactory {
                     tracker = tracker,
                     billing = billing,
                     contactsRepo = contactsRepo,
-                    sourceRepo = RepoGraph.contactSourceRepo(app, contactsHelper, prefs),
+                    sourceRepo = app.provideContactSourceRepository(),
                     homePreferencesStore = app.homePreferencesStore
                 ) as T
             }

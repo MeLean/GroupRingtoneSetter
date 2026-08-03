@@ -17,7 +17,7 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -37,13 +37,13 @@ import kotlin.coroutines.resume
 
 internal class BillingEntitlementManager(
     app: Application,
-    private val tracker: Tracker,
-) : PurchasesUpdatedListener {
+    private val tracker: Telemetry,
+) : PurchasesUpdatedListener, BillingEntitlementGateway {
 
     private val productId = "remove_ads_forever"
 
     private val _state = kotlinx.coroutines.flow.MutableStateFlow(EntitlementState.UNKNOWN)
-    val state: kotlinx.coroutines.flow.StateFlow<EntitlementState> = _state
+    override val state: kotlinx.coroutines.flow.StateFlow<EntitlementState> = _state
 
     private val grace = AdFreeGraceStore(app)
 
@@ -68,11 +68,12 @@ internal class BillingEntitlementManager(
     // Single-flight connection guard
     private val connectingRef = AtomicReference<CompletableDeferred<Unit>?>(null)
 
-    fun end() {
+    override fun end() {
         runCatching { client.endConnection() }
     }
 
-    suspend fun start() = runCatching {
+    override suspend fun start() {
+        runCatching {
         val startTime = System.currentTimeMillis()
         tracker.trackEvent(
             "billing_start_called",
@@ -143,13 +144,14 @@ internal class BillingEntitlementManager(
             )
         )
         tracker.trackError(e)
-    }.getOrNull()
+        }.getOrNull()
+    }
 
     /**
      * SAFE purchase launch.
      * Never throws; always returns a BillingResponseCode.
      */
-    suspend fun launchPurchase(activity: Activity): Int {
+    override suspend fun launchPurchase(activity: Activity): Int {
         val startTime = System.currentTimeMillis()
         tracker.trackEvent(
             "billing_launch_called",

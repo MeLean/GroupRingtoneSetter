@@ -13,7 +13,7 @@ import com.milen.grounpringtonesetter.ui.picker.countSelectableUngroupedContacts
 import com.milen.grounpringtonesetter.ui.picker.data.PickerResultData
 import com.milen.grounpringtonesetter.ui.picker.findUngroupedContacts
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class PickerViewModel(
-    private val tracker: Tracker,
+    private val tracker: Telemetry,
     private val contactsRepo: ContactsRepository,
 ) : ViewModel() {
     private data class PendingManageContactsSave(

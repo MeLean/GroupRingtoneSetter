@@ -20,7 +20,7 @@ internal data class ContactRingtoneWriteResult(
 }
 
 internal class ContactRingtoneUpdateHelper(
-    private val tracker: Tracker,
+    private val tracker: Telemetry,
     private val preferenceHelper: EncryptedPreferencesHelper,
     private val dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider,
     private val toneImporter: MediaStoreToneImporter = MediaStoreToneImporter(),

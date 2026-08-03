@@ -8,7 +8,7 @@ import com.milen.grounpringtonesetter.data.sources.ContactSource
 import com.milen.grounpringtonesetter.ui.defaulttones.DeviceDefaultToneManager
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.MediaStoreToneImporter
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import java.io.File
@@ -19,7 +19,7 @@ internal class RestoreExecutor(
     private val localLabelsStore: LocalLabelsStore,
     private val defaultToneManager: DeviceDefaultToneManager,
     private val toneImporter: MediaStoreToneImporter = MediaStoreToneImporter(),
-    private val tracker: Tracker,
+    private val tracker: Telemetry,
 ) {
     suspend fun execute(
         source: ContactSource,

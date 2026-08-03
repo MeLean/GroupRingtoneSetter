@@ -19,7 +19,7 @@ import com.milen.grounpringtonesetter.data.prefs.EncryptedPreferencesHelper
 import com.milen.grounpringtonesetter.data.sources.ContactSource
 import com.milen.grounpringtonesetter.utils.ContactsHelper
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -80,7 +80,7 @@ internal interface ContactsRepository {
 internal class ContactsRepositoryImpl(
     private val app: App,
     private val helper: ContactsHelper,
-    private val tracker: Tracker,
+    private val tracker: Telemetry,
     private val prefs: EncryptedPreferencesHelper,
     private val localLabelsStore: LocalLabelsStore,
     private val localLabelMirror: LocalContactLabelMirror,

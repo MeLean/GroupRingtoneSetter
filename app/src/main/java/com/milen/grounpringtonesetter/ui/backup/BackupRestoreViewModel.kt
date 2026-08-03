@@ -1,24 +1,22 @@
 package com.milen.grounpringtonesetter.ui.backup
 
 import android.app.Activity
-import android.content.ContentResolver
 import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.backup.BackupRestoreContactsPermissionException
-import com.milen.grounpringtonesetter.backup.BackupRestoreRepository
+import com.milen.grounpringtonesetter.backup.BackupRestoreGateway
 import com.milen.grounpringtonesetter.backup.BackupRestoreSourceSelectionException
 import com.milen.grounpringtonesetter.backup.GRS_FILE_EXTENSION
 import com.milen.grounpringtonesetter.backup.GrsArchiveException
 import com.milen.grounpringtonesetter.backup.PendingRestore
 import com.milen.grounpringtonesetter.backup.RestoreDefaultTonePermissionPolicy
-import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
+import com.milen.grounpringtonesetter.billing.BillingEntitlementGateway
 import com.milen.grounpringtonesetter.billing.BillingResultMessageResolver
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
-import com.milen.grounpringtonesetter.utils.Tracker
+import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -31,10 +29,10 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class BackupRestoreViewModel(
-    private val contentResolver: ContentResolver,
-    private val repository: BackupRestoreRepository,
-    private val billing: BillingEntitlementManager,
-    private val tracker: Tracker,
+    private val documents: BackupDocumentGateway,
+    private val repository: BackupRestoreGateway,
+    private val billing: BillingEntitlementGateway,
+    private val tracker: Telemetry,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BackupRestoreState())
@@ -76,7 +74,7 @@ internal class BackupRestoreViewModel(
             showExportProgress(0)
             try {
                 val exportResult = withContext(DispatchersProvider.io) {
-                    contentResolver.openOutputStream(uri)?.use { output ->
+                    documents.openOutputStream(uri)?.use { output ->
                         repository.exportBackup(
                             output = output,
                             onProgress = ::showExportProgress
@@ -119,7 +117,7 @@ internal class BackupRestoreViewModel(
                 trackRestoreFileSelected(uri)
                 validateBackupDocumentName(uri)
                 val restore = withContext(DispatchersProvider.io) {
-                    contentResolver.openInputStream(uri)?.use { input ->
+                    documents.openInputStream(uri)?.use { input ->
                         repository.readAndPlanRestore(
                             input = input,
                             onProgress = ::showRestoreProgress
@@ -145,21 +143,20 @@ internal class BackupRestoreViewModel(
     }
 
     private fun validateBackupDocumentName(uri: Uri) {
-        val displayName = uri.openableDisplayName() ?: return
+        val displayName = documents.metadata(uri).displayName ?: return
         if (!displayName.endsWith(GRS_FILE_EXTENSION, ignoreCase = true)) {
             throw GrsArchiveException("Selected file is not a $GRS_FILE_EXTENSION backup")
         }
     }
 
     private fun trackRestoreFileSelected(uri: Uri) {
+        val metadata = documents.metadata(uri)
         tracker.trackEvent(
             "grs_restore_file_selected",
             mapOf(
                 "scheme" to uri.scheme.orEmpty().ifBlank { "unknown" },
-                "mimeType" to runCatching { contentResolver.getType(uri) }.getOrNull()
-                    .orEmpty()
-                    .ifBlank { "unknown" },
-                "sizeBytes" to (uri.openableSizeBytes()?.toString() ?: "unknown")
+                "mimeType" to metadata.mimeType.orEmpty().ifBlank { "unknown" },
+                "sizeBytes" to (metadata.sizeBytes?.toString() ?: "unknown")
             )
         )
     }
@@ -213,7 +210,7 @@ internal class BackupRestoreViewModel(
             showRestoreProgress(0)
             try {
                 val restoreResult = withContext(DispatchersProvider.io) {
-                    contentResolver.openInputStream(uri)?.use { input ->
+                    documents.openInputStream(uri)?.use { input ->
                         repository.executeRestore(
                             input = input,
                             pendingRestore = restore,
@@ -293,33 +290,4 @@ internal class BackupRestoreViewModel(
         _state.update { it.copy(restoreProgressPercent = null) }
     }
 
-    private fun Uri.openableSizeBytes(): Long? =
-        runCatching {
-            contentResolver.query(
-                this,
-                arrayOf(OpenableColumns.SIZE),
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (!cursor.moveToFirst()) return@use null
-                val index = cursor.getColumnIndex(OpenableColumns.SIZE)
-                if (index < 0 || cursor.isNull(index)) null else cursor.getLong(index)
-            }
-        }.getOrNull()
-
-    private fun Uri.openableDisplayName(): String? =
-        runCatching {
-            contentResolver.query(
-                this,
-                arrayOf(OpenableColumns.DISPLAY_NAME),
-                null,
-                null,
-                null
-            )?.use { cursor ->
-                if (!cursor.moveToFirst()) return@use null
-                val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (index < 0 || cursor.isNull(index)) null else cursor.getString(index)
-            }
-        }.getOrNull()
 }

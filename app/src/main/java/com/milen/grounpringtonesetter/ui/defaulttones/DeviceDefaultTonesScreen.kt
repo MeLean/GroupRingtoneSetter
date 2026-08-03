@@ -24,7 +24,7 @@ import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.customviews.dialog.ButtonData
 import com.milen.grounpringtonesetter.customviews.dialog.DialogHandler
 import com.milen.grounpringtonesetter.customviews.dialog.showAlertDialog
-import com.milen.grounpringtonesetter.customviews.ui.ads.AdLoadingHelper
+import com.milen.grounpringtonesetter.customviews.ui.ads.InterstitialAdGateway
 import com.milen.grounpringtonesetter.databinding.FragmentDeviceDefaultTonesBinding
 import com.milen.grounpringtonesetter.ui.ScreenInfoProvider
 import com.milen.grounpringtonesetter.ui.defaulttones.viewmodel.DeviceDefaultTonesViewModel
@@ -39,7 +39,7 @@ import com.milen.grounpringtonesetter.utils.manageVisibility
 internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
     private lateinit var binding: FragmentDeviceDefaultTonesBinding
     private lateinit var dialogHandler: DialogHandler
-    private lateinit var adHelper: AdLoadingHelper
+    private lateinit var adHelper: InterstitialAdGateway
 
     private val viewModel: DeviceDefaultTonesViewModel by viewModels {
         DeviceDefaultTonesViewModelFactory.provideFactory(requireActivity())
@@ -108,7 +108,10 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
         super.onViewCreated(view, savedInstanceState)
 
         dialogHandler = DialogHandler(requireActivity())
-        adHelper = AdLoadingHelper(requireActivity(), placement = "default_tones_interstitial")
+        adHelper = (requireActivity().application as App).provideInterstitialAdGateway(
+            activity = requireActivity(),
+            placement = "default_tones_interstitial",
+        )
         applyScreenTheme()
         binding.adBannerDefaultTones.setPlacement("default_tones_banner")
 

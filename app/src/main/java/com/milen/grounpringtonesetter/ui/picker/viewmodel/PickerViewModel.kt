@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class PickerViewModel(
@@ -80,9 +81,11 @@ internal class PickerViewModel(
     val events = _events.receiveAsFlow()
     private var pendingManageContactsSave: PendingManageContactsSave? = null
     private var pendingBlockedContactsDecision: PendingBlockedContactsDecision? = null
+    private val manageContactsConfirmationGuard = AtomicBoolean(false)
 
     fun startRename(group: LabelItem) {
         tracker.trackEvent("Picker_startRename")
+        releaseManageContactsConfirmationGuard()
         clearPendingManageContactDecisions()
         _state.update {
             PickerScreenState(
@@ -122,6 +125,7 @@ internal class PickerViewModel(
 
     fun startManageContacts(group: LabelItem) {
         tracker.trackEvent("Picker_startManageContacts")
+        releaseManageContactsConfirmationGuard()
         clearPendingManageContactDecisions()
         _state.update {
             PickerScreenState(
@@ -177,6 +181,7 @@ internal class PickerViewModel(
 
     fun startCreateGroup() {
         tracker.trackEvent("Picker_startCreateGroup")
+        releaseManageContactsConfirmationGuard()
         clearPendingManageContactDecisions()
         _state.update {
             PickerScreenState(
@@ -211,8 +216,12 @@ internal class PickerViewModel(
     }
 
     fun confirmManageContacts(group: LabelItem) {
-        clearPendingManageContactDecisions()
         val cur = state.value.pikerResultData as? PickerResultData.ManageGroupContacts ?: return
+        if (!manageContactsConfirmationGuard.compareAndSet(false, true)) {
+            tracker.trackEvent("Picker_manageContacts_confirmation_ignored_in_progress")
+            return
+        }
+        clearPendingManageContactDecisions()
         val newSelected = cur.selectedContacts.distinctBy { it.id }
         val oldSelected = group.contacts.distinctBy { it.id }
         val toAdd = calculateContactsToAdd(
@@ -270,6 +279,7 @@ internal class PickerViewModel(
                 )
             }.onFailure { e ->
                 if (e is CancellationException) throw e
+                releaseManageContactsConfirmationGuard()
                 handleError(e)
             }
         }
@@ -302,6 +312,7 @@ internal class PickerViewModel(
 
     fun onBlockedContactsAbort() {
         pendingBlockedContactsDecision = null
+        releaseManageContactsConfirmationGuard()
     }
 
     fun confirmCreateGroup(nameRaw: String) {
@@ -330,6 +341,7 @@ internal class PickerViewModel(
 
     fun close() {
         clearPendingManageContactDecisions()
+        releaseManageContactsConfirmationGuard()
         viewModelScope.launch { _events.send(PickerEvent.Close) }
     }
 
@@ -349,6 +361,7 @@ internal class PickerViewModel(
 
     private fun closeScreen() {
         clearPendingManageContactDecisions()
+        releaseManageContactsConfirmationGuard()
         // reset state
         _state.update { PickerScreenState(isLoading = false) }
         _events.trySend(PickerEvent.Close)
@@ -449,9 +462,14 @@ internal class PickerViewModel(
                 closeScreen()
             }.onFailure { e ->
                 if (e is CancellationException) throw e
+                releaseManageContactsConfirmationGuard()
                 handleError(e)
             }
         }
+    }
+
+    private fun releaseManageContactsConfirmationGuard() {
+        manageContactsConfirmationGuard.set(false)
     }
 
     private fun calculateContactsToAdd(

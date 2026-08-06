@@ -111,11 +111,16 @@ internal object AdDiagnostics {
             placement = placement,
             message = "unexpected stage=$stage reason=$reason throwable=${throwable?.javaClass?.simpleName ?: "none"} message=${throwable?.message ?: "none"}"
         )
-        tracker.trackError(
-            IllegalStateException(
-                "Unexpected ad state format=$format placement=$placement stage=$stage reason=$reason",
-                throwable
+        if (shouldTrackAdStateAsError(reason)) {
+            tracker.trackError(
+                IllegalStateException(
+                    "Unexpected ad state format=$format placement=$placement stage=$stage reason=$reason",
+                    throwable
+                )
             )
-        )
+        }
     }
 }
+
+internal fun shouldTrackAdStateAsError(reason: String): Boolean =
+    reason != "activity_unavailable"

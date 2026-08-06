@@ -5,6 +5,8 @@
     <string name="everything_set">Wszystko gotowe!</string>
     <string name="permission_required">Wymagane uprawnienie</string>
     <string name="need_permission_to_run">Aby korzystac z aplikacji, przyznaj uprawnienia. Zainstaluj aplikacje ponownie lub przyznaj je recznie w ustawieniach urzadzenia.</string>
+    <string name="contacts_permission_rationale">Dostęp do kontaktów jest potrzebny do tworzenia grup i ustawiania dzwonków dla ich kontaktów. Zezwól na niego, aby kontynuować.</string>
+    <string name="audio_permission_rationale">Dostęp do plików audio jest potrzebny do wybrania pliku dzwonka. Zezwól na niego, aby kontynuować.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Wybierz\ndzwonek</string>
     <string name="apply_ringtone">Zastosuj\ndzwonek</string>

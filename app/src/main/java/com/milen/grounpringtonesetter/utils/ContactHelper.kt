@@ -324,6 +324,9 @@ internal class ContactsHelper(
 
     suspend fun getAllPhoneContacts(accountId: AccountId?): List<Contact> =
         withContext(DispatchersProvider.io) {
+            if (!hasReadContactsPermission()) {
+                throw SecurityException("READ_CONTACTS permission is unavailable")
+            }
             tracker.trackEvent(
                 "getAllPhoneContacts called",
                 mapOf("account" to (accountId?.label ?: "ALL"))
@@ -573,16 +576,15 @@ internal class ContactsHelper(
             )
         )
 
-        val blockedContactIds = findBlockedContactsForLabelReassignment(
-            targetLabelId = targetLabelId,
+        val reassignmentPlan = buildContactReassignmentPlan(
             contactIds = distinctContactIds,
-            appVisibleEditableLabelIds = appVisibleEditableLabelIds
+            isAlreadyAssigned = { contactId ->
+                isContactAlreadyAssignedToLabel(targetLabelId, contactId)
+            },
+            resolveRawContactId = { contactId ->
+                resolveRawContactIdForTargetInsert(contactId, appVisibleEditableLabelIds)
+            }
         )
-        if (blockedContactIds.isNotEmpty()) {
-            val errorMessage = "Failed to reassign contacts without raw-contact mapping: " +
-                    blockedContactIds.joinToString(",")
-            throw IllegalStateException(errorMessage)
-        }
 
         val removableGroupIds = appVisibleEditableLabelIds
             .asSequence()
@@ -591,15 +593,8 @@ internal class ContactsHelper(
             .toList()
 
         val ops = ArrayList<ContentProviderOperation>()
-        distinctContactIds.forEach { contactId ->
-            if (!isContactAlreadyAssignedToLabel(targetLabelId, contactId)) {
-                val rawContactId = resolveRawContactIdForTargetInsert(
-                    contactId = contactId,
-                    appVisibleEditableLabelIds = appVisibleEditableLabelIds
-                ) ?: throw IllegalStateException(
-                    "Failed to resolve raw-contact mapping for contactId: $contactId"
-                )
-
+        reassignmentPlan.distinctContactIds.forEach { contactId ->
+            reassignmentPlan.rawContactIdsByContactId[contactId]?.let { rawContactId ->
                 ops.add(
                     ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
                         .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
@@ -1536,13 +1531,6 @@ internal class ContactsHelper(
             }
         }
         return descriptors
-    }
-
-    private fun isLocalRawContact(descriptor: RawContactDescriptor): Boolean {
-        return isLocalRawContact(
-            descriptor = descriptor,
-            detectionContext = buildLocalContactDetectionContext()
-        )
     }
 
     private fun isLocalRawContact(

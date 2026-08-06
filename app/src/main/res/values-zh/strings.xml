@@ -5,6 +5,8 @@
     <string name="everything_set">一切都设置好了！</string>
     <string name="permission_required">需要权限</string>
     <string name="need_permission_to_run">请授予应用程序使用权限。 请从设备设置中重新安装应用程序或手动授予。</string>
+    <string name="contacts_permission_rationale">创建群组并为其中的联系人设置铃声需要访问联系人。请允许访问以继续。</string>
+    <string name="audio_permission_rationale">选择铃声文件需要访问音频文件。请允许访问以继续。</string>
     <string name="ok">确定</string>
     <string name="choose_ringtone">选择\n铃声</string>
     <string name="apply_ringtone">应用\n铃声</string>

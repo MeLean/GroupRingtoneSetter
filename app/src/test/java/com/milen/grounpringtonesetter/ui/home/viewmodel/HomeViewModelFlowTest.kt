@@ -33,6 +33,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelFlowTest {
@@ -61,7 +62,7 @@ class HomeViewModelFlowTest {
     ) { fixture ->
         fixture.viewModel.onPermissionsGranted()
 
-        val event = withTimeout(1_000) { fixture.viewModel.events.first() }
+        val event = withTimeout(1_000.milliseconds) { fixture.viewModel.events.first() }
         assertTrue(event is HomeEvent.AskSourceSelection)
         assertEquals(0, fixture.contacts.loadAccountLabelsShallowCalls)
     }
@@ -73,10 +74,34 @@ class HomeViewModelFlowTest {
 
         assertEquals(
             HomeEvent.ShowErrorById(R.string.need_permission_to_run),
-            withTimeout(1_000) { fixture.viewModel.events.first() },
+            withTimeout(1_000.milliseconds) { fixture.viewModel.events.first() },
         )
         assertFalse(fixture.viewModel.state.value.isLoading)
     }
+
+    @Test
+    fun `permission lost while refreshing contacts returns to permission state without non fatal`() =
+        runHomeTest { fixture ->
+            fixture.contacts.refreshError = SecurityException("Contacts permission revoked")
+
+            fixture.viewModel.onPermissionsGranted()
+            advanceUntilIdle()
+
+            assertFalse(fixture.viewModel.state.value.arePermissionsGranted)
+            assertTrue(fixture.telemetry.errors.isEmpty())
+        }
+
+    @Test
+    fun `permission lost while loading labels returns to permission state without non fatal`() =
+        runHomeTest { fixture ->
+            fixture.contacts.loadError = SecurityException("Contacts permission revoked")
+
+            fixture.viewModel.onPermissionsGranted()
+            advanceUntilIdle()
+
+            assertFalse(fixture.viewModel.state.value.arePermissionsGranted)
+            assertTrue(fixture.telemetry.errors.isEmpty())
+        }
 
     @Test
     fun `offline ad supported user navigates to no internet`() = runHomeTest(
@@ -87,7 +112,7 @@ class HomeViewModelFlowTest {
 
         assertEquals(
             HomeEvent.ConnectionLost,
-            withTimeout(1_000) { fixture.viewModel.events.first() },
+            withTimeout(1_000.milliseconds) { fixture.viewModel.events.first() },
         )
     }
 
@@ -112,7 +137,7 @@ class HomeViewModelFlowTest {
         assertEquals(listOf(ContactSource.OnDevice), fixture.sources.selectedSources)
         assertEquals(
             HomeEvent.NavigateToCreateGroup,
-            withTimeout(1_000) { fixture.viewModel.events.first() },
+            withTimeout(1_000.milliseconds) { fixture.viewModel.events.first() },
         )
         assertEquals(1, fixture.contacts.loadAccountLabelsShallowCalls)
     }
@@ -236,7 +261,7 @@ class HomeViewModelFlowTest {
     }
 
     private suspend fun kotlinx.coroutines.flow.Flow<HomeEvent>.firstOrNullWithinTestWindow(): HomeEvent? =
-        kotlinx.coroutines.withTimeoutOrNull(1) { first() }
+        kotlinx.coroutines.withTimeoutOrNull(1.milliseconds) { first() }
 }
 
 private data class HomeFixture(

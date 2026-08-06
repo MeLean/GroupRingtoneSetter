@@ -5,6 +5,8 @@
     <string name="everything_set">設定が完了しました</string>
     <string name="permission_required">権限が必要です</string>
     <string name="need_permission_to_run">アプリを使用するには必要な権限を許可してください。アプリを再インストールするか、端末の設定から手動で許可してください。</string>
+    <string name="contacts_permission_rationale">グループを作成し、その連絡先の着信音を設定するには連絡先へのアクセスが必要です。続行するには許可してください。</string>
+    <string name="audio_permission_rationale">着信音ファイルを選択するには音声ファイルへのアクセスが必要です。続行するには許可してください。</string>
     <string name="ok">確認</string>
     <string name="choose_ringtone">着信音を\n選択</string>
     <string name="apply_ringtone">着信音を\n設定</string>

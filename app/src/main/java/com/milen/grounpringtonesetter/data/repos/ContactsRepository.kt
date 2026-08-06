@@ -8,6 +8,7 @@ import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.Contact
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.LabelStorageKind
+import com.milen.grounpringtonesetter.data.exceptions.isContactsPermissionFailure
 import com.milen.grounpringtonesetter.data.local.LocalContactLabelMirror
 import com.milen.grounpringtonesetter.data.local.LocalLabelDocument
 import com.milen.grounpringtonesetter.data.local.LocalLabelsStore
@@ -579,13 +580,13 @@ internal class ContactsRepositoryImpl(
         recoverFromMirror: Boolean = true,
     ): List<LabelItem> {
         val storedDocument = localLabelsStore.read()
-        val mirroredAssignments = if (recoverFromMirror) {
+        val mirrorReadResult = if (recoverFromMirror) {
             runCatching { localLabelMirror.readAssignments() }
-                .onFailure(tracker::trackError)
-                .getOrDefault(emptyList())
+                .onFailure(::trackMirrorReadFailure)
         } else {
-            emptyList()
+            Result.success(emptyList())
         }
+        val mirroredAssignments = mirrorReadResult.getOrDefault(emptyList())
         val recoveredDocument = if (recoverFromMirror) {
             recoverLocalLabels(storedDocument, mirroredAssignments)
         } else {
@@ -608,7 +609,7 @@ internal class ContactsRepositoryImpl(
         if (writeBackIfNeeded && hydrated.document != storedDocument) {
             localLabelsStore.write(hydrated.document)
         }
-        if (recoverFromMirror && writeBackIfNeeded) {
+        if (recoverFromMirror && writeBackIfNeeded && mirrorReadResult.isSuccess) {
             purgeLocalLabelMirror()
         }
         return hydrated.labelItems
@@ -616,9 +617,9 @@ internal class ContactsRepositoryImpl(
 
     private suspend fun migrateLocalLabelMirrorIfNeeded() {
         val storedDocument = localLabelsStore.read()
-        val mirroredAssignments = runCatching { localLabelMirror.readAssignments() }
-            .onFailure(tracker::trackError)
-            .getOrDefault(emptyList())
+        val mirrorReadResult = runCatching { localLabelMirror.readAssignments() }
+            .onFailure(::trackMirrorReadFailure)
+        val mirroredAssignments = mirrorReadResult.getOrElse { return }
         if (mirroredAssignments.isEmpty()) return
 
         val recoveredDocument = recoverLocalLabels(storedDocument, mirroredAssignments)
@@ -744,6 +745,7 @@ internal class ContactsRepositoryImpl(
     ) {
         runCatching { block() }
             .onFailure { error ->
+                if (error.isContactsPermissionFailure()) return@onFailure
                 tracker.trackError(error)
                 tracker.trackEvent(
                     "local_label_mirror_operation_failed",
@@ -753,6 +755,12 @@ internal class ContactsRepositoryImpl(
                     )
                 )
             }
+    }
+
+    private fun trackMirrorReadFailure(error: Throwable) {
+        if (!error.isContactsPermissionFailure()) {
+            tracker.trackError(error)
+        }
     }
 
     private fun updateGroupRingtone(

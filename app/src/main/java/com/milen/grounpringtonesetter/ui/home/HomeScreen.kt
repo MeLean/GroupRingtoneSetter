@@ -77,6 +77,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, ScreenInfoProvider {
 
@@ -111,28 +112,67 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
     private var currentEntitlement = EntitlementState.UNKNOWN
     private var canLoadAds = false
 
-    private val permissions = mutableListOf(
+    private val permissions = listOf(
         Manifest.permission.READ_CONTACTS,
         Manifest.permission.WRITE_CONTACTS
     )
+    private val contactsPermissionRequestCoordinator = ContactsPermissionRequestCoordinator()
+    private val audioPermissionRequestCoordinator = ContactsPermissionRequestCoordinator()
 
     private val requestMultiplePermissions =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            val allPermissionsGranted = permissions.entries.all { it.value }
-            when {
-                allPermissionsGranted -> viewModel.onPermissionsGranted()
-                else -> viewModel.onPermissionsRefused()
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+            val allPermissionsGranted = results.isNotEmpty() &&
+                    requireContext().areAllPermissionsGranted(permissions)
+            val shouldShowRationale = !allPermissionsGranted &&
+                    shouldShowContactsPermissionRationale()
+            when (
+                contactsPermissionRequestCoordinator.onRequestResult(
+                    permissionResults = results,
+                    arePermissionsGranted = allPermissionsGranted,
+                    shouldShowRationale = shouldShowRationale,
+                )
+            ) {
+                ContactsPermissionRequestResult.Granted -> viewModel.onPermissionsGranted()
+                ContactsPermissionRequestResult.RationaleRequired ->
+                    showContactsPermissionRationale()
+
+                ContactsPermissionRequestResult.PermanentlyRefused ->
+                    viewModel.onPermissionsRefused()
+
+                ContactsPermissionRequestResult.NotRequested -> viewModel.onNoPermissions()
             }
         }
 
     private val requestAudioPermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissionResults ->
             val labelItem = pendingAudioPermissionGroup ?: return@registerForActivityResult
-            pendingAudioPermissionGroup = null
-            if (permissionResults.values.all { it }) {
-                showRingtoneSourcePicker(labelItem)
-            } else {
-                dialogHandler.showErrorById(R.string.need_permission_to_run)
+            val audioPermissions = audioPermissionsSdkBased()
+            val arePermissionsGranted = permissionResults.isNotEmpty() &&
+                    requireContext().areAllPermissionsGranted(audioPermissions)
+            val shouldShowRationale = !arePermissionsGranted &&
+                    audioPermissions.any(::shouldShowRequestPermissionRationale)
+            when (
+                audioPermissionRequestCoordinator.onRequestResult(
+                    permissionResults = permissionResults,
+                    arePermissionsGranted = arePermissionsGranted,
+                    shouldShowRationale = shouldShowRationale,
+                )
+            ) {
+                ContactsPermissionRequestResult.Granted -> {
+                    pendingAudioPermissionGroup = null
+                    showRingtoneSourcePicker(labelItem)
+                }
+
+                ContactsPermissionRequestResult.RationaleRequired ->
+                    showAudioPermissionRationale(labelItem)
+
+                ContactsPermissionRequestResult.PermanentlyRefused -> {
+                    pendingAudioPermissionGroup = null
+                    dialogHandler.showErrorById(R.string.need_permission_to_run)
+                }
+
+                ContactsPermissionRequestResult.NotRequested ->
+                    pendingAudioPermissionGroup = null
             }
         }
 
@@ -224,7 +264,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
             }
 
             if (!state.arePermissionsGranted) {
-                requestMultiplePermissions.launch(permissions.toTypedArray())
+                requestContactsPermissionsIfNeeded()
             } else {
                 groupsAdapter.submitList(state.labelItems)
             }
@@ -418,6 +458,49 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
         }
     }
 
+    private fun requestContactsPermissionsIfNeeded() {
+        val arePermissionsGranted = requireContext().areAllPermissionsGranted(permissions)
+        if (contactsPermissionRequestCoordinator.shouldLaunchRequest(arePermissionsGranted)) {
+            requestMultiplePermissions.launch(permissions.toTypedArray())
+        }
+    }
+
+    private fun shouldShowContactsPermissionRationale(): Boolean =
+        permissions.any(::shouldShowRequestPermissionRationale)
+
+    private fun showContactsPermissionRationale() {
+        requireActivity().showAlertDialog(
+            titleResId = R.string.permission_required,
+            message = getString(R.string.contacts_permission_rationale),
+            cancelButtonData = ButtonData(R.string.cancel),
+            confirmButtonData = ButtonData(R.string.confirm) {
+                requestContactsPermissionsIfNeeded()
+            },
+        )
+    }
+
+    private fun requestAudioPermissionsIfNeeded(labelItem: LabelItem) {
+        val audioPermissions = audioPermissionsSdkBased()
+        val arePermissionsGranted = requireContext().areAllPermissionsGranted(audioPermissions)
+        if (audioPermissionRequestCoordinator.shouldLaunchRequest(arePermissionsGranted)) {
+            pendingAudioPermissionGroup = labelItem
+            requestAudioPermissions.launch(audioPermissions.toTypedArray())
+        }
+    }
+
+    private fun showAudioPermissionRationale(labelItem: LabelItem) {
+        requireActivity().showAlertDialog(
+            titleResId = R.string.permission_required,
+            message = getString(R.string.audio_permission_rationale),
+            cancelButtonData = ButtonData(R.string.cancel) {
+                pendingAudioPermissionGroup = null
+            },
+            confirmButtonData = ButtonData(R.string.confirm) {
+                requestAudioPermissionsIfNeeded(labelItem)
+            },
+        )
+    }
+
     private fun setupGroupSearch() {
         binding.civGroupSearch.setSoftDoneCLicked {
             submitSearchImmediately()
@@ -427,7 +510,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
             if (!renderedSearchVisibility) return@setOnTextChangedListener
             groupSearchJob?.cancel()
             groupSearchJob = viewLifecycleOwner.lifecycleScope.launch {
-                delay(GROUP_SEARCH_DEBOUNCE_MS)
+                delay(GROUP_SEARCH_DEBOUNCE_MS.milliseconds)
                 viewModel.onGroupSearchQueryUpdated(query)
             }
         }
@@ -666,7 +749,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
 
     private fun showResetAllRingtonesDialog() {
         if (!requireContext().areAllPermissionsGranted(permissions)) {
-            requestMultiplePermissions.launch(permissions.toTypedArray())
+            requestContactsPermissionsIfNeeded()
             return
         }
 
@@ -813,11 +896,11 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
             ) {
                 showRingtoneSourcePicker(labelItem)
             } else {
-                pendingAudioPermissionGroup = labelItem
-                requestAudioPermissions.launch(audioPermissions.toTypedArray())
+                requestAudioPermissionsIfNeeded(labelItem)
             }
         } else {
             viewModel.onNoPermissions()
+            requestContactsPermissionsIfNeeded()
         }
     }
 

@@ -5,6 +5,8 @@
     <string name="everything_set">Alles ist eingerichtet!</string>
     <string name="permission_required">Berechtigung erforderlich</string>
     <string name="need_permission_to_run">Bitte erteilen Sie die erforderlichen Berechtigungen, um die Anwendung zu verwenden. Installieren Sie die App neu oder erteilen Sie sie manuell in den Geräteeinstellungen.</string>
+    <string name="contacts_permission_rationale">Der Zugriff auf Kontakte wird benötigt, um Gruppen zu erstellen und Klingeltöne für deren Kontakte festzulegen. Bitte erlauben Sie ihn, um fortzufahren.</string>
+    <string name="audio_permission_rationale">Der Zugriff auf Audiodateien wird benötigt, um eine Klingeltondatei auszuwählen. Bitte erlauben Sie ihn, um fortzufahren.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Klingelton\nauswählen</string>
     <string name="apply_ringtone">Klingelton\nfestlegen</string>

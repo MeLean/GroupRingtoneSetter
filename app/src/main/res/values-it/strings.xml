@@ -5,6 +5,8 @@
     <string name="everything_set">È tutto pronto!</string>
     <string name="permission_required">Autorizzazione necessaria</string>
     <string name="need_permission_to_run">Concedi le autorizzazioni per usare l\'applicazione. Reinstalla l\'app oppure concedile manualmente dalle impostazioni del dispositivo.</string>
+    <string name="contacts_permission_rationale">L’accesso ai contatti è necessario per creare gruppi e impostare le suonerie per i loro contatti. Consentilo per continuare.</string>
+    <string name="audio_permission_rationale">L’accesso ai file audio è necessario per scegliere un file di suoneria. Consentilo per continuare.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Scegli\nsuoneria</string>
     <string name="apply_ringtone">Applica\nsuoneria</string>

@@ -4,7 +4,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("kotlin-parcelize")
+    alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
     jacoco
@@ -20,14 +20,15 @@ val keystoreProperties = Properties().apply {
 android {
     namespace = "com.milen.grounpringtonesetter"
 
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.milen.grounpringtonesetter"
-        minSdk = 27
+        minSdk = 28
+        //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 850
-        versionName = "8.5.0"
+        versionCode = 860
+        versionName = "8.6.0"
 
         testInstrumentationRunner = "com.milen.grounpringtonesetter.testing.RegressionTestRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
@@ -61,7 +62,7 @@ android {
         }
     }
 
-    // JDK 17 toolchain
+    // Keep Java and Kotlin bytecode aligned on the supported Android target.
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -88,7 +89,7 @@ android {
     }
 }
 
-val validateReleaseSigning by tasks.registering {
+val validateReleaseSigning = tasks.register("validateReleaseSigning") {
     group = "verification"
     description = "Fails release builds when the private signing configuration is incomplete."
     doLast {
@@ -112,7 +113,7 @@ tasks.matching { task -> task.name == "preReleaseBuild" }.configureEach {
 }
 
 jacoco {
-    toolVersion = "0.8.12"
+    toolVersion = "0.8.15"
 }
 
 dependencies {
@@ -142,6 +143,10 @@ dependencies {
     // Google Play Services (Ads)
     implementation(libs.playServicesAds)
     implementation(libs.userMessagingPlatform)
+
+    // Ads transitively brings WorkManager 2.7.0. Pin a current version to avoid its
+    // startup database initialization crash on modern Android versions.
+    implementation(libs.androidxWorkRuntime)
 
     // Firebase (BoM + libs)
     implementation(platform(libs.firebase.bom))

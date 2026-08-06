@@ -20,6 +20,9 @@ internal enum class InterstitialAdShowResult {
     SHOW_FAILED,
 }
 
+internal fun interstitialResultWhenActivityUnavailable(): InterstitialAdShowResult =
+    InterstitialAdShowResult.SKIPPED
+
 internal class AdLoadingHelper(
     activity: Activity,
     private val placement: String = activity::class.java.simpleName,
@@ -199,7 +202,7 @@ internal class AdLoadingHelper(
                 reason = "activity_unavailable"
             )
             clearCachedInterstitial()
-            onAdLoadingFinished(InterstitialAdShowResult.SHOW_FAILED)
+            onAdLoadingFinished(interstitialResultWhenActivityUnavailable())
             return
         }
 

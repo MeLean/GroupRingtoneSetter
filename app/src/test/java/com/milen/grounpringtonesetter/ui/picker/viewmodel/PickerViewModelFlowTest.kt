@@ -226,6 +226,26 @@ class PickerViewModelFlowTest {
             assertEquals(listOf(existing, ungrouped), state.selectedContacts)
         }
 
+    @Test
+    fun `rapid confirmation starts only one contact reassignment`() = runPickerTest { fixture ->
+        val existing = contact(1)
+        val added = contact(2)
+        val group = label(contacts = listOf(existing))
+        fixture.contacts.allContacts.value = listOf(existing, added)
+        fixture.contacts.validation = GroupReassignmentValidation(listOf(added), emptyList())
+        fixture.viewModel.startManageContacts(group)
+        advanceUntilIdle()
+        fixture.viewModel.updateManageSelection(listOf(existing, added))
+        advanceUntilIdle()
+
+        fixture.viewModel.confirmManageContacts(group)
+        fixture.viewModel.confirmManageContacts(group)
+        advanceUntilIdle()
+
+        assertEquals(1, fixture.contacts.validatedCandidates.size)
+        assertEquals(1, fixture.contacts.updatedMembers.size)
+    }
+
     private fun runPickerTest(
         block: suspend TestScope.(PickerFixture) -> Unit,
     ) = runTest {

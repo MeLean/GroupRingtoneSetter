@@ -1,7 +1,10 @@
 package com.milen.grounpringtonesetter.data.local
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
 import android.provider.ContactsContract
+import androidx.core.content.ContextCompat
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
 import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.withContext
@@ -39,6 +42,9 @@ internal class LocalContactLabelMirror(
 
     suspend fun readAssignments(): List<MirroredLocalLabelAssignment> =
         withContext(DispatchersProvider.io) {
+            if (!hasPermission(Manifest.permission.READ_CONTACTS)) {
+                return@withContext emptyList()
+            }
             val rows = queryMirrorRows()
             if (rows.isEmpty()) return@withContext emptyList()
 
@@ -50,10 +56,19 @@ internal class LocalContactLabelMirror(
         }
 
     suspend fun purgeOwnedRows() = withContext(DispatchersProvider.io) {
+        if (!hasPermission(Manifest.permission.READ_CONTACTS) ||
+            !hasPermission(Manifest.permission.WRITE_CONTACTS)
+        ) {
+            return@withContext
+        }
         val plan = buildMirrorPurgePlan(queryMirrorRows())
         plan.deleteRowIds.forEach(::deleteRowById)
         trackPurgeTelemetry(plan)
     }
+
+    private fun hasPermission(permission: String): Boolean =
+        ContextCompat.checkSelfPermission(appContext, permission) ==
+                PackageManager.PERMISSION_GRANTED
 
     private fun trackPurgeTelemetry(
         plan: MirrorPurgePlan,

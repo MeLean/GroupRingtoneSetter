@@ -15,6 +15,7 @@ import com.milen.grounpringtonesetter.customviews.ui.ads.InterstitialAdShowResul
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelException
 import com.milen.grounpringtonesetter.data.exceptions.DeleteLabelFailureReason
+import com.milen.grounpringtonesetter.data.exceptions.isContactsPermissionFailure
 import com.milen.grounpringtonesetter.data.prefs.HomePreferencesStore
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.data.sources.ContactSource
@@ -42,6 +43,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class HomeViewModel(
     private val adHelper: InterstitialAdGateway,
@@ -455,7 +457,7 @@ internal class HomeViewModel(
     private fun startPurchaseUiGuardTimeout() {
         purchaseUiGuardTimeoutJob?.cancel()
         purchaseUiGuardTimeoutJob = viewModelScope.launch {
-            delay(PURCHASE_UI_GUARD_TIMEOUT_MS)
+            delay(PURCHASE_UI_GUARD_TIMEOUT_MS.milliseconds)
             releasePurchaseUiGuard("timeout")
         }
     }
@@ -620,6 +622,10 @@ internal class HomeViewModel(
     private fun hideLoading() = _state.update { it.copy(isLoading = false) }
 
     private fun handleError(error: Throwable) {
+        if (error.isContactsPermissionFailure()) {
+            handleContactsPermissionLoss()
+            return
+        }
         tracker.trackError(error)
         hideLoading()
         launch {
@@ -643,9 +649,23 @@ internal class HomeViewModel(
             } catch (_: CancellationException) {
                 // ignore
             } catch (e: Throwable) {
-                tracker.trackError(e)
+                if (e.isContactsPermissionFailure()) {
+                    handleContactsPermissionLoss()
+                } else {
+                    tracker.trackError(e)
+                }
             }
         }
+    }
+
+    private fun handleContactsPermissionLoss() {
+        _state.update {
+            it.copy(
+                arePermissionsGranted = false,
+                isLoading = false,
+            )
+        }
+        tracker.trackEvent("contacts_permission_lost")
     }
 
     private fun showInterstitialAdIfNeededAndManageLoading() {

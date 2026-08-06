@@ -5,6 +5,8 @@
     <string name="everything_set">Everything is set!</string>
     <string name="permission_required">Permission required</string>
     <string name="need_permission_to_run">Please grant permission to use the application. Reinstall the app or grant them manually from device settings.</string>
+    <string name="contacts_permission_rationale">Contact access is needed to create groups and set ringtones for their contacts. Please allow it to continue.</string>
+    <string name="audio_permission_rationale">Audio access is needed to choose a ringtone file. Please allow it to continue.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Choose\nRingtone</string>
     <string name="apply_ringtone">Apply\nRingtone</string>

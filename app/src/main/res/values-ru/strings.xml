@@ -5,6 +5,8 @@
     <string name="everything_set">Все настроено!</string>
     <string name="permission_required">Требуется разрешение</string>
     <string name="need_permission_to_run">Пожалуйста, предоставьте разрешение на использование приложения. Переустановите приложение или предоставьте их вручную в настройках устройства.</string>
+    <string name="contacts_permission_rationale">Доступ к контактам нужен для создания групп и настройки мелодий для их контактов. Разрешите его, чтобы продолжить.</string>
+    <string name="audio_permission_rationale">Доступ к аудиофайлам нужен, чтобы выбрать файл мелодии. Разрешите его, чтобы продолжить.</string>
     <string name="ok">OK</string>
     <string name="choose_ringtone">Выберите\nМелодию звонка</string>
     <string name="apply_ringtone">Применить\nМелодию</string>

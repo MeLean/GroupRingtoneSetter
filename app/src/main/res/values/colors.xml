@@ -8,11 +8,13 @@
     <color name="black">#FF000000</color>
     <color name="blur">#22000000</color>
     <color name="home_dark_card_fill">#FF111111</color>
+    <color name="home_classic_inactive_icon">#FF858585</color>
     <color name="theme_dark_background">#FF121722</color>
     <color name="theme_dark_surface">#FF1E2635</color>
     <color name="theme_dark_dialog_surface">#FF192130</color>
     <color name="theme_dark_border">#FF7480A5</color>
     <color name="theme_dark_text">#FFF6F8FE</color>
+    <color name="theme_dark_inactive_icon">#FF939DB6</color>
     <color name="theme_dark_hint">#FFCDD4E5</color>
     <color name="theme_dark_accent">#FFBCC6FF</color>
     <color name="theme_dark_accent_text">#FF172033</color>
@@ -21,6 +23,7 @@
     <color name="theme_light_dialog_surface">#FFFFFBF6</color>
     <color name="theme_light_border">#FF9F937E</color>
     <color name="theme_light_text">#FF1D2634</color>
+    <color name="theme_light_inactive_icon">#FF697689</color>
     <color name="theme_light_hint">#FF4F5B6B</color>
     <color name="theme_light_accent">#FF3F56C5</color>
     <color name="theme_light_accent_text">#FFFFFFFF</color>

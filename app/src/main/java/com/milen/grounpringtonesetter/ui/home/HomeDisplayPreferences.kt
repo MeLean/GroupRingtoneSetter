@@ -19,6 +19,7 @@ internal enum class GroupSortOption {
 internal data class HomeDisplayPreferences(
     val themeOption: HomeThemeOption = HomeThemeOption.CLASSIC,
     val groupSortOption: GroupSortOption = GroupSortOption.ALPHABETICAL_ASC,
+    val showReadOnlyGroups: Boolean = false,
 )
 
 internal data class HomeThemeAppearance(
@@ -26,6 +27,7 @@ internal data class HomeThemeAppearance(
     @param:ColorRes val surfaceBackgroundColorRes: Int,
     @param:ColorRes val textColorRes: Int,
     @param:ColorRes val iconTintColorRes: Int,
+    @param:ColorRes val inactiveIconTintColorRes: Int,
     @param:ColorRes val actionButtonBackgroundColorRes: Int,
     @param:ColorRes val actionButtonTextColorRes: Int,
     @param:ColorRes val counterBackgroundColorRes: Int,
@@ -45,6 +47,7 @@ internal fun HomeThemeOption.toAppearance(): HomeThemeAppearance = when (this) {
             surfaceBackgroundColorRes = R.color.home_dark_card_fill,
             textColorRes = R.color.white,
             iconTintColorRes = R.color.white,
+            inactiveIconTintColorRes = R.color.home_classic_inactive_icon,
             actionButtonBackgroundColorRes = R.color.purple_500,
             actionButtonTextColorRes = R.color.white,
             counterBackgroundColorRes = R.color.purple_500,
@@ -63,6 +66,7 @@ internal fun HomeThemeOption.toAppearance(): HomeThemeAppearance = when (this) {
             surfaceBackgroundColorRes = R.color.theme_dark_surface,
             textColorRes = R.color.theme_dark_text,
             iconTintColorRes = R.color.theme_dark_text,
+            inactiveIconTintColorRes = R.color.theme_dark_inactive_icon,
             actionButtonBackgroundColorRes = R.color.theme_dark_accent,
             actionButtonTextColorRes = R.color.theme_dark_accent_text,
             counterBackgroundColorRes = R.color.theme_dark_accent,
@@ -81,6 +85,7 @@ internal fun HomeThemeOption.toAppearance(): HomeThemeAppearance = when (this) {
             surfaceBackgroundColorRes = R.color.theme_light_surface,
             textColorRes = R.color.theme_light_text,
             iconTintColorRes = R.color.theme_light_text,
+            inactiveIconTintColorRes = R.color.theme_light_inactive_icon,
             actionButtonBackgroundColorRes = R.color.theme_light_accent,
             actionButtonTextColorRes = R.color.theme_light_accent_text,
             counterBackgroundColorRes = R.color.theme_light_accent,

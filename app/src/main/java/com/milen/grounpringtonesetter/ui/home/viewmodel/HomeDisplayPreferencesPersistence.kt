@@ -19,7 +19,8 @@ internal suspend fun saveHomeDisplayPreferencesIfChanged(
         "home_user_preferences_saved",
         mapOf(
             "theme_option" to updated.themeOption.name,
-            "group_sort_option" to updated.groupSortOption.name
+            "group_sort_option" to updated.groupSortOption.name,
+            "show_read_only_groups" to updated.showReadOnlyGroups,
         )
     )
 

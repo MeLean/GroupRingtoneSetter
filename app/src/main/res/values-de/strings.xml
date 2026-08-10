@@ -46,6 +46,7 @@
     <string name="delete_group">Gruppe löschen</string>
     <string name="delete_group_desc">Möchten Sie diese Gruppe löschen? Dadurch werden Kontakte aus der Gruppe entfernt, ihre zugewiesenen Klingeltöne bleiben jedoch unverändert.</string>
     <string name="group_cannot_be_deleted">Diese Gruppe kann nicht gelöscht werden.</string>
+    <string name="read_only_group_name">%1$s (schreibgeschützt)</string>
     <string name="manage_contacts_group_name">Kontakte der Gruppe verwalten</string>
     <string name="manage_contacts_group_name_desc">Möchten Sie Kontakte zu dieser Gruppe hinzufügen oder entfernen? Dadurch werden die Kontakte der Gruppe zugewiesen bzw. entzogen. Die Änderung des Klingeltons wird wirksam, sobald der Vorgang abgeschlossen ist!</string>
     <string name="select_all_ungrouped_contacts_with_count">Alle ungruppierten auswählen (%1$d)</string>
@@ -118,6 +119,7 @@
     <string name="group_sorting_current_order">Keine Sortierung</string>
     <string name="group_sorting_ascending">A-Z</string>
     <string name="group_sorting_descending">Z-A</string>
+    <string name="show_read_only_groups">Schreibgeschützte Gruppen anzeigen</string>
     <string name="backup_restore_title">Sichern und Wiederherstellen</string>
     <string name="backup_restore_locked_title">Sichern und Wiederherstellen freischalten</string>
     <string name="backup_restore_locked_message">Sichern und Wiederherstellen ist ein Vorteil von „Ad-Free Forever“. Es speichert Gruppen-Klingeltoneinstellungen, ohne Kontaktdetails in die Sicherungsdatei zu legen.</string>

@@ -76,7 +76,8 @@ internal class HomeViewModel(
             val filteredLabels = deriveVisibleLabelItems(
                 labels = labels,
                 groupSearchQuery = base.groupSearchQuery,
-                sortOption = base.displayPreferences.groupSortOption
+                sortOption = base.displayPreferences.groupSortOption,
+                showReadOnlyGroups = base.displayPreferences.showReadOnlyGroups,
             )
             base.copy(
                 isLoading = base.isLoading,

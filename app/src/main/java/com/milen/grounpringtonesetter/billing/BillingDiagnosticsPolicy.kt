@@ -27,6 +27,10 @@ internal object BillingDiagnosticsPolicy {
             return false
         }
 
+        if (responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+            return false
+        }
+
         return BillingError.fromResponseCode(responseCode).category ==
                 BillingError.ErrorCategory.FATAL
     }

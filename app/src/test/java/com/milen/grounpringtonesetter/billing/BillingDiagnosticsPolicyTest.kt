@@ -55,6 +55,16 @@ class BillingDiagnosticsPolicyTest {
     }
 
     @Test
+    fun `purchases updated does not record item already owned as error`() {
+        val result = BillingDiagnosticsPolicy.shouldRecordPurchasesUpdatedError(
+            responseCode = BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED,
+            hasPurchases = false,
+        )
+
+        assertFalse(result)
+    }
+
+    @Test
     fun `purchases updated records fatal error as error`() {
         val result = BillingDiagnosticsPolicy.shouldRecordPurchasesUpdatedError(
             responseCode = BillingClient.BillingResponseCode.ERROR,

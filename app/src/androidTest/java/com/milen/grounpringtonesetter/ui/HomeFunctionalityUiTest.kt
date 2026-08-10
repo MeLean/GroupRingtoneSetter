@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
+import android.widget.ImageButton
+import androidx.core.content.ContextCompat
 import androidx.navigation.fragment.NavHostFragment
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
@@ -104,7 +106,7 @@ class HomeFunctionalityUiTest {
     }
 
     @Test
-    fun protectedGroupDoesNotExposeDeleteAction() {
+    fun protectedGroupShowsDisabledDeleteAction() {
         app.resetUiScenario(
             contacts = listOf(alice),
             groups = listOf(group("protected", "Protected", listOf(alice), canDelete = false))
@@ -116,7 +118,42 @@ class HomeFunctionalityUiTest {
                     withId(R.id.ctcibDelete),
                     hasSibling(withText("Protected"))
                 )
-            ).check(matches(not(isDisplayed())))
+            ).check(matches(allOf(isDisplayed(), not(isEnabled()))))
+        }
+    }
+
+    @Test
+    fun readOnlyGroupKeepsRingtoneActionAndDisablesStructuralActions() {
+        val displayedName = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.read_only_group_name, "Protected")
+        app.resetUiScenario(
+            contacts = listOf(alice),
+            groups = listOf(
+                group(
+                    id = "protected",
+                    name = "Protected",
+                    contacts = listOf(alice),
+                    isReadOnly = true,
+                    canModify = false,
+                    canDelete = false,
+                )
+            )
+        )
+
+        launchMain().use {
+            onView(allOf(withId(R.id.ctvGroupName), withText(displayedName)))
+                .check(matches(isDisplayed()))
+            onView(allOf(withId(R.id.ctcibManageContacts), hasSibling(withText(displayedName))))
+                .check(matches(allOf(isDisplayed(), not(isEnabled()))))
+            onView(allOf(withId(R.id.ctcibEdit), hasSibling(withText(displayedName))))
+                .check(matches(allOf(isDisplayed(), not(isEnabled()))))
+            onView(allOf(withId(R.id.ctcibDelete), hasSibling(withText(displayedName))))
+                .check(matches(allOf(isDisplayed(), not(isEnabled()))))
+            assertActionIconTint(R.id.ctcibManageContacts, R.color.home_classic_inactive_icon)
+            assertActionIconTint(R.id.ctcibEdit, R.color.home_classic_inactive_icon)
+            assertActionIconTint(R.id.ctcibDelete, R.color.home_classic_inactive_icon)
+            onView(allOf(withId(R.id.crb_choose_ringtone), hasSibling(withText(displayedName))))
+                .check(matches(isDisplayed()))
         }
     }
 
@@ -327,4 +364,14 @@ class HomeFunctionalityUiTest {
         button.click()
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
     }
+}
+
+private fun assertActionIconTint(containerId: Int, colorResId: Int) {
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val expectedColor = ContextCompat.getColor(context, colorResId)
+    onView(allOf(withId(R.id.imageButton), isDescendantOfA(withId(containerId))))
+        .check { view, _ ->
+            val actualColor = (view as ImageButton).imageTintList?.defaultColor
+            assertEquals(expectedColor, actualColor)
+        }
 }

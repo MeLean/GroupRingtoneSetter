@@ -80,6 +80,32 @@ class HomeLabelItemsPresentationTest {
     }
 
     @Test
+    fun `read only groups are hidden until the preference is enabled`() {
+        val labels = listOf(
+            labelItem(id = 1, groupName = "Editable"),
+            labelItem(id = 2, groupName = "Read-only", isReadOnly = true),
+        )
+
+        val hidden = deriveVisibleLabelItems(
+            labels = labels,
+            groupSearchQuery = "",
+            sortOption = GroupSortOption.CURRENT_ORDER,
+            showReadOnlyGroups = false,
+            locale = Locale.ENGLISH,
+        )
+        val shown = deriveVisibleLabelItems(
+            labels = labels,
+            groupSearchQuery = "",
+            sortOption = GroupSortOption.CURRENT_ORDER,
+            showReadOnlyGroups = true,
+            locale = Locale.ENGLISH,
+        )
+
+        assertEquals(listOf("group:1"), hidden.map { it.id })
+        assertEquals(listOf("group:1", "group:2"), shown.map { it.id })
+    }
+
+    @Test
     fun `alphabetical ascending uses locale aware Cyrillic order`() {
         val labels = listOf(
             labelItem(id = 1, groupName = "Ябълка"),
@@ -136,9 +162,11 @@ class HomeLabelItemsPresentationTest {
     private fun labelItem(
         id: Long,
         groupName: String,
+        isReadOnly: Boolean = false,
     ) = LabelItem(
         id = "group:$id",
         groupName = groupName,
-        contacts = emptyList()
+        contacts = emptyList(),
+        isReadOnly = isReadOnly,
     )
 }

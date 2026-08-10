@@ -5,6 +5,8 @@ import com.milen.grounpringtonesetter.ui.home.HomeDisplayPreferences
 import com.milen.grounpringtonesetter.ui.home.HomeThemeOption
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HomePreferencesStoreTest {
@@ -38,17 +40,26 @@ class HomePreferencesStoreTest {
     }
 
     @Test
+    fun `read defaults read only groups to hidden`() = runTest {
+        val store = HomePreferencesStore(FakeHomePreferencesDataSource())
+
+        assertFalse(store.read().showReadOnlyGroups)
+    }
+
+    @Test
     fun `write persists preferences for later reads`() = runTest {
         val dataSource = FakeHomePreferencesDataSource()
         val store = HomePreferencesStore(dataSource)
         val expected = HomeDisplayPreferences(
             themeOption = HomeThemeOption.LIGHT_HIGH_CONTRAST,
-            groupSortOption = GroupSortOption.ALPHABETICAL_DESC
+            groupSortOption = GroupSortOption.ALPHABETICAL_DESC,
+            showReadOnlyGroups = true,
         )
 
         store.write(expected)
 
         assertEquals(expected, store.read())
+        assertTrue(store.read().showReadOnlyGroups)
     }
 }
 

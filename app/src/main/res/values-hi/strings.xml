@@ -46,6 +46,7 @@
     <string name="delete_group">समूह हटाएं</string>
     <string name="delete_group_desc">क्या आप इस समूह को हटाना चाहेंगे? ऐसा करने से समूह से संपर्क हट जाएंगे, लेकिन उनकी नियुक्त रिंगटोन बरकरार रहेगी।</string>
     <string name="group_cannot_be_deleted">इस समूह को हटाया नहीं जा सकता।</string>
+    <string name="read_only_group_name">%1$s (केवल पढ़ने के लिए)</string>
     <string name="manage_contacts_group_name">समूह में संपर्क प्रबंधित करें</string>
     <string name="manage_contacts_group_name_desc">क्या आप इस समूह में संपर्क जोड़ना या हटाना चाहेंगे? इस क्रिया के द्वारा, संपर्क समूह में नियुक्त/अनियुक्त किए जाएंगे। रिंगटोन परिवर्तन लागू होगा जब प्रक्रिया पूरी होगी!</string>
     <string name="select_all_ungrouped_contacts_with_count">सभी बिना समूह वाले चुनें (%1$d)</string>
@@ -118,6 +119,7 @@
     <string name="group_sorting_current_order">बिना क्रमबद्ध किए</string>
     <string name="group_sorting_ascending">अ-ह</string>
     <string name="group_sorting_descending">ह-अ</string>
+    <string name="show_read_only_groups">केवल पढ़ने वाले समूह दिखाएं</string>
     <string name="backup_restore_title">बैकअप और पुनर्स्थापना</string>
     <string name="backup_restore_locked_title">बैकअप और पुनर्स्थापना अनलॉक करें</string>
     <string name="backup_restore_locked_message">बैकअप और पुनर्स्थापना Ad-Free Forever का लाभ है। यह संपर्क विवरणों को बैकअप फ़ाइल में डाले बिना समूह रिंगटोन सेटिंग्स सहेजता है।</string>

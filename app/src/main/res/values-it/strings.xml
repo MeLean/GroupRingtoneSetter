@@ -46,6 +46,7 @@
     <string name="delete_group">Elimina gruppo</string>
     <string name="delete_group_desc">Vuoi eliminare questo gruppo? In tal caso i contatti verranno rimossi dal gruppo, ma le suonerie assegnate rimarranno invariate.</string>
     <string name="group_cannot_be_deleted">Questo gruppo non può essere eliminato.</string>
+    <string name="read_only_group_name">%1$s (sola lettura)</string>
     <string name="manage_contacts_group_name">Gestisci i contatti del gruppo</string>
     <string name="manage_contacts_group_name_desc">Vuoi aggiungere o rimuovere contatti da questo gruppo? In tal caso i contatti verranno assegnati/rimossi dal gruppo. Le modifiche alla suoneria avranno effetto al termine del processo.</string>
     <string name="select_all_ungrouped_contacts_with_count">Seleziona tutti i non raggruppati (%1$d)</string>
@@ -118,6 +119,7 @@
     <string name="group_sorting_current_order">Nessun ordinamento</string>
     <string name="group_sorting_ascending">A-Z</string>
     <string name="group_sorting_descending">Z-A</string>
+    <string name="show_read_only_groups">Mostra gruppi di sola lettura</string>
     <string name="backup_restore_title">Backup e ripristino</string>
     <string name="backup_restore_locked_title">Sblocca Backup e ripristino</string>
     <string name="backup_restore_locked_message">Backup e ripristino è un vantaggio di Ad-Free Forever. Salva le impostazioni delle suonerie dei gruppi senza inserire dettagli dei contatti nel file di backup.</string>

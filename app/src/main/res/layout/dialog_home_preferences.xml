@@ -86,5 +86,12 @@
                 android:layout_marginTop="8dp"
                 android:text="@string/group_sorting_descending" />
         </RadioGroup>
+
+        <androidx.appcompat.widget.AppCompatCheckBox
+            android:id="@+id/cbShowReadOnlyGroups"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/show_read_only_groups" />
     </LinearLayout>
 </ScrollView>

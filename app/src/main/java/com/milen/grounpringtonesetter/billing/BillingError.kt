@@ -46,6 +46,10 @@ sealed class BillingError(
                     result.responseCode,
                     result.debugMessage
                 )
+                BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> NonError(
+                    result.responseCode,
+                    result.debugMessage
+                )
                 BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> ConfigurationError(
                     result.responseCode,
                     result.debugMessage
@@ -81,6 +85,7 @@ sealed class BillingError(
             return when (code) {
                 BillingClient.BillingResponseCode.OK -> NonError(code, message)
                 BillingClient.BillingResponseCode.USER_CANCELED -> NonError(code, message)
+                BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> NonError(code, message)
                 BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> ConfigurationError(code, message)
                 BillingClient.BillingResponseCode.DEVELOPER_ERROR -> ConfigurationError(code, message)
                 BillingClient.BillingResponseCode.ITEM_UNAVAILABLE -> ConfigurationError(code, message)

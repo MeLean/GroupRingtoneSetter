@@ -14,6 +14,7 @@ class GroupDeletionCapabilityTest {
         )
 
         assertFalse(canDeleteGroup(capability))
+        assertFalse(canModifyGroup(capability))
     }
 
     @Test
@@ -25,6 +26,7 @@ class GroupDeletionCapabilityTest {
         )
 
         assertFalse(canDeleteGroup(capability))
+        assertFalse(canModifyGroup(capability))
     }
 
     @Test
@@ -36,5 +38,6 @@ class GroupDeletionCapabilityTest {
         )
 
         assertTrue(canDeleteGroup(capability))
+        assertTrue(canModifyGroup(capability))
     }
 }

@@ -769,6 +769,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
         )
         dialogBinding.selectThemeOption(currentPreferences.themeOption)
         dialogBinding.selectSortOption(currentPreferences.groupSortOption)
+        dialogBinding.cbShowReadOnlyGroups.isChecked = currentPreferences.showReadOnlyGroups
 
         requireActivity().showCustomViewAlertDialog(
             titleResId = R.string.user_preferences,
@@ -777,7 +778,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
             confirmButtonData = ButtonData(R.string.confirm) {
                 val updatedPreferences = HomeDisplayPreferences(
                     themeOption = dialogBinding.selectedThemeOption(),
-                    groupSortOption = dialogBinding.selectedSortOption()
+                    groupSortOption = dialogBinding.selectedSortOption(),
+                    showReadOnlyGroups = dialogBinding.cbShowReadOnlyGroups.isChecked,
                 )
 
                 if (updatedPreferences == currentPreferences) {
@@ -830,7 +832,8 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
             dialogBinding.rbThemeLightHighContrast,
             dialogBinding.rbSortCurrentOrder,
             dialogBinding.rbSortAscending,
-            dialogBinding.rbSortDescending
+            dialogBinding.rbSortDescending,
+            dialogBinding.cbShowReadOnlyGroups,
         ).forEach { radioButton ->
             radioButton.setTextColor(textColor)
             radioButton.buttonTintList = buttonTint

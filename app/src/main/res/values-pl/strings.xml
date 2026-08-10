@@ -46,6 +46,7 @@
     <string name="delete_group">Usun grupe</string>
     <string name="delete_group_desc">Czy chcesz usunac te grupe? Spowoduje to usuniecie kontaktow z grupy, ale przypisane im dzwonki pozostana bez zmian.</string>
     <string name="group_cannot_be_deleted">Nie można usunąć tej grupy.</string>
+    <string name="read_only_group_name">%1$s (tylko do odczytu)</string>
     <string name="manage_contacts_group_name">Zarzadzaj kontaktami w grupie</string>
     <string name="manage_contacts_group_name_desc">Czy chcesz dodac lub usunac kontakty z tej grupy? Kontakty zostana przypisane lub usuniete z grupy. Zmiana dzwonka zacznie obowiazywac po zakonczeniu procesu.</string>
     <string name="select_all_ungrouped_contacts_with_count">Wybierz wszystkie nieprzypisane (%1$d)</string>
@@ -118,6 +119,7 @@
     <string name="group_sorting_current_order">Bez sortowania</string>
     <string name="group_sorting_ascending">A-Ż</string>
     <string name="group_sorting_descending">Ż-A</string>
+    <string name="show_read_only_groups">Pokaż grupy tylko do odczytu</string>
     <string name="backup_restore_title">Kopia i przywracanie</string>
     <string name="backup_restore_locked_title">Odblokuj kopię i przywracanie</string>
     <string name="backup_restore_locked_message">Kopia i przywracanie to korzyść Ad-Free Forever. Zapisuje ustawienia dzwonków grup bez umieszczania danych kontaktów w pliku kopii.</string>

@@ -68,9 +68,17 @@ class HomeDisplayPreferencesPersistenceTest {
             updated.groupSortOption.name,
             trackedEvents.single().second?.get("group_sort_option")
         )
+        assertEquals(
+            updated.showReadOnlyGroups,
+            trackedEvents.single().second?.get("show_read_only_groups")
+        )
         assertTrue(trackedErrors.isEmpty())
         assertEquals(
-            listOf("home_theme_option" to updated.themeOption.name, "home_group_sort_option" to updated.groupSortOption.name),
+            listOf(
+                "home_theme_option" to updated.themeOption.name,
+                "home_group_sort_option" to updated.groupSortOption.name,
+                "home_show_read_only_groups" to updated.showReadOnlyGroups.toString(),
+            ),
             dataSource.savedEntries
         )
     }

@@ -110,6 +110,8 @@ internal fun group(
     contacts: List<Contact> = emptyList(),
     ringtoneUris: List<String> = emptyList(),
     ringtoneName: String = "",
+    isReadOnly: Boolean = false,
+    canModify: Boolean = true,
     canDelete: Boolean = true,
 ): LabelItem = LabelItem(
     id = id,
@@ -117,5 +119,7 @@ internal fun group(
     contacts = contacts,
     ringtoneUriList = ringtoneUris,
     ringtoneFileName = ringtoneName,
+    isReadOnly = isReadOnly,
+    canModify = canModify,
     canDelete = canDelete,
 )

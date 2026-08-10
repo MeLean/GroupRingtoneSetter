@@ -27,8 +27,8 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 860
-        versionName = "8.6.0"
+        versionCode = 861
+        versionName = "8.6.1"
 
         testInstrumentationRunner = "com.milen.grounpringtonesetter.testing.RegressionTestRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"

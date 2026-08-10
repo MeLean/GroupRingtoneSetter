@@ -46,6 +46,7 @@
     <string name="delete_group">Supprimer le groupe</string>
     <string name="delete_group_desc">Voulez-vous supprimer ce groupe ? Cela retirera les contacts du groupe, mais leurs sonneries assignées resteront inchangées.</string>
     <string name="group_cannot_be_deleted">Ce groupe ne peut pas être supprimé.</string>
+    <string name="read_only_group_name">%1$s (lecture seule)</string>
     <string name="manage_contacts_group_name">Gérer les contacts du groupe</string>
     <string name="manage_contacts_group_name_desc">Voulez-vous ajouter ou retirer des contacts de ce groupe ? Cette action assignera/retirera les contacts au/du groupe. Le changement de sonnerie prendra effet une fois le processus terminé !</string>
     <string name="select_all_ungrouped_contacts_with_count">Sélectionner tous les non groupés (%1$d)</string>
@@ -118,6 +119,7 @@
     <string name="group_sorting_current_order">Pas de tri</string>
     <string name="group_sorting_ascending">A-Z</string>
     <string name="group_sorting_descending">Z-A</string>
+    <string name="show_read_only_groups">Afficher les groupes en lecture seule</string>
     <string name="backup_restore_title">Sauvegarder et restaurer</string>
     <string name="backup_restore_locked_title">Déverrouiller Sauvegarde et restauration</string>
     <string name="backup_restore_locked_message">Sauvegarde et restauration est un avantage d’Ad-Free Forever. Cette fonction enregistre les réglages de sonneries des groupes sans placer de détails de contacts dans le fichier de sauvegarde.</string>

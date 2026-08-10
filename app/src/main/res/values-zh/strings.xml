@@ -43,6 +43,7 @@
     <string name="delete_group">删除组</string>
     <string name="delete_group_desc">您是否要删除此组？这样做将取消分配给该组的联系人，但其分配的铃声将保持不变。</string>
     <string name="group_cannot_be_deleted">无法删除此组。</string>
+    <string name="read_only_group_name">%1$s（只读）</string>
     <string name="manage_contacts_group_name">管理组联系人</string>
     <string name="manage_contacts_group_name_desc">您是否要向此组添加或删除联系人？通过这样做，联系人将被分配/取消分配到该组。更改铃声将在进程完成后生效！</string>
     <string name="select_all_ungrouped_contacts_with_count">选择所有未分组联系人（%1$d）</string>
@@ -118,6 +119,7 @@
     <string name="group_sorting_current_order">不排序</string>
     <string name="group_sorting_ascending">阿-座</string>
     <string name="group_sorting_descending">座-阿</string>
+    <string name="show_read_only_groups">显示只读群组</string>
     <string name="backup_restore_title">备份和恢复</string>
     <string name="backup_restore_locked_title">解锁备份和恢复</string>
     <string name="backup_restore_locked_message">备份和恢复是 Ad-Free Forever 的专属权益。它会保存分组铃声设置，但不会把联系人详情写入备份文件。</string>

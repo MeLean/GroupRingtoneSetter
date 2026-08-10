@@ -31,7 +31,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 
@@ -66,7 +65,7 @@ internal class BillingEntitlementManager(
         .build()
 
     // Single-flight connection guard
-    private val connectingRef = AtomicReference<CompletableDeferred<Unit>?>(null)
+    private val connectionGate = BillingConnectionGate()
 
     override fun end() {
         runCatching { client.endConnection() }
@@ -680,6 +679,17 @@ internal class BillingEntitlementManager(
                             "product_id" to productId
                         )
                     )
+                } else if (result.responseCode == BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED) {
+                    tracker.trackEvent(
+                        "billing_updates_item_already_owned",
+                        mapOf(
+                            "rc" to rcName(result.responseCode),
+                            "rc_code" to result.responseCode,
+                            "msg" to result.debugMessage,
+                            "product_id" to productId,
+                        )
+                    )
+                    refreshEntitlementAfterAlreadyOwned()
                 } else {
                     tracker.trackEvent(
                         "billing_updates_failed",
@@ -850,6 +860,27 @@ internal class BillingEntitlementManager(
 
     // ---- internals ----
 
+    private fun refreshEntitlementAfterAlreadyOwned() {
+        ioScope.launch {
+            runCatching { getAdFree() }
+                .onSuccess { entitlementState ->
+                    tracker.trackEvent(
+                        "billing_updates_item_already_owned_refreshed",
+                        mapOf("state" to entitlementState.name)
+                    )
+                }
+                .onFailure { error ->
+                    tracker.trackEvent(
+                        "billing_updates_item_already_owned_refresh_failed",
+                        mapOf(
+                            "error_type" to error::class.java.simpleName,
+                            "error_message" to (error.message ?: "unknown"),
+                        )
+                    )
+                }
+        }
+    }
+
     private suspend fun ensureConnectedWithRetry() {
         val startTime = System.currentTimeMillis()
         var attempt = 1
@@ -922,7 +953,7 @@ internal class BillingEntitlementManager(
             )
             return
         }
-        connectingRef.get()?.let { existing ->
+        connectionGate.current()?.let { existing ->
             tracker.trackEvent("billing_connect_wait_existing")
             val waitStart = System.currentTimeMillis()
             awaitConnectionWithTimeout(
@@ -937,8 +968,8 @@ internal class BillingEntitlementManager(
             return
         }
         val created = CompletableDeferred<Unit>()
-        if (!connectingRef.compareAndSet(null, created)) {
-            val winner = connectingRef.get()
+        if (!connectionGate.tryStart(created)) {
+            val winner = connectionGate.current()
             if (winner != null) {
                 awaitConnectionWithTimeout(
                     deferred = winner,
@@ -956,7 +987,7 @@ internal class BillingEntitlementManager(
         )
         val listener = object : BillingClientStateListener {
             override fun onBillingSetupFinished(r: BillingResult) {
-                val currentRef = connectingRef.get()
+                val currentRef = connectionGate.current()
                 if (currentRef != created) {
                     tracker.trackEvent(
                         "billing_connect_callback_stale",
@@ -964,7 +995,7 @@ internal class BillingEntitlementManager(
                     )
                     return
                 }
-                connectingRef.set(null)
+                connectionGate.clear(created)
                 val elapsed = System.currentTimeMillis() - connectStartTime
                 val billingError = BillingError.fromBillingResult(r)
 
@@ -1038,9 +1069,9 @@ internal class BillingEntitlementManager(
                         "client_ready" to client.isReady
                     )
                 )
-                val currentRef = connectingRef.get()
+                val currentRef = connectionGate.current()
                 if (currentRef == created && !created.isCompleted) {
-                    connectingRef.set(null)
+                    connectionGate.clear(created)
                     tracker.trackEvent(
                         "billing_connect_disconnected_during_setup",
                         mapOf("elapsed_ms" to (System.currentTimeMillis() - connectStartTime))
@@ -1085,6 +1116,7 @@ internal class BillingEntitlementManager(
         )
         val timeoutError =
             IllegalStateException("Billing connection timeout after ${CONNECTION_TIMEOUT_MS}ms")
+        connectionGate.clear(deferred)
         tracker.trackError(timeoutError)
         throw timeoutError
     }

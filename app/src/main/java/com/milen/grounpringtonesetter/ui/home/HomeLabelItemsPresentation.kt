@@ -8,13 +8,19 @@ internal fun deriveVisibleLabelItems(
     labels: List<LabelItem>,
     groupSearchQuery: String,
     sortOption: GroupSortOption,
+    showReadOnlyGroups: Boolean = false,
     locale: Locale = Locale.getDefault(),
 ): List<LabelItem> {
     val normalizedQuery = groupSearchQuery.normalizeForHomeSearch(locale)
-    val filteredLabels = if (normalizedQuery.isBlank()) {
+    val editableLabels = if (showReadOnlyGroups) {
         labels
     } else {
-        labels.filter { label ->
+        labels.filter { label -> !label.isReadOnly && label.canModify }
+    }
+    val filteredLabels = if (normalizedQuery.isBlank()) {
+        editableLabels
+    } else {
+        editableLabels.filter { label ->
             label.groupName.normalizeForHomeSearch(locale).contains(normalizedQuery)
         }
     }

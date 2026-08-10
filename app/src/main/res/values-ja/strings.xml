@@ -46,6 +46,7 @@
     <string name="delete_group">グループを削除</string>
     <string name="delete_group_desc">このグループを削除しますか？連絡先はグループから外れますが、設定済みの着信音はそのまま残ります。</string>
     <string name="group_cannot_be_deleted">このグループは削除できません。</string>
+    <string name="read_only_group_name">%1$s（読み取り専用）</string>
     <string name="manage_contacts_group_name">グループの連絡先を管理</string>
     <string name="manage_contacts_group_name_desc">このグループに連絡先を追加または削除しますか？処理が完了すると、連絡先のグループへの追加・削除と着信音の変更が反映されます。</string>
     <string name="select_all_ungrouped_contacts_with_count">未グループの連絡先をすべて選択 (%1$d)</string>
@@ -118,6 +119,7 @@
     <string name="group_sorting_current_order">並び替えなし</string>
     <string name="group_sorting_ascending">昇順（あ-ん）</string>
     <string name="group_sorting_descending">降順（ん-あ）</string>
+    <string name="show_read_only_groups">読み取り専用グループを表示</string>
     <string name="backup_restore_title">バックアップと復元</string>
     <string name="backup_restore_locked_title">バックアップと復元を解除</string>
     <string name="backup_restore_locked_message">バックアップと復元は Ad-Free Forever の特典です。連絡先の詳細をバックアップファイルに入れずに、グループの着信音設定を保存します。</string>

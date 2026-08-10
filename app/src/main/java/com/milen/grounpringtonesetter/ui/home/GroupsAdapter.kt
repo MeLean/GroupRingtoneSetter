@@ -38,6 +38,10 @@ internal class GroupsAdapter(
                     val textColor = ContextCompat.getColor(context, themeAppearance.textColorRes)
                     val iconTintColor =
                         ContextCompat.getColor(context, themeAppearance.iconTintColorRes)
+                    val inactiveIconTintColor = ContextCompat.getColor(
+                        context,
+                        themeAppearance.inactiveIconTintColorRes
+                    )
                     val actionButtonBackground =
                         ContextCompat.getColor(
                             context,
@@ -53,10 +57,15 @@ internal class GroupsAdapter(
                     root.setBackgroundResource(themeAppearance.groupCardBackgroundRes)
                     root.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                     root.contentDescription = null
-                    ctvGroupName.text = groupName
+                    val displayedGroupName = if (!canModify) {
+                        context.getString(R.string.read_only_group_name, groupName)
+                    } else {
+                        groupName
+                    }
+                    ctvGroupName.text = displayedGroupName
                     ctvGroupName.setTextColor(textColor)
                     ctvGroupName.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
-                    ctvGroupName.contentDescription = groupName
+                    ctvGroupName.contentDescription = displayedGroupName
 
                     contacts.size.let { contactsCount ->
                         cwtContacts.text = "$contactsCount"
@@ -102,20 +111,34 @@ internal class GroupsAdapter(
                     ctwRingtone.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
                     ctwRingtone.contentDescription = ringtoneLine
 
-                    ctcibManageContacts.setOnClickListener {
-                        interactor.onManageContacts(labelItem = this@run)
-                    }
-                    ctcibManageContacts.applyButtonContentDescription(
-                        buildGroupActionDescription(
-                            context = context,
-                            actionLabelResId = R.string.manage_contacts_group_name,
-                            groupName = groupName
-                        )
+                    ctcibManageContacts.isVisible = true
+                    ctcibManageContacts.isEnabled = canModify
+                    ctcibManageContacts.setOnClickListener(
+                        if (canModify) {
+                            View.OnClickListener {
+                                interactor.onManageContacts(labelItem = this@run)
+                            }
+                        } else {
+                            null
+                        }
                     )
-                    ctcibManageContacts.setIconTint(iconTintColor)
+                    if (canModify) {
+                        ctcibManageContacts.applyButtonContentDescription(
+                            buildGroupActionDescription(
+                                context = context,
+                                actionLabelResId = R.string.manage_contacts_group_name,
+                                groupName = displayedGroupName
+                            )
+                        )
+                    } else {
+                        ctcibManageContacts.contentDescription = null
+                    }
+                    ctcibManageContacts.setIconTint(
+                        if (canModify) iconTintColor else inactiveIconTintColor
+                    )
+                    ctcibDelete.isVisible = true
+                    ctcibDelete.isEnabled = canDelete
                     if (canDelete) {
-                        ctcibDelete.isVisible = true
-                        ctcibDelete.isEnabled = true
                         ctcibDelete.setOnClickListener {
                             interactor.onGroupDelete(labelItem = this@run)
                         }
@@ -127,22 +150,37 @@ internal class GroupsAdapter(
                             )
                         )
                     } else {
-                        ctcibDelete.isVisible = false
-                        ctcibDelete.isEnabled = false
                         ctcibDelete.setOnClickListener(null)
+                        ctcibDelete.contentDescription = null
                     }
-                    ctcibDelete.setIconTint(iconTintColor)
-                    ctcibEdit.setOnClickListener {
-                        interactor.onEditName(labelItem = this@run)
-                    }
-                    ctcibEdit.applyButtonContentDescription(
-                        buildGroupActionDescription(
-                            context = context,
-                            actionLabelResId = R.string.edit_group_name,
-                            groupName = groupName
-                        )
+                    ctcibDelete.setIconTint(
+                        if (canDelete) iconTintColor else inactiveIconTintColor
                     )
-                    ctcibEdit.setIconTint(iconTintColor)
+                    ctcibEdit.isVisible = true
+                    ctcibEdit.isEnabled = canModify
+                    ctcibEdit.setOnClickListener(
+                        if (canModify) {
+                            View.OnClickListener {
+                                interactor.onEditName(labelItem = this@run)
+                            }
+                        } else {
+                            null
+                        }
+                    )
+                    if (canModify) {
+                        ctcibEdit.applyButtonContentDescription(
+                            buildGroupActionDescription(
+                                context = context,
+                                actionLabelResId = R.string.edit_group_name,
+                                groupName = displayedGroupName
+                            )
+                        )
+                    } else {
+                        ctcibEdit.contentDescription = null
+                    }
+                    ctcibEdit.setIconTint(
+                        if (canModify) iconTintColor else inactiveIconTintColor
+                    )
                     crbChooseRingtone.setOnClickListener {
                         interactor.onChoseRingtoneIntent(labelItem = this@run)
                     }
@@ -150,7 +188,7 @@ internal class GroupsAdapter(
                         buildGroupActionDescription(
                             context = context,
                             actionLabelResId = R.string.choose_ringtone,
-                            groupName = groupName
+                            groupName = displayedGroupName
                         )
                     )
                     crbChooseRingtone.setColors(

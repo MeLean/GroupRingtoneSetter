@@ -98,7 +98,8 @@ internal class ContactsRepositoryImpl(
     override suspend fun loadAccountLabels() {
         lock.withLock {
             migrateLocalLabelMirrorIfNeeded()
-            _labels.value = when (val source = sourceProvider()) {
+            val source = sourceProvider()
+            val labels = when (source) {
                 null -> {
                     tracker.trackError(RuntimeException("The contacts are queried with no source selected"))
                     helper.getAllLabelItems()
@@ -108,15 +109,18 @@ internal class ContactsRepositoryImpl(
                     helper.getAllLabelItemsForAccounts(source.account)
 
                 ContactSource.OnDevice ->
-                    readLocalLabelItems(writeBackIfNeeded = true)
+                    readOnDeviceLabelItems(shallow = false)
             }
+            _labels.value = labels
+            trackGroupLoadSummary(source, labels)
         }
     }
 
     override suspend fun loadAccountLabelsShallow() {
         lock.withLock {
             migrateLocalLabelMirrorIfNeeded()
-            _labels.value = when (val source = sourceProvider()) {
+            val source = sourceProvider()
+            val labels = when (source) {
                 null -> {
                     tracker.trackError(RuntimeException("The contacts are queried with no source selected"))
                     helper.getAllLabelItemsShallow()
@@ -126,8 +130,10 @@ internal class ContactsRepositoryImpl(
                     helper.getAllLabelItemsForAccountsShallow(source.account)
 
                 ContactSource.OnDevice ->
-                    readLocalLabelItems(writeBackIfNeeded = true)
+                    readOnDeviceLabelItems(shallow = true)
             }
+            _labels.value = labels
+            trackGroupLoadSummary(source, labels)
         }
     }
 
@@ -280,8 +286,7 @@ internal class ContactsRepositoryImpl(
                 val blockedIds = helper.findBlockedContactsForLabelReassignment(
                     targetLabelId = providerGroupId,
                     contactIds = distinctCandidates.map { it.id },
-                    appVisibleEditableLabelIds = labelsFlow.value.mapNotNull { it.providerGroupId }
-                        .toSet()
+                    appVisibleEditableLabelIds = editableProviderGroupIds(labelsFlow.value)
                 )
                 GroupReassignmentValidation(
                     allowed = distinctCandidates.filterNot { it.id in blockedIds },
@@ -429,8 +434,7 @@ internal class ContactsRepositoryImpl(
             helper.reassignContactsToLabelForAppVisibleGroups(
                 targetLabelId = providerGroupId,
                 contactIds = toAdd.map { it.id },
-                appVisibleEditableLabelIds = labelsFlow.value.mapNotNull { it.providerGroupId }
-                    .toSet()
+                appVisibleEditableLabelIds = editableProviderGroupIds(labelsFlow.value)
             )
         }
         if (toRemove.isNotEmpty()) {
@@ -613,6 +617,37 @@ internal class ContactsRepositoryImpl(
             purgeLocalLabelMirror()
         }
         return hydrated.labelItems
+    }
+
+    private suspend fun readOnDeviceLabelItems(shallow: Boolean): List<LabelItem> {
+        val providerLabels = if (shallow) {
+            helper.getAllLabelItemsForOnDeviceContactsShallow()
+        } else {
+            helper.getAllLabelItemsForOnDeviceContacts()
+        }
+        val localLabels = readLocalLabelItems(writeBackIfNeeded = true)
+        return mergeOnDeviceLabelItems(providerLabels, localLabels)
+    }
+
+    private fun trackGroupLoadSummary(
+        source: ContactSource?,
+        labels: List<LabelItem>,
+    ) {
+        tracker.trackEvent(
+            "group_load_summary",
+            mapOf(
+                "source" to when (source) {
+                    null -> "all"
+                    is ContactSource.CloudAccount -> "cloud_account"
+                    ContactSource.OnDevice -> "on_device"
+                },
+                "displayed_count" to labels.size,
+                "provider_count" to labels.count { it.storageKind == LabelStorageKind.PROVIDER_GROUP },
+                "local_count" to labels.count { it.storageKind == LabelStorageKind.LOCAL_STORE },
+                "read_only_count" to labels.count(LabelItem::isReadOnly),
+                "non_editable_count" to labels.count { !it.canModify },
+            ),
+        )
     }
 
     private suspend fun migrateLocalLabelMirrorIfNeeded() {
@@ -853,6 +888,8 @@ internal class ContactsRepositoryImpl(
                 contacts = contacts,
                 ringtoneUriList = ringtoneUris,
                 ringtoneFileName = ringtoneFileNameResolver(ringtoneUris),
+                isReadOnly = false,
+                canModify = true,
                 canDelete = true,
                 storageKind = LabelStorageKind.LOCAL_STORE,
                 providerGroupId = null
@@ -864,6 +901,17 @@ internal class ContactsRepositoryImpl(
         private const val LOCAL_LABEL_PREFIX = "local:"
     }
 }
+
+internal fun mergeOnDeviceLabelItems(
+    providerLabels: List<LabelItem>,
+    localLabels: List<LabelItem>,
+): List<LabelItem> = (providerLabels + localLabels).distinctBy(LabelItem::id)
+
+internal fun editableProviderGroupIds(labels: List<LabelItem>): Set<Long> =
+    labels.asSequence()
+        .filter { it.storageKind == LabelStorageKind.PROVIDER_GROUP && it.canModify }
+        .mapNotNull(LabelItem::providerGroupId)
+        .toSet()
 
 private fun LocalLabelDocument.memberCount(): Int =
     labels.sumOf { label -> label.members.size }

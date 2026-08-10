@@ -189,6 +189,7 @@ internal class ContactsHelper(
 
     suspend fun getAllLabelItemsShallow(
         includeDeviceContacts: Boolean = true,
+        trackDiscovery: Boolean = true,
     ): List<LabelItem> = withContext(DispatchersProvider.io) {
         if (!hasReadContactsPermission()) {
             tracker.trackEvent("contacts_permission_missing_labels_shallow")
@@ -199,9 +200,9 @@ internal class ContactsHelper(
         val uri = ContactsContract.Groups.CONTENT_URI
         val projection = GROUPS_LIST_PROJECTION
         val selection = if (includeDeviceContacts) {
-            "${ContactsContract.Groups.DELETED}=0 AND ${ContactsContract.Groups.GROUP_IS_READ_ONLY}=0"
+            "${ContactsContract.Groups.DELETED}=0"
         } else {
-            "${ContactsContract.Groups.DELETED}=0 AND ${ContactsContract.Groups.GROUP_IS_READ_ONLY}=0 " +
+            "${ContactsContract.Groups.DELETED}=0 " +
                     "AND ${ContactsContract.Groups.ACCOUNT_TYPE}=?"
         }
         val selectionArgs = if (includeDeviceContacts) null else arrayOf("com.google")
@@ -240,6 +241,8 @@ internal class ContactsHelper(
                                 contacts = contacts,
                                 ringtoneUriList = emptyList(),
                                 ringtoneFileName = "",
+                                isReadOnly = c.getInt(idxReadOnly) != 0,
+                                canModify = canDelete,
                                 canDelete = canDelete,
                                 storageKind = LabelStorageKind.PROVIDER_GROUP,
                                 providerGroupId = gid
@@ -250,6 +253,15 @@ internal class ContactsHelper(
         } catch (_: SecurityException) {
             tracker.trackEvent("contacts_permission_missing_labels_shallow")
             return@withContext emptyList()
+        }
+        if (trackDiscovery) {
+            trackProviderGroupDiscovery(
+                source = "all",
+                groupsFound = out.size,
+                groupsShown = out.size,
+                groupsHiddenBySource = 0,
+                readOnlyGroupsFound = out.count(LabelItem::isReadOnly),
+            )
         }
         out
     }
@@ -282,11 +294,62 @@ internal class ContactsHelper(
             tracker.trackEvent("contacts_permission_missing_labels_for_account")
             return@withContext emptyList()
         }
-        if (allowed.isEmpty()) return@withContext emptyList()
+        if (allowed.isEmpty()) {
+            trackProviderGroupDiscovery(
+                source = "cloud_account",
+                groupsFound = 0,
+                groupsShown = 0,
+                groupsHiddenBySource = 0,
+                readOnlyGroupsFound = 0,
+            )
+            return@withContext emptyList()
+        }
 
-        val allShallow = getAllLabelItemsShallow(includeDeviceContacts = true)
-        allShallow.filter { it.providerGroupId in allowed }
+        val allShallow = getAllLabelItemsShallow(
+            includeDeviceContacts = true,
+            trackDiscovery = false,
+        )
+        val labels = allShallow.filter { it.providerGroupId in allowed }
+        trackProviderGroupDiscovery(
+            source = "cloud_account",
+            groupsFound = allShallow.size,
+            groupsShown = labels.size,
+            groupsHiddenBySource = allShallow.size - labels.size,
+            readOnlyGroupsFound = allShallow.count(LabelItem::isReadOnly),
+        )
+        labels
     }
+
+    suspend fun getAllLabelItemsForOnDeviceContactsShallow(): List<LabelItem> =
+        withContext(DispatchersProvider.io) {
+            val onDeviceContactIds = pureLocalContactIds()
+            if (onDeviceContactIds.isEmpty()) {
+                trackProviderGroupDiscovery(
+                    source = "on_device",
+                    groupsFound = 0,
+                    groupsShown = 0,
+                    groupsHiddenBySource = 0,
+                    readOnlyGroupsFound = 0,
+                )
+                return@withContext emptyList()
+            }
+
+            val providerLabels = getAllLabelItemsShallow(
+                includeDeviceContacts = true,
+                trackDiscovery = false,
+            )
+            val compatibleLabels = providerLabels.filter { label ->
+                label.contacts.any { contact -> contact.id in onDeviceContactIds }
+            }
+            trackProviderGroupDiscovery(
+                source = "on_device",
+                groupsFound = providerLabels.size,
+                groupsShown = compatibleLabels.size,
+                groupsHiddenBySource = providerLabels.size - compatibleLabels.size,
+                readOnlyGroupsFound = providerLabels.count(LabelItem::isReadOnly),
+            )
+            compatibleLabels
+        }
 
     suspend fun getRingtonesForContactsBatched(
         contactIds: List<Long>,
@@ -701,7 +764,10 @@ internal class ContactsHelper(
         )
     }
 
-    suspend fun getAllLabelItems(includeDeviceContacts: Boolean = true): List<LabelItem> =
+    suspend fun getAllLabelItems(
+        includeDeviceContacts: Boolean = true,
+        trackDiscovery: Boolean = true,
+    ): List<LabelItem> =
         withContext(DispatchersProvider.io) {
             tracker.trackEvent("getAllLabels called")
             val labels = mutableListOf<LabelItem>()
@@ -710,9 +776,9 @@ internal class ContactsHelper(
 
             // Build selection query based on user preference
             val selection = if (includeDeviceContacts) {
-                "${ContactsContract.Groups.DELETED} = 0 AND ${ContactsContract.Groups.GROUP_IS_READ_ONLY} = 0"
+                "${ContactsContract.Groups.DELETED} = 0"
             } else {
-                "${ContactsContract.Groups.DELETED} = 0 AND ${ContactsContract.Groups.GROUP_IS_READ_ONLY} = 0 AND ${ContactsContract.Groups.ACCOUNT_TYPE} = ?"
+                "${ContactsContract.Groups.DELETED} = 0 AND ${ContactsContract.Groups.ACCOUNT_TYPE} = ?"
             }
 
             val selectionArgs = if (includeDeviceContacts) null else arrayOf("com.google")
@@ -744,7 +810,47 @@ internal class ContactsHelper(
                     }
                 } ?: tracker.trackEvent("Query returned null cursor for Labels")
 
+            if (trackDiscovery) {
+                trackProviderGroupDiscovery(
+                    source = "all",
+                    groupsFound = labels.size,
+                    groupsShown = labels.size,
+                    groupsHiddenBySource = 0,
+                    readOnlyGroupsFound = labels.count(LabelItem::isReadOnly),
+                )
+            }
             return@withContext labels
+        }
+
+    suspend fun getAllLabelItemsForOnDeviceContacts(): List<LabelItem> =
+        withContext(DispatchersProvider.io) {
+            val onDeviceContactIds = pureLocalContactIds()
+            if (onDeviceContactIds.isEmpty()) {
+                trackProviderGroupDiscovery(
+                    source = "on_device",
+                    groupsFound = 0,
+                    groupsShown = 0,
+                    groupsHiddenBySource = 0,
+                    readOnlyGroupsFound = 0,
+                )
+                return@withContext emptyList()
+            }
+
+            val providerLabels = getAllLabelItems(
+                includeDeviceContacts = true,
+                trackDiscovery = false,
+            )
+            val compatibleLabels = providerLabels.filter { label ->
+                label.contacts.any { contact -> contact.id in onDeviceContactIds }
+            }
+            trackProviderGroupDiscovery(
+                source = "on_device",
+                groupsFound = providerLabels.size,
+                groupsShown = compatibleLabels.size,
+                groupsHiddenBySource = providerLabels.size - compatibleLabels.size,
+                readOnlyGroupsFound = providerLabels.count(LabelItem::isReadOnly),
+            )
+            compatibleLabels
         }
 
     suspend fun setRingtoneToLabelContacts(
@@ -1237,6 +1343,8 @@ internal class ContactsHelper(
             contacts = contacts,
             ringtoneUriList = ringtoneUris,
             ringtoneFileName = ringtoneFileName,
+            isReadOnly = isReadOnly,
+            canModify = canDelete,
             canDelete = canDelete,
             storageKind = LabelStorageKind.PROVIDER_GROUP,
             providerGroupId = id
@@ -1300,7 +1408,7 @@ internal class ContactsHelper(
 
             val where = buildString {
                 append("${ContactsContract.Groups.DELETED}=0 AND ")
-                append("${ContactsContract.Groups.GROUP_IS_READ_ONLY}=0 AND (")
+                append("(")
                 pairs.forEachIndexed { idx, _ ->
                     if (idx > 0) append(" OR ")
                     append("(${ContactsContract.Groups.ACCOUNT_TYPE}=? AND ${ContactsContract.Groups.ACCOUNT_NAME}=?)")
@@ -1339,6 +1447,13 @@ internal class ContactsHelper(
                 }
             }
 
+            trackProviderGroupDiscovery(
+                source = "cloud_account",
+                groupsFound = labels.size,
+                groupsShown = labels.size,
+                groupsHiddenBySource = 0,
+                readOnlyGroupsFound = labels.count(LabelItem::isReadOnly),
+            )
             return@withContext labels
         }
 
@@ -1679,6 +1794,26 @@ internal class ContactsHelper(
 
     private fun providerGroupKey(groupId: Long): String = "group:$groupId"
 
+    private fun trackProviderGroupDiscovery(
+        source: String,
+        groupsFound: Int,
+        groupsShown: Int,
+        groupsHiddenBySource: Int,
+        readOnlyGroupsFound: Int,
+    ) {
+        tracker.trackEvent(
+            "provider_group_discovery",
+            mapOf(
+                "source" to source,
+                "groups_found" to groupsFound,
+                "groups_shown" to groupsShown,
+                "groups_hidden_source" to groupsHiddenBySource,
+                "groups_read_only" to readOnlyGroupsFound,
+                "groups_hidden_read_only" to 0,
+            ),
+        )
+    }
+
     private fun ringtoneUriSignature(uri: String): String {
         if (uri.isBlank()) return "empty"
         return uri.hashCode().toUInt().toString(16)
@@ -1709,6 +1844,10 @@ private data class LocalRawContactClassification(
 )
 
 internal fun canDeleteGroup(capability: GroupDeletionCapability): Boolean {
+    return canModifyGroup(capability)
+}
+
+internal fun canModifyGroup(capability: GroupDeletionCapability): Boolean {
     if (capability.isDeleted) return false
     if (capability.isReadOnly) return false
     if (!capability.systemId.isNullOrBlank()) return false

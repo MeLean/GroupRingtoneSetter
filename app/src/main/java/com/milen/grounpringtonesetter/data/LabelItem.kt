@@ -15,6 +15,8 @@ internal data class LabelItem(
     val contacts: List<Contact>,
     val ringtoneUriList: List<String> = emptyList(),
     val ringtoneFileName: String = "",
+    val isReadOnly: Boolean = false,
+    val canModify: Boolean = true,
     val canDelete: Boolean = true,
     val storageKind: LabelStorageKind = LabelStorageKind.PROVIDER_GROUP,
     val providerGroupId: Long? = null,

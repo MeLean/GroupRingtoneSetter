@@ -53,7 +53,10 @@ internal class AdBannerView @JvmOverloads constructor(
     }
 
     fun setAdsEnabled(isEnabled: Boolean) {
-        if (isBannerEnabled == isEnabled) return
+        if (isBannerEnabled == isEnabled) {
+            if (isEnabled) maybeLoadBanner()
+            return
+        }
         isBannerEnabled = isEnabled
         if (isEnabled) {
             maybeLoadBanner()

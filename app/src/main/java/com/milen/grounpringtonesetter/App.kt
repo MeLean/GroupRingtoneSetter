@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import androidx.work.Configuration
 import com.milen.grounpringtonesetter.billing.BillingEntitlementGateway
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
 import com.milen.grounpringtonesetter.billing.NoopBillingResultActivity
@@ -35,10 +36,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-open class App : Application() {
+open class App : Application(), Configuration.Provider {
     internal val tracker: Telemetry by lazy { createTelemetry() }
     internal val adsManager: AdsGateway by lazy { createAdsGateway() }
-    internal val preferencesHelper: EncryptedPreferencesHelper by lazy { EncryptedPreferencesHelper(this) }
+    internal val preferencesHelper: EncryptedPreferencesHelper by lazy {
+        EncryptedPreferencesHelper(this, tracker)
+    }
     internal val homePreferencesStore: HomePreferencesStore by lazy {
         HomePreferencesStore(
             dataSource = EncryptedHomePreferencesDataSource(preferencesHelper)
@@ -60,6 +63,9 @@ open class App : Application() {
     }
     internal lateinit var billingManager: BillingEntitlementGateway
         private set
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().build()
 
     internal open fun createTelemetry(): Telemetry = Tracker()
 

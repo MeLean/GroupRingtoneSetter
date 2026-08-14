@@ -1,12 +1,13 @@
 package com.milen.grounpringtonesetter.data.prefs
 
 import android.app.Application
+import com.milen.grounpringtonesetter.utils.Telemetry
 
 internal class EncryptedPreferencesHelper private constructor(
     private val secure: SecurePreferences,
 ) {
-    constructor(app: Application) : this(
-        SecurePreferences(app).apply { initMigration() }
+    constructor(app: Application, tracker: Telemetry) : this(
+        SecurePreferences(app, tracker).apply { initMigration() }
     )
 
     fun saveString(key: String, value: String) {

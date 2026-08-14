@@ -2,6 +2,7 @@ package com.milen.grounpringtonesetter.customviews.ui.ads
 
 import android.app.Activity
 import android.app.Application
+import android.os.Build
 import com.google.android.gms.ads.AdInspectorError
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.MobileAds
@@ -41,6 +42,21 @@ internal class AdsManager(
     override fun initialize() {
         if (!hasStartedMobileAdsInitialization.compareAndSet(false, true)) return
 
+        if (!isWorkManagerPlatformCompatible()) {
+            runCatching {
+                tracker.trackEvent(
+                    "ads_init_skipped_job_scheduler",
+                    mapOf(
+                        "sdk_int" to Build.VERSION.SDK_INT,
+                        "os_release" to Build.VERSION.RELEASE,
+                        "manufacturer" to Build.MANUFACTURER,
+                        "model" to Build.MODEL,
+                    ),
+                )
+            }
+            return
+        }
+
         runCatching {
             val requestConfiguration = RequestConfiguration.Builder().apply {
                 if (BuildConfig.DEBUG) {
@@ -74,26 +90,38 @@ internal class AdsManager(
         if (!hasRequestedConsentThisProcess.compareAndSet(false, true)) return
 
         val parameters = ConsentRequestParameters.Builder().build()
-        consentInformation.requestConsentInfoUpdate(
-            activity,
-            parameters,
-            {
-                updateConsentState()
-                AdDiagnostics.logDebugEvent(
-                    format = "consent",
-                    placement = "startup",
-                    message = "info updated canRequestAds=${consentInformation.canRequestAds()}"
-                )
-                UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { formError ->
-                    formError?.let { logConsentFormError("load_and_show", it) }
+        runCatching {
+            consentInformation.requestConsentInfoUpdate(
+                activity,
+                parameters,
+                {
+                    updateConsentState()
+                    AdDiagnostics.logDebugEvent(
+                        format = "consent",
+                        placement = "startup",
+                        message = "info updated canRequestAds=${consentInformation.canRequestAds()}"
+                    )
+                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { formError ->
+                        formError?.let { logConsentFormError("load_and_show", it) }
+                        updateConsentState()
+                    }
+                },
+                { formError ->
+                    logConsentFormError("info_update", formError)
                     updateConsentState()
                 }
-            },
-            { formError ->
-                logConsentFormError("info_update", formError)
-                updateConsentState()
-            }
-        )
+            )
+        }.onFailure { throwable ->
+            updateConsentState()
+            AdDiagnostics.trackUnexpectedState(
+                tracker = tracker,
+                format = "consent",
+                placement = "startup",
+                stage = "request_info_update",
+                reason = "consent_info_update_threw",
+                throwable = throwable,
+            )
+        }
     }
 
     override fun showPrivacyOptionsForm(activity: Activity) {

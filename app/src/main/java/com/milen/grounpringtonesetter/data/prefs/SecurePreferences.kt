@@ -12,6 +12,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
+import com.milen.grounpringtonesetter.utils.Telemetry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -32,6 +33,7 @@ private val Application.secureDataStore by preferencesDataStore(name = "secure_p
  */
 internal class SecurePreferences(
     private val app: Application,
+    private val tracker: Telemetry,
     private val dispatcherProvider: DispatchersProvider = DispatchersProvider,
 ) {
 
@@ -113,7 +115,10 @@ internal class SecurePreferences(
         withContext(dispatcherProvider.io) {
             val already = app.secureDataStore.data.first()[migrated] == true
             if (!already) {
-                val all = legacyPrefs.all
+                val all = readLegacyPreferencesForMigration(
+                    readLegacy = { legacyPrefs.all },
+                    onFailure = ::trackLegacyMigrationFailure,
+                )
                 app.secureDataStore.edit { ds ->
                     for ((k, v) in all) {
                         if (v is String) {
@@ -164,14 +169,28 @@ internal class SecurePreferences(
 
     suspend fun getStringAsync(key: String, defaultValue: String? = null): String? {
         return withContext(dispatcherProvider.io) {
-            val enc = app.secureDataStore.data.first()[sKey(key)]
-            if (enc != null) {
-                decryptFromBase64(enc)?.decodeToString() ?: defaultValue
-            } else {
-                @Suppress("DEPRECATION")
-                legacyPrefs.getString(key, defaultValue)
-            }
+            val preferences = app.secureDataStore.data.first()
+            resolveSecurePreferenceValue(
+                encryptedValue = preferences[sKey(key)],
+                migrationComplete = preferences[migrated] == true,
+                defaultValue = defaultValue,
+                decrypt = { decryptFromBase64(it)?.decodeToString() },
+                readLegacy = {
+                    @Suppress("DEPRECATION")
+                    legacyPrefs.getString(key, defaultValue)
+                },
+            )
         }
+    }
+
+    private fun trackLegacyMigrationFailure(error: Exception) {
+        runCatching {
+            tracker.trackEvent(
+                "secure_preferences_legacy_migration_failed",
+                mapOf("error_type" to error::class.java.simpleName),
+            )
+        }
+        runCatching { tracker.trackError(error) }
     }
 
     suspend fun removeAsync(key: String) {

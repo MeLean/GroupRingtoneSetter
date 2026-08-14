@@ -72,6 +72,7 @@ internal class BillingEntitlementManager(
     }
 
     override suspend fun start() {
+        restoreOwnedEntitlementFromGrace()
         runCatching {
         val startTime = System.currentTimeMillis()
         tracker.trackEvent(
@@ -144,6 +145,7 @@ internal class BillingEntitlementManager(
         )
         tracker.trackError(e)
         }.getOrNull()
+        resolveUnknownEntitlementAfterBillingAttempt()
     }
 
     /**
@@ -859,6 +861,44 @@ internal class BillingEntitlementManager(
     )
 
     // ---- internals ----
+
+    private fun restoreOwnedEntitlementFromGrace() {
+        val nowMillis = System.currentTimeMillis()
+        val adFreeUntilMillis = grace.readAdFreeUntil()
+        val restored = resolveEntitlementAfterBillingAttempt(
+            current = EntitlementState.UNKNOWN,
+            adFreeUntilMillis = adFreeUntilMillis,
+            nowMillis = nowMillis,
+        )
+        if (restored != EntitlementState.OWNED) return
+
+        _state.value = restored
+        tracker.trackEvent(
+            "billing_entitlement_owned_from_grace",
+            mapOf("grace_until" to (adFreeUntilMillis ?: nowMillis)),
+        )
+    }
+
+    private fun resolveUnknownEntitlementAfterBillingAttempt() {
+        val current = _state.value
+        if (current != EntitlementState.UNKNOWN) return
+
+        val nowMillis = System.currentTimeMillis()
+        val adFreeUntilMillis = grace.readAdFreeUntil()
+        val resolved = resolveEntitlementAfterBillingAttempt(
+            current = current,
+            adFreeUntilMillis = adFreeUntilMillis,
+            nowMillis = nowMillis,
+        )
+        _state.value = resolved
+        tracker.trackEvent(
+            "billing_unavailable_resolved",
+            mapOf(
+                "resolved_state" to resolved.name,
+                "has_active_grace" to (adFreeUntilMillis != null && adFreeUntilMillis > nowMillis),
+            ),
+        )
+    }
 
     private fun refreshEntitlementAfterAlreadyOwned() {
         ioScope.launch {

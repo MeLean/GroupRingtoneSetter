@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 
 internal class AdFreeGraceStore(context: Context) {
 
@@ -40,6 +41,33 @@ internal class AdFreeGraceStore(context: Context) {
             .putString(KEY_IV, Base64.encodeToString(iv, Base64.NO_WRAP))
             .putString(KEY_DATA, Base64.encodeToString(ciphertext, Base64.NO_WRAP))
             .apply()
+    }
+
+    fun readAdFreeUntil(): Long? {
+        return runCatching {
+            val encodedIv = prefs.getString(KEY_IV, null)
+            val encodedData = prefs.getString(KEY_DATA, null)
+            if (encodedIv == null || encodedData == null) {
+                if (encodedIv != null || encodedData != null) clear()
+                return@runCatching null
+            }
+
+            val iv = Base64.decode(encodedIv, Base64.NO_WRAP)
+            val ciphertext = Base64.decode(encodedData, Base64.NO_WRAP)
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding").apply {
+                init(
+                    Cipher.DECRYPT_MODE,
+                    getOrCreateKey(),
+                    GCMParameterSpec(128, iv),
+                )
+            }
+            val payload = cipher.doFinal(ciphertext)
+            if (payload.size != java.lang.Long.BYTES) return@runCatching null
+            ByteBuffer.wrap(payload).long
+        }.getOrElse {
+            runCatching { clear() }
+            null
+        }
     }
 
     fun clear() {

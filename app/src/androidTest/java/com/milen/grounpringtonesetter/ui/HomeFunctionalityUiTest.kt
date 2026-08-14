@@ -36,7 +36,9 @@ import com.milen.grounpringtonesetter.MainActivity
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.data.accounts.AccountId
 import com.milen.grounpringtonesetter.data.sources.ContactSource
+import com.milen.grounpringtonesetter.ui.home.HomeDisplayPreferences
 import com.milen.grounpringtonesetter.ui.home.HomeScreen
+import kotlinx.coroutines.runBlocking
 import org.hamcrest.Matchers.allOf
 import org.hamcrest.Matchers.not
 import org.junit.After
@@ -139,6 +141,11 @@ class HomeFunctionalityUiTest {
                 )
             )
         )
+        runBlocking {
+            app.homePreferencesStore.write(
+                HomeDisplayPreferences(showReadOnlyGroups = true)
+            )
+        }
 
         launchMain().use {
             onView(allOf(withId(R.id.ctvGroupName), withText(displayedName)))

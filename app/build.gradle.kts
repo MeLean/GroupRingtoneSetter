@@ -27,8 +27,8 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 864
-        versionName = "8.6.4"
+        versionCode = 865
+        versionName = "8.6.5"
 
         testInstrumentationRunner = "com.milen.grounpringtonesetter.testing.RegressionTestRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
@@ -142,6 +142,7 @@ dependencies {
 
     // Google Play Services (Ads)
     implementation(libs.playServicesAds)
+    implementation(libs.hsdp)
     implementation(libs.userMessagingPlatform)
 
     // Ads transitively brings WorkManager 2.7.0. Pin a current version to avoid its

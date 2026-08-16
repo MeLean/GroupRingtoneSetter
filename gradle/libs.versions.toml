@@ -1,6 +1,7 @@
 [versions]
 agp = "9.3.1"
 datastore-preferences = "1.2.1"
+hsdp = "2.1.0"
 kotlin = "2.4.10"
 
 firebase-bom = "34.17.0"
@@ -46,6 +47,7 @@ androidx-datastore-preferences = { module = "androidx.datastore:datastore-prefer
 androidxCoreKtx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
 androidxConstraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "constraintlayout" }
 androidxAppcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+hsdp = { module = "com.google.android.play:hsdp", version.ref = "hsdp" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 
 # --- Coroutines & Lifecycle ---

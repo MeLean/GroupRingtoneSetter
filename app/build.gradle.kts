@@ -27,8 +27,8 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 865
-        versionName = "8.6.5"
+        versionCode = 866
+        versionName = "8.6.6"
 
         testInstrumentationRunner = "com.milen.grounpringtonesetter.testing.RegressionTestRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
@@ -119,6 +119,7 @@ jacoco {
 dependencies {
     // Core & UI
     implementation(libs.androidxCoreKtx)
+    implementation(libs.androidxActivityKtx)
     implementation(libs.androidxConstraintlayout)
     implementation(libs.androidxAppcompat)
     implementation(libs.material)
@@ -142,7 +143,7 @@ dependencies {
 
     // Google Play Services (Ads)
     implementation(libs.playServicesAds)
-    implementation(libs.hsdp)
+    implementation(libs.playFeatureDelivery)
     implementation(libs.userMessagingPlatform)
 
     // Ads transitively brings WorkManager 2.7.0. Pin a current version to avoid its

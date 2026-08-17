@@ -18,6 +18,10 @@
         android:maxSdkVersion="28" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
+    <queries>
+        <package android:name="com.android.vending" />
+    </queries>
+
     <application
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -39,6 +43,10 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
+
+        <receiver
+            android:name="androidx.work.impl.diagnostics.DiagnosticsReceiver"
+            tools:node="remove" />
 
         <activity
             android:name=".MainActivity"

@@ -35,3 +35,6 @@
 -keep class android.content.res.** { *; }
 
 -keep class com.android.billingclient.api.** { *; }
+
+# Google Play Core rules to prevent stripping metadata
+-keep class com.google.android.play.core.** { *; }

@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.play.publisher)
     jacoco
 }
 
@@ -27,8 +28,8 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 867
-        versionName = "8.6.7"
+        versionCode = 869
+        versionName = "8.6.9"
 
         testInstrumentationRunner = "com.milen.grounpringtonesetter.testing.RegressionTestRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
@@ -86,6 +87,11 @@ android {
     testOptions {
         execution = "ANDROIDX_TEST_ORCHESTRATOR"
         animationsDisabled = true
+    }
+
+    play {
+        serviceAccountCredentials.set(file("play-service-account.json"))
+        track.set("internal")
     }
 }
 

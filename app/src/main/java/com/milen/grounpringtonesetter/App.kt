@@ -4,9 +4,11 @@ import BillingGuard
 import android.app.Activity
 import android.app.Application
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.webkit.WebView
 import androidx.work.Configuration
 import com.milen.grounpringtonesetter.billing.BillingEntitlementGateway
 import com.milen.grounpringtonesetter.billing.BillingEntitlementManager
@@ -66,6 +68,11 @@ open class App : Application(), Configuration.Provider {
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().build()
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+        webViewDataDirectorySuffix(Build.VERSION.SDK_INT)?.let(WebView::setDataDirectorySuffix)
+    }
 
     internal open fun createTelemetry(): Telemetry = Tracker()
 

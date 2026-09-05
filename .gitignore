@@ -11,3 +11,5 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+/publish.sh
+/.github/workflows/publish-release.yml

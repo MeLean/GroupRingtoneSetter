@@ -4,6 +4,7 @@ package com.milen.grounpringtonesetter.billing
 import BillingGuard
 import android.app.Activity
 import android.app.Application
+import android.os.Build
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.android.billingclient.api.AcknowledgePurchaseParams
@@ -57,6 +58,7 @@ internal class BillingEntitlementManager(
         const val INITIAL_RETRY_DELAY_MS = 300L
         const val MAX_RETRY_DELAY_MS = 2000L
         const val MAX_RETRY_ATTEMPTS = 3
+        val billingPlatformIncompatibilityReported = AtomicBoolean(false)
     }
 
     private val client: BillingClient = BillingClient.newBuilder(app)
@@ -161,6 +163,10 @@ internal class BillingEntitlementManager(
                 "purchase_in_progress" to purchaseInProgress.get()
             )
         )
+
+        billingPlatformIncompatibilityResult()?.let { result ->
+            return result.responseCode
+        }
 
         try {
             ensureConnectedWithRetry()
@@ -418,7 +424,7 @@ internal class BillingEntitlementManager(
                         throw IllegalStateException("Activity lost focus after bringToFront: resumed=$finalResumedCheck, hasFocus=$finalFocusCheck")
                     }
 
-                    val result = client.launchBillingFlow(activity, flow)
+                    val result = launchBillingFlowIfCompatible(activity, flow)
                     tracker.trackEvent(
                         "billing_launch_flow_called",
                         mapOf(
@@ -571,7 +577,7 @@ internal class BillingEntitlementManager(
                             )
                             throw IllegalStateException("Activity no longer valid for billing launch retry")
                         }
-                        client.launchBillingFlow(activity, flow)
+                        launchBillingFlowIfCompatible(activity, flow)
                     }
                 } catch (e: Exception) {
                     tracker.trackEvent(
@@ -627,6 +633,47 @@ internal class BillingEntitlementManager(
                 mapOf("total_elapsed_ms" to (System.currentTimeMillis() - startTime))
             )
         }
+    }
+
+    private fun launchBillingFlowIfCompatible(
+        activity: Activity,
+        flow: BillingFlowParams,
+    ): BillingResult = billingPlatformIncompatibilityResult()
+        ?: client.launchBillingFlow(activity, flow)
+
+    private fun billingPlatformIncompatibilityResult(): BillingResult? {
+        if (isBillingPlatformCompatible()) {
+            return null
+        }
+
+        val responseCode = BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
+        tracker.trackEvent(
+            "billing_platform_incompatible",
+            mapOf(
+                "sdk_int" to Build.VERSION.SDK_INT,
+                "os_release" to Build.VERSION.RELEASE,
+                "manufacturer" to Build.MANUFACTURER,
+                "model" to Build.MODEL,
+                "required_method" to REQUIRED_BILLING_ACTIVITY_OPTIONS_METHOD,
+                "product_id" to productId,
+                "rc" to rcName(responseCode),
+                "rc_code" to responseCode,
+            ),
+        )
+
+        if (billingPlatformIncompatibilityReported.compareAndSet(false, true)) {
+            tracker.trackError(
+                IllegalStateException(
+                    "Billing platform incompatible: API ${Build.VERSION.SDK_INT} " +
+                        "does not provide $REQUIRED_BILLING_ACTIVITY_OPTIONS_METHOD",
+                ),
+            )
+        }
+
+        return BillingResult.newBuilder()
+            .setResponseCode(responseCode)
+            .setDebugMessage("Billing platform incompatible")
+            .build()
     }
 
     override fun onPurchasesUpdated(result: BillingResult, purchases: MutableList<Purchase>?) {

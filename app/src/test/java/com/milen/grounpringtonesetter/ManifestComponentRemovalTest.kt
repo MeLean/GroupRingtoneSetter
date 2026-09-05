@@ -10,6 +10,14 @@ import javax.xml.parsers.DocumentBuilderFactory
 class ManifestComponentRemovalTest {
 
     @Test
+    fun `WorkManager startup initializer is removed from the application manifest`() {
+        val initializer = findMetadata("androidx.work.WorkManagerInitializer")
+
+        assertNotNull(initializer)
+        assertEquals("remove", initializer?.getAttributeNS(TOOLS_NAMESPACE, "node"))
+    }
+
+    @Test
     fun `WorkManager diagnostics receiver is removed from the application manifest`() {
         val receiver = findComponent(
             elementName = "receiver",
@@ -31,6 +39,9 @@ class ManifestComponentRemovalTest {
             .mapNotNull { elements.item(it) as? Element }
             .firstOrNull { it.getAttributeNS(ANDROID_NAMESPACE, "name") == className }
     }
+
+    private fun findMetadata(className: String): Element? =
+        findComponent(elementName = "meta-data", className = className)
 
     private fun manifestFile(): File = listOf(
         File("src/main/AndroidManifest.xml"),

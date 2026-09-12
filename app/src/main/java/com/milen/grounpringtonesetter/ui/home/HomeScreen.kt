@@ -67,7 +67,9 @@ import com.milen.grounpringtonesetter.utils.collectEventsIn
 import com.milen.grounpringtonesetter.utils.collectStateIn
 import com.milen.grounpringtonesetter.utils.connectivityFlow
 import com.milen.grounpringtonesetter.utils.getFileNameOrEmpty
+import com.milen.grounpringtonesetter.utils.getParcelableExtraCompat
 import com.milen.grounpringtonesetter.utils.handleLoading
+import com.milen.grounpringtonesetter.utils.launchRingtonePickerSafely
 import com.milen.grounpringtonesetter.utils.log
 import com.milen.grounpringtonesetter.utils.manageVisibility
 import com.milen.grounpringtonesetter.utils.navigateIfCurrentDestination
@@ -192,7 +194,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
             val pickedUri = result.data
-                ?.getParcelableUriExtraCompat(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+                ?.getParcelableExtraCompat(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
                 ?: return@registerForActivityResult
             viewModel.onRingtoneChosen(
                 activity = requireActivity(),
@@ -951,7 +953,24 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
                 putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, uri)
             }
         }
-        pickSystemRingtoneLauncher.launch(pickerIntent)
+        pickSystemRingtoneLauncher.launchRingtonePickerSafely(
+            intent = pickerIntent,
+            tracker = tracker,
+            onSecurityError = {
+                showSystemPickerRestrictedDialog(labelItem)
+            }
+        )
+    }
+
+    private fun showSystemPickerRestrictedDialog(labelItem: LabelItem) {
+        requireActivity().showAlertDialog(
+            titleResId = R.string.error_system_picker_restricted,
+            message = getString(R.string.error_system_picker_restricted_message),
+            cancelButtonData = ButtonData(R.string.cancel),
+            confirmButtonData = ButtonData(R.string.action_pick_from_files) {
+                launchFileRingtonePickerInternal(labelItem)
+            }
+        )
     }
 
     private fun navigateFromHome(
@@ -1010,15 +1029,6 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
         if (fileName.isNotBlank()) return fileName
 
         return getString(R.string.file_name_not_accessible)
-    }
-
-    private fun Intent.getParcelableUriExtraCompat(key: String): Uri? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getParcelableExtra(key, Uri::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            getParcelableExtra(key)
-        }
     }
 
     private fun requiresLegacyStoragePermission(): Boolean =

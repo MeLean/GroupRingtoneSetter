@@ -27,8 +27,8 @@ android {
         minSdk = 28
         //noinspection OldTargetApi
         targetSdk = 36
-        versionCode = 869
-        versionName = "8.6.9"
+        versionCode = 871
+        versionName = "8.7.1"
 
         testInstrumentationRunner = "com.milen.grounpringtonesetter.testing.RegressionTestRunner"
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
@@ -161,6 +161,7 @@ dependencies {
     // Tests
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.test.espresso.intents)
@@ -261,6 +262,7 @@ tasks.register<JacocoCoverageVerification>("jacocoTestCoverageVerificationDebug"
         }
     }
 }
+
 
 tasks.register("localRegressionGate") {
     group = "verification"

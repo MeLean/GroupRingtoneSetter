@@ -151,4 +151,7 @@
     <string name="accessibility_label_with_text">%1$s: %2$s</string>
     <string name="accessibility_label_with_number">%1$s: %2$d</string>
     <string name="accessibility_group_action">%1$s: %2$s</string>
+    <string name="error_system_picker_restricted">Ограничение на устройството</string>
+    <string name="error_system_picker_restricted_message">Вашето устройство ограничава достъпа до системния избор на звуци. Все още можете да зададете персонализиран тон на звънене, като изберете аудио файл от устройството си.</string>
+    <string name="action_pick_from_files">Избор от файлове</string>
 </resources>

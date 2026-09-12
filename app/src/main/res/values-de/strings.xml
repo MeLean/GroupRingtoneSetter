@@ -151,4 +151,7 @@
     <string name="accessibility_label_with_text">%1$s: %2$s</string>
     <string name="accessibility_label_with_number">%1$s: %2$d</string>
     <string name="accessibility_group_action">%1$s: %2$s</string>
+    <string name="error_system_picker_restricted">Gerätebeschränkung</string>
+    <string name="error_system_picker_restricted_message">Ihr Gerät schränkt den Zugriff auf die System-Sound-Auswahl ein. Sie können dennoch einen benutzerdefinierten Klingelton festlegen, indem Sie eine Audiodatei von Ihrem Gerät auswählen.</string>
+    <string name="action_pick_from_files">Aus Dateien auswählen</string>
 </resources>

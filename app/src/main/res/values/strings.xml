@@ -151,4 +151,7 @@
     <string name="accessibility_label_with_text">%1$s: %2$s</string>
     <string name="accessibility_label_with_number">%1$s: %2$d</string>
     <string name="accessibility_group_action">%1$s: %2$s</string>
+    <string name="error_system_picker_restricted">Device restriction</string>
+    <string name="error_system_picker_restricted_message">Your device is restricting access to the system sound picker. You can still set a custom ringtone by selecting an audio file from your device.</string>
+    <string name="action_pick_from_files">Pick from files</string>
 </resources>

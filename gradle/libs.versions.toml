@@ -33,7 +33,7 @@ espresso = "3.7.0"
 androidx-test-runner = "1.7.0"
 androidx-test-orchestrator = "1.6.1"
 uiautomator = "2.4.0"
-
+robolectric = "4.15"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -127,7 +127,7 @@ androidx-test-rules = { module = "androidx.test:rules", version.ref = "androidx-
 androidx-test-orchestrator = { module = "androidx.test:orchestrator", version.ref = "androidx-test-orchestrator" }
 
 androidx-test-uiautomator = { module = "androidx.test.uiautomator:uiautomator", version.ref = "uiautomator" }
-
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 [bundles]
 lifecycle = [

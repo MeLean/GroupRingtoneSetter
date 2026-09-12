@@ -8,6 +8,7 @@ import androidx.test.espresso.action.ViewActions.clearText
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
 import androidx.test.espresso.action.ViewActions.pressImeActionButton
+import androidx.test.espresso.action.ViewActions.replaceText
 import androidx.test.espresso.action.ViewActions.typeText
 import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
@@ -46,6 +47,12 @@ class DeterministicFeatureJourneyTest {
     fun seedScenario() {
         app = InstrumentationRegistry.getInstrumentation()
             .targetContext.applicationContext as RegressionTestApplication
+        
+        // Reset fake repository state
+        app.fakeContacts.createdNames.clear()
+        app.fakeContacts.renamedGroups.clear()
+        app.fakeContacts.deletedGroups.clear()
+        
         val contact = Contact(
             id = 1L,
             lookupKey = "lookup-1",
@@ -70,7 +77,7 @@ class DeterministicFeatureJourneyTest {
 
             clickChildButton(R.id.btnAddGroup)
             onView(withId(R.id.editTextInput))
-                .perform(typeText("Travel"), closeSoftKeyboard())
+                .perform(replaceText("Travel"), closeSoftKeyboard())
             clickChildButton(R.id.crbDone)
 
             InstrumentationRegistry.getInstrumentation().waitForIdleSync()

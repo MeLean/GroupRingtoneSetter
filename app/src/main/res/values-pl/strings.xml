@@ -151,4 +151,7 @@
     <string name="accessibility_label_with_text">%1$s: %2$s</string>
     <string name="accessibility_label_with_number">%1$s: %2$d</string>
     <string name="accessibility_group_action">%1$s: %2$s</string>
+    <string name="error_system_picker_restricted">Ograniczenie urządzenia</string>
+    <string name="error_system_picker_restricted_message">Twoje urządzenie ogranicza dostęp do systemowego wyboru dźwięków. Nadal możesz ustawić własny dzwonek, wybierając plik audio z urządzenia.</string>
+    <string name="action_pick_from_files">Wybierz z plików</string>
 </resources>

@@ -38,6 +38,8 @@ import kotlin.coroutines.resume
 internal class BillingEntitlementManager(
     app: Application,
     private val tracker: Telemetry,
+    private val capabilityDetector: BillingPlatformCapabilityDetector =
+        ReflectiveBillingPlatformCapabilityDetector,
 ) : PurchasesUpdatedListener, BillingEntitlementGateway {
 
     private val productId = "remove_ads_forever"
@@ -521,9 +523,7 @@ internal class BillingEntitlementManager(
             }
 
             // 6) Retry once on transient unavailability
-            if (immediate.responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE
-                || immediate.responseCode == BillingClient.BillingResponseCode.BILLING_UNAVAILABLE
-            ) {
+            if (immediate.responseCode == BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE) {
                 tracker.trackEvent(
                     "billing_launch_retry_triggered",
                     mapOf(
@@ -638,11 +638,12 @@ internal class BillingEntitlementManager(
     private fun launchBillingFlowIfCompatible(
         activity: Activity,
         flow: BillingFlowParams,
-    ): BillingResult = billingPlatformIncompatibilityResult()
-        ?: client.launchBillingFlow(activity, flow)
+    ): BillingResult = launchBillingFlowIfCompatible(capabilityDetector) {
+        client.launchBillingFlow(activity, flow)
+    }
 
     private fun billingPlatformIncompatibilityResult(): BillingResult? {
-        if (isBillingPlatformCompatible()) {
+        if (capabilityDetector.isCompatible()) {
             return null
         }
 

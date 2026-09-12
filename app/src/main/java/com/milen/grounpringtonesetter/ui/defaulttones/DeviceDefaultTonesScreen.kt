@@ -33,7 +33,9 @@ import com.milen.grounpringtonesetter.utils.changeMainTitle
 import com.milen.grounpringtonesetter.utils.collectEventsIn
 import com.milen.grounpringtonesetter.utils.collectStateIn
 import com.milen.grounpringtonesetter.utils.currentThemeAppearance
+import com.milen.grounpringtonesetter.utils.getParcelableExtraCompat
 import com.milen.grounpringtonesetter.utils.handleLoading
+import com.milen.grounpringtonesetter.utils.launchRingtonePickerSafely
 import com.milen.grounpringtonesetter.utils.manageVisibility
 
 internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
@@ -45,6 +47,9 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
         DeviceDefaultTonesViewModelFactory.provideFactory(requireActivity())
     }
 
+    private val tracker by lazy(LazyThreadSafetyMode.NONE) {
+        (requireActivity().application as App).tracker
+    }
     private val billing by lazy(LazyThreadSafetyMode.NONE) {
         (requireActivity().application as App).billingManager
     }
@@ -66,7 +71,7 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
             if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
 
             val pickedUri = result.data
-                ?.getParcelableUriExtraCompat(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+                ?.getParcelableExtraCompat(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
             viewModel.onTonePicked(selectedToneType, pickedUri)
         }
 
@@ -223,7 +228,24 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
                 putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, uri)
             }
         }
-        tonePickerLauncher.launch(pickerIntent)
+        tonePickerLauncher.launchRingtonePickerSafely(
+            intent = pickerIntent,
+            tracker = tracker,
+            onSecurityError = {
+                showSystemPickerRestrictedDialog(config.toneType)
+            }
+        )
+    }
+
+    private fun showSystemPickerRestrictedDialog(type: DeviceDefaultToneType) {
+        requireActivity().showAlertDialog(
+            titleResId = R.string.error_system_picker_restricted,
+            message = getString(R.string.error_system_picker_restricted_message),
+            cancelButtonData = ButtonData(R.string.cancel),
+            confirmButtonData = ButtonData(R.string.action_pick_from_files) {
+                launchCustomFilePicker(type)
+            }
+        )
     }
 
     private fun showWriteSettingsDialog() {
@@ -263,15 +285,6 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
                 viewModel.onToneChangeClicked(type)
             }
         )
-    }
-
-    private fun Intent.getParcelableUriExtraCompat(key: String): Uri? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getParcelableExtra(key, Uri::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            getParcelableExtra(key)
-        }
     }
 
     private fun openIntentSafely(intent: Intent) {

@@ -80,11 +80,12 @@ internal object BillingProxyIntentValidator {
                     IN_APP_MESSAGE_INTENT,
                     PendingIntent::class.java,
                 )
-                val receiver = intent.parcelable(
-                    IN_APP_MESSAGE_RESULT_RECEIVER,
-                    ResultReceiver::class.java,
-                )
-                if (pendingIntent?.intentSender != null && receiver != null) {
+                // Billing 9.1.0 allows an absent/null receiver. Inspect the raw value
+                // so an incorrectly typed non-null value cannot be mistaken for null.
+                val receiver = intent.extras?.get(IN_APP_MESSAGE_RESULT_RECEIVER)
+                if (pendingIntent?.intentSender != null &&
+                    (receiver == null || receiver is ResultReceiver)
+                ) {
                     BillingProxyIntentStatus.VALID
                 } else {
                     BillingProxyIntentStatus.INVALID_TYPE

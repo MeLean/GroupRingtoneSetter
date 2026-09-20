@@ -2,6 +2,7 @@ package com.milen.grounpringtonesetter.customviews.ui.texts
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.text.InputFilter
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
@@ -71,6 +72,8 @@ internal class SearchContactView @JvmOverloads constructor(
         with(binding) {
             contactsRecyclerView.adapter = contactsAdapter
             emptyState.isVisible = false
+            searchView.findViewById<EditText>(androidx.appcompat.R.id.search_src_text)
+                ?.filters = arrayOf(InputFilter.LengthFilter(256))
 
             val focusSearchInput = {
                 searchView.isIconified = false

@@ -7,6 +7,25 @@ import org.junit.Test
 class ContentProviderBatchUtilsTest {
 
     @Test
+    fun `chunkBySizeAndBytes respects both limits and preserves order`() {
+        val items = listOf(4, 4, 4, 1, 1)
+
+        val chunks = chunkBySizeAndBytes(items, maxChunkSize = 3, maxChunkBytes = 8) { it }
+
+        assertEquals(listOf(listOf(4, 4), listOf(4, 1, 1)), chunks)
+    }
+
+    @Test
+    fun `chunkBySizeAndBytes rejects an item that cannot fit alone`() {
+        try {
+            chunkBySizeAndBytes(listOf(9), maxChunkSize = 3, maxChunkBytes = 8) { it }
+            fail("Expected IllegalArgumentException")
+        } catch (_: IllegalArgumentException) {
+            // expected
+        }
+    }
+
+    @Test
     fun `chunkBySize returns empty list when input is empty`() {
         val chunks = chunkBySize(emptyList<Int>(), maxChunkSize = 400)
 

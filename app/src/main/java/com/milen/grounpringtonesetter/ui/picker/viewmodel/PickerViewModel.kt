@@ -83,6 +83,33 @@ internal class PickerViewModel(
     private var pendingBlockedContactsDecision: PendingBlockedContactsDecision? = null
     private val manageContactsConfirmationGuard = AtomicBoolean(false)
 
+    fun startRenameById(groupId: String) = resolveGroup(groupId, ::startRename)
+
+    fun startManageContactsById(groupId: String) = resolveGroup(groupId, ::startManageContacts)
+
+    private fun resolveGroup(groupId: String, onResolved: (LabelItem) -> Unit) {
+        _state.update { PickerScreenState() }
+        viewModelScope.launch {
+            try {
+                // Reload after process death, and refresh a cached label before editing it.
+                contactsRepo.loadAccountLabels()
+                val group = contactsRepo.labelsFlow.value.firstOrNull { it.id == groupId }
+                if (group == null) {
+                    _events.send(PickerEvent.ShowErrorById(R.string.items_not_found))
+                    closeScreen()
+                } else {
+                    onResolved(group)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                tracker.trackError(e)
+                handleError(e)
+                closeScreen()
+            }
+        }
+    }
+
     fun startRename(group: LabelItem) {
         tracker.trackEvent("Picker_startRename")
         releaseManageContactsConfirmationGuard()

@@ -25,6 +25,7 @@
             android:layout_height="wrap_content"
             android:imeOptions="actionDone"
             android:inputType="text"
+            android:maxLength="256"
             android:textColor="@color/textColor"
             android:textColorHint="@color/textColor"
             app:backgroundTint="@android:color/transparent" />

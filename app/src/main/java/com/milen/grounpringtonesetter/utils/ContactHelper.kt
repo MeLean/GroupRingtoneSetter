@@ -10,6 +10,7 @@ import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Parcel
 import android.provider.ContactsContract
 import androidx.core.content.ContextCompat
 import com.milen.grounpringtonesetter.data.Contact
@@ -30,6 +31,7 @@ internal class ContactsHelper(
 ) {
     private companion object {
         private const val MAX_CONTENT_PROVIDER_OPERATIONS_PER_BATCH = 400
+        private const val MAX_CONTENT_PROVIDER_BATCH_BYTES = 256 * 1024
 
         private val GROUPS_LIST_PROJECTION = arrayOf(
             ContactsContract.Groups._ID,
@@ -1191,10 +1193,19 @@ internal class ContactsHelper(
             )
         }
 
-        val chunks = chunkBySize(
+        val chunks = chunkBySizeAndBytes(
             items = operations,
-            maxChunkSize = MAX_CONTENT_PROVIDER_OPERATIONS_PER_BATCH
-        )
+            maxChunkSize = MAX_CONTENT_PROVIDER_OPERATIONS_PER_BATCH,
+            maxChunkBytes = MAX_CONTENT_PROVIDER_BATCH_BYTES,
+        ) { operation ->
+            val parcel = Parcel.obtain()
+            try {
+                operation.writeToParcel(parcel, 0)
+                parcel.dataSize()
+            } finally {
+                parcel.recycle()
+            }
+        }
 
         var totalAppliedResults = 0
         chunks.forEachIndexed { index, chunk ->

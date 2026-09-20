@@ -32,6 +32,49 @@ import org.junit.Test
 class PickerViewModelFlowTest {
 
     @Test
+    fun `rename resolves group after repository reload`() = runPickerTest { fixture ->
+        val group = label(name = "Friends")
+        fixture.contacts.onLoadAccountLabels = { fixture.contacts.labelsFlow.value = listOf(group) }
+
+        fixture.viewModel.startRenameById(group.id)
+        advanceUntilIdle()
+
+        assertEquals(1, fixture.contacts.loadAccountLabelsCalls)
+        assertEquals(PickerResultData.GroupNameChange(group), fixture.viewModel.state.value.pikerResultData)
+    }
+
+    @Test
+    fun `manage resolves group after repository reload and keeps edits`() = runPickerTest { fixture ->
+        val existing = contact(1)
+        val added = contact(2)
+        val group = label(contacts = listOf(existing))
+        fixture.contacts.allContacts.value = listOf(existing, added)
+        fixture.contacts.onLoadAccountLabels = { fixture.contacts.labelsFlow.value = listOf(group) }
+
+        fixture.viewModel.startManageContactsById(group.id)
+        advanceUntilIdle()
+        fixture.viewModel.updateManageSelection(listOf(existing, added))
+        advanceUntilIdle()
+        fixture.contacts.labelsFlow.value = listOf(group.copy(groupName = "Updated"))
+        advanceUntilIdle()
+
+        val result = fixture.viewModel.state.value.pikerResultData as PickerResultData.ManageGroupContacts
+        assertEquals(listOf(existing, added), result.selectedContacts)
+        assertEquals(1, fixture.contacts.loadAccountLabelsCalls)
+    }
+
+    @Test
+    fun `missing group closes picker`() = runPickerTest { fixture ->
+        fixture.viewModel.startManageContactsById("missing")
+        advanceUntilIdle()
+
+        assertEquals(PickerEvent.ShowErrorById(R.string.items_not_found),
+            withTimeout(1_000) { fixture.viewModel.events.first() })
+        assertEquals(PickerEvent.Close,
+            withTimeout(1_000) { fixture.viewModel.events.first() })
+    }
+
+    @Test
     fun `rename mode exposes group and localized title`() = runPickerTest { fixture ->
         val group = label()
         fixture.viewModel.startRename(group)

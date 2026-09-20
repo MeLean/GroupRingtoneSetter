@@ -30,7 +30,6 @@ import com.milen.grounpringtonesetter.utils.collectStateIn
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.hideSoftInput
 import com.milen.grounpringtonesetter.utils.manageVisibility
-import com.milen.grounpringtonesetter.utils.parcelableOrThrow
 
 internal class PickerScreenFragment : Fragment(), ScreenInfoProvider {
     private lateinit var binding: FragmentPickerScreenBinding
@@ -67,13 +66,13 @@ internal class PickerScreenFragment : Fragment(), ScreenInfoProvider {
         if (savedInstanceState == null || viewModel.state.value.pikerResultData == null) {
             when (mode) {
                 PickerMode.RENAME -> {
-                    val group = requireArguments().parcelableOrThrow<LabelItem>(ARG_GROUP)
-                    viewModel.startRename(group)
+                    val groupId = requireArguments().getString(ARG_GROUP_ID).orEmpty()
+                    viewModel.startRenameById(groupId)
                 }
 
                 PickerMode.MANAGE -> {
-                    val group = requireArguments().parcelableOrThrow<LabelItem>(ARG_GROUP)
-                    viewModel.startManageContacts(group)
+                    val groupId = requireArguments().getString(ARG_GROUP_ID).orEmpty()
+                    viewModel.startManageContactsById(groupId)
                 }
 
                 PickerMode.CREATE -> viewModel.startCreateGroup()
@@ -274,16 +273,16 @@ internal class PickerScreenFragment : Fragment(), ScreenInfoProvider {
 
     companion object {
         private const val ARG_MODE = "mode"
-        private const val ARG_GROUP = "group"
+        private const val ARG_GROUP_ID = "group_id"
 
         fun argsForRename(group: LabelItem) = bundleOf(
             ARG_MODE to PickerMode.RENAME.name,
-            ARG_GROUP to group
+            ARG_GROUP_ID to group.id
         )
 
         fun argsForManage(group: LabelItem) = bundleOf(
             ARG_MODE to PickerMode.MANAGE.name,
-            ARG_GROUP to group
+            ARG_GROUP_ID to group.id
         )
 
         fun argsForCreate() = bundleOf(

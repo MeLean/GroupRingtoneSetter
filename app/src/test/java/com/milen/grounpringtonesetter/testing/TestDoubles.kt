@@ -141,6 +141,7 @@ internal class FakeContactsRepository : ContactsRepository {
     var refreshContactsCalls = 0
     var clearRingtonesCalls = 0
     var loadError: Throwable? = null
+    var onLoadAccountLabels: (() -> Unit)? = null
     var refreshError: Throwable? = null
     var clearError: Throwable? = null
     var createError: Throwable? = null
@@ -160,6 +161,7 @@ internal class FakeContactsRepository : ContactsRepository {
     override suspend fun loadAccountLabels() {
         loadAccountLabelsCalls += 1
         loadError?.let { throw it }
+        onLoadAccountLabels?.invoke()
     }
 
     override suspend fun loadAccountLabelsShallow() {

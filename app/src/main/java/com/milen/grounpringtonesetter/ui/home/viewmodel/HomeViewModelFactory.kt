@@ -3,6 +3,8 @@ package com.milen.grounpringtonesetter.ui.home.viewmodel
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewmodel.CreationExtras
 import com.milen.grounpringtonesetter.App
 
 internal object HomeViewModelFactory {
@@ -16,14 +18,15 @@ internal object HomeViewModelFactory {
 
         return object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {
                 return HomeViewModel(
                     adHelper = ads,
                     tracker = tracker,
                     billing = billing,
                     contactsRepo = contactsRepo,
                     sourceRepo = app.provideContactSourceRepository(),
-                    homePreferencesStore = app.homePreferencesStore
+                    homePreferencesStore = app.homePreferencesStore,
+                    savedState = extras.createSavedStateHandle(),
                 ) as T
             }
         }

@@ -54,6 +54,7 @@ import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment
 import com.milen.grounpringtonesetter.ui.accounts.AccountSelectionDialogFragment.Companion.RESULT_KEY
 import com.milen.grounpringtonesetter.ui.backup.BACKUP_RESTORE_EXTRA_RESTORE_COMPLETED
 import com.milen.grounpringtonesetter.ui.backup.BACKUP_RESTORE_RESULT_KEY
+import com.milen.grounpringtonesetter.ui.defaulttones.DefaultToneCompletionDialog
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModel
 import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModelFactory
 import com.milen.grounpringtonesetter.ui.picker.PickerScreenFragment
@@ -78,6 +79,7 @@ import com.milen.grounpringtonesetter.utils.parcelableOrNull
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -181,6 +183,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
     private val pickAudioFileLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             "pickAudioFileLauncher uri: $uri".log()
+            if (uri == null) viewModel.cancelRingtoneSelection()
             uri?.let {
                 viewModel.onRingtoneChosen(
                     activity = requireActivity(),
@@ -192,10 +195,13 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
 
     private val pickSystemRingtoneLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+            if (result.resultCode != Activity.RESULT_OK) {
+                viewModel.cancelRingtoneSelection()
+                return@registerForActivityResult
+            }
             val pickedUri = result.data
                 ?.getParcelableExtraCompat(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
-                ?: return@registerForActivityResult
+                ?: run { viewModel.cancelRingtoneSelection(); return@registerForActivityResult }
             viewModel.onRingtoneChosen(
                 activity = requireActivity(),
                 uri = pickedUri,
@@ -355,6 +361,19 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
             renderBannerVisibility()
         }
 
+        viewModel.interstitialPreloadEligibility(adsManager.canLoadAds).collectStateIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { eligible ->
+            if (eligible) viewModel.onAdsReady(requireActivity())
+        }
+
+        childFragmentManager.setFragmentResultListener(DefaultToneCompletionDialog.RESULT_KEY, viewLifecycleOwner) { _, result ->
+            viewModel.onRingtoneCompletionDismissed(result.getLong(DefaultToneCompletionDialog.COMPLETION_ID))
+        }
+        viewModel.state.map { it.pendingRingtoneCompletion }
+            .collectStateIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { completion ->
+                if (completion?.isReady == true) DefaultToneCompletionDialog.show(this, completion)
+                else if (completion != null) viewModel.presentRingtoneCompletion(requireActivity(), completion.id)
+            }
+
         viewModel.events.collectEventsIn(viewLifecycleOwner) { event ->
             when (event) {
                 is HomeEvent.AskSourceSelection ->
@@ -438,7 +457,13 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
     override fun onStop() {
         groupSearchJob?.cancel()
         searchRevealAnimator?.cancel()
+        viewModel.onHomeStopped()
         super.onStop()
+    }
+
+    override fun onDestroyView() {
+        viewModel.onHomeViewDestroyed()
+        super.onDestroyView()
     }
 
     override fun onResume() {
@@ -910,6 +935,7 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
     }
 
     private fun showRingtoneSourcePicker(labelItem: LabelItem) {
+        if (labelItem.contacts.isNotEmpty()) viewModel.onAdsReady(requireActivity())
         requireActivity().showAlertDialog(
             titleResId = R.string.select_ringtone_source,
             message = "",

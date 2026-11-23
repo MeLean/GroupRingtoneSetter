@@ -17,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.fragment.findNavController
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.R
@@ -37,6 +38,9 @@ import com.milen.grounpringtonesetter.utils.getParcelableExtraCompat
 import com.milen.grounpringtonesetter.utils.handleLoading
 import com.milen.grounpringtonesetter.utils.launchRingtonePickerSafely
 import com.milen.grounpringtonesetter.utils.manageVisibility
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import java.lang.ref.WeakReference
 
 internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
     private lateinit var binding: FragmentDeviceDefaultTonesBinding
@@ -59,20 +63,11 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
     private var currentEntitlement = EntitlementState.UNKNOWN
     private var canLoadAds = false
 
-    private var activePickerToneType: DeviceDefaultToneType? = null
-    private var activeFilePickerToneType: DeviceDefaultToneType? = null
-    private var pendingLegacyPermissionToneType: DeviceDefaultToneType? = null
-
     private val tonePickerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            val selectedToneType = activePickerToneType ?: return@registerForActivityResult
-            activePickerToneType = null
-
-            if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
-
-            val pickedUri = result.data
+            val uri = result.data
                 ?.getParcelableExtraCompat(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
-            viewModel.onTonePicked(selectedToneType, pickedUri)
+            viewModel.onSystemPickerResult(result.resultCode == Activity.RESULT_OK, uri)
         }
 
     private val writeSettingsLauncher =
@@ -82,21 +77,17 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
 
     private val customToneFilePickerLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { selectedUri ->
-            val selectedToneType = activeFilePickerToneType ?: return@registerForActivityResult
-            activeFilePickerToneType = null
-            selectedUri ?: return@registerForActivityResult
-            viewModel.onCustomTonePicked(selectedToneType, selectedUri)
+            viewModel.onFilePickerResult(selectedUri)
         }
 
     private val legacyStoragePermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            val toneType = pendingLegacyPermissionToneType ?: return@registerForActivityResult
-            pendingLegacyPermissionToneType = null
+            val toneType = viewModel.consumePicker(TonePickerKind.LEGACY_PERMISSION) ?: return@registerForActivityResult
             if (!granted) {
                 dialogHandler.showErrorById(R.string.need_permission_to_run)
                 return@registerForActivityResult
             }
-            activeFilePickerToneType = toneType
+            viewModel.rememberPicker(TonePickerKind.FILE, toneType)
             customToneFilePickerLauncher.launch("audio/*")
         }
 
@@ -143,7 +134,7 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
             binding.ctvDefaultAlarmValue.text = state.alarmDisplayName
         }
 
-        viewModel.events.collectEventsIn(viewLifecycleOwner) { event ->
+        viewModel.events.collectEventsIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { event ->
             when (event) {
                 is DeviceDefaultTonesEvent.LaunchTonePicker -> {
                     launchSystemTonePicker(event.config)
@@ -165,41 +156,55 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
                     dialogHandler.showErrorById(event.messageResId)
                 }
 
-                is DeviceDefaultTonesEvent.ShowInterstitialThenInfo -> {
-                    adHelper.showInterstitialAd {
-                        dialogHandler.showInfo(event.messageResId)
-                    }
-                }
-
-                is DeviceDefaultTonesEvent.ShowInfoById -> {
-                    dialogHandler.showInfo(event.messageResId)
-                }
             }
         }
+
+        childFragmentManager.setFragmentResultListener(
+            DefaultToneCompletionDialog.RESULT_KEY, viewLifecycleOwner,
+        ) { _, result ->
+            viewModel.onCompletionDismissed(result.getLong(DefaultToneCompletionDialog.COMPLETION_ID))
+        }
+        viewModel.state.map { it.pendingAdCompletion }
+            .collectStateIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { completion ->
+                if (completion?.isReady == true) {
+                    DefaultToneCompletionDialog.show(this, completion)
+                } else if (completion != null && viewModel.tryStartCompletionAd(completion.id)) {
+                    val modelRef = WeakReference(viewModel)
+                    val id = completion.id
+                    adHelper.showInterstitialAd { modelRef.get()?.onInterstitialFinished(id) }
+                }
+            }
 
         billing.state.collectStateIn(viewLifecycleOwner) { entitlement ->
             currentEntitlement = entitlement
             renderBannerVisibility()
-            if (entitlement == EntitlementState.NOT_OWNED && canLoadAds) {
-                adHelper.preloadInterstitialAd()
-            }
         }
         adsManager.canLoadAds.collectStateIn(viewLifecycleOwner) { canLoadAds ->
             this.canLoadAds = canLoadAds
             renderBannerVisibility()
-            if (currentEntitlement == EntitlementState.NOT_OWNED && canLoadAds) {
-                adHelper.preloadInterstitialAd()
-            }
+        }
+        combine(billing.state, adsManager.canLoadAds) { entitlement, ready ->
+            entitlement == EntitlementState.NOT_OWNED && ready
+        }.collectStateIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { eligible ->
+            if (eligible) adHelper.preloadInterstitialAd()
         }
     }
 
     override fun onResume() {
         super.onResume()
         changeMainTitle(getString(R.string.device_default_tones_title))
+        adHelper.updateActivity(requireActivity())
         viewModel.onScreenResumed()
-        if (currentEntitlement == EntitlementState.NOT_OWNED && canLoadAds) {
-            adHelper.preloadInterstitialAd()
-        }
+    }
+
+    override fun onStop() {
+        adHelper.setHostActive(false)
+        super.onStop()
+    }
+
+    override fun onDestroyView() {
+        adHelper.release()
+        super.onDestroyView()
     }
 
     private fun renderBannerVisibility() {
@@ -216,7 +221,7 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
     }
 
     private fun launchSystemTonePicker(config: TonePickerLaunchConfig) {
-        activePickerToneType = config.toneType
+        viewModel.rememberPicker(TonePickerKind.SYSTEM, config.toneType)
         val pickerIntent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
             putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, config.toneType.ringtoneManagerType)
             putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
@@ -232,6 +237,7 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
             intent = pickerIntent,
             tracker = tracker,
             onSecurityError = {
+                viewModel.consumePicker(TonePickerKind.SYSTEM)
                 showSystemPickerRestrictedDialog(config.toneType)
             }
         )
@@ -275,6 +281,7 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
     }
 
     private fun showToneSourcePicker(type: DeviceDefaultToneType) {
+        if (currentEntitlement == EntitlementState.NOT_OWNED && canLoadAds) adHelper.preloadInterstitialAd()
         requireActivity().showAlertDialog(
             titleResId = R.string.select_ringtone_source,
             message = "",
@@ -319,12 +326,12 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
 
     private fun launchCustomFilePicker(type: DeviceDefaultToneType) {
         if (!requiresLegacyStoragePermission() || hasLegacyStoragePermission()) {
-            activeFilePickerToneType = type
+            viewModel.rememberPicker(TonePickerKind.FILE, type)
             customToneFilePickerLauncher.launch("audio/*")
             return
         }
 
-        pendingLegacyPermissionToneType = type
+        viewModel.rememberPicker(TonePickerKind.LEGACY_PERMISSION, type)
         legacyStoragePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
     }
 

@@ -1,6 +1,7 @@
 package com.milen.grounpringtonesetter.ui.defaulttones.viewmodel
 
 import android.content.Intent
+import androidx.lifecycle.SavedStateHandle
 import android.net.FakeUri
 import android.net.Uri
 import com.milen.grounpringtonesetter.R
@@ -37,6 +38,44 @@ private val TEST_TONE_URI: Uri = FakeUri("content://test/tones/custom.mp3")
 class DeviceDefaultTonesViewModelTest {
 
     @Test
+    fun `post ad success remains pending for recreated view until explicitly dismissed`() = runViewModelTest { dispatcher ->
+        val viewModel = createViewModel(FakeDeviceDefaultToneManager(canWrite = true), EntitlementState.NOT_OWNED, dispatcher)
+        advanceUntilIdle()
+        viewModel.onTonePicked(DeviceDefaultToneType.NOTIFICATION, null)
+        advanceUntilIdle()
+        val event = requireNotNull(viewModel.state.value.pendingAdCompletion)
+        assertEquals(false, viewModel.state.value.pendingAdCompletion?.isReady)
+        // No view collector is present when the original ad callback resolves.
+        viewModel.onInterstitialFinished(event.id)
+        val restored = viewModel.state.first().pendingAdCompletion
+        assertEquals(R.string.everything_set, restored?.messageResId)
+        assertEquals(true, restored?.isReady)
+        viewModel.onInterstitialFinished(event.id)
+        assertEquals(restored, viewModel.state.value.pendingAdCompletion)
+        viewModel.onCompletionDismissed(event.id)
+        viewModel.onInterstitialFinished(event.id)
+        assertNull(viewModel.state.value.pendingAdCompletion)
+    }
+
+    @Test
+    fun `obsolete completion and dismissal cannot consume a newer success`() = runViewModelTest { dispatcher ->
+        val viewModel = createViewModel(FakeDeviceDefaultToneManager(canWrite = true), EntitlementState.NOT_OWNED, dispatcher)
+        advanceUntilIdle()
+        viewModel.onTonePicked(DeviceDefaultToneType.NOTIFICATION, null)
+        advanceUntilIdle()
+        val first = requireNotNull(viewModel.state.value.pendingAdCompletion)
+        viewModel.onTonePicked(DeviceDefaultToneType.ALARM, null)
+        advanceUntilIdle()
+        val second = requireNotNull(viewModel.state.value.pendingAdCompletion)
+        viewModel.onInterstitialFinished(first.id)
+        viewModel.onCompletionDismissed(first.id)
+        assertEquals(second.id, viewModel.state.value.pendingAdCompletion?.id)
+        assertEquals(false, viewModel.state.value.pendingAdCompletion?.isReady)
+        viewModel.onInterstitialFinished(second.id)
+        assertEquals(true, viewModel.state.value.pendingAdCompletion?.isReady)
+    }
+
+    @Test
     fun `missing write settings permission stores pending selection and applies it once on return`() =
         runViewModelTest { dispatcher ->
             val toneManager = FakeDeviceDefaultToneManager(canWrite = false)
@@ -70,7 +109,7 @@ class DeviceDefaultTonesViewModelTest {
         }
 
     @Test
-    fun `successful apply emits post ad success event only for NOT_OWNED entitlement`() =
+    fun `successful apply waits for an ad only for NOT_OWNED entitlement`() =
         runViewModelTest { dispatcher ->
             val toneManager = FakeDeviceDefaultToneManager(canWrite = true)
             val viewModel = createViewModel(
@@ -86,16 +125,13 @@ class DeviceDefaultTonesViewModelTest {
             )
             advanceUntilIdle()
 
-            val event = withTimeout(1_000) {
-                viewModel.events.filterIsInstance<DeviceDefaultTonesEvent.ShowInterstitialThenInfo>()
-                    .first()
-            }
+            val event = requireNotNull(viewModel.state.value.pendingAdCompletion)
             assertEquals(R.string.everything_set, event.messageResId)
             assertEquals(1, toneManager.appliedSelections.size)
         }
 
     @Test
-    fun `successful apply does not emit interstitial for owned unknown or pending entitlement`() =
+    fun `successful apply completes without advertising for owned unknown or pending entitlement`() =
         runViewModelTest { dispatcher ->
             val adIneligibleStates = listOf(
                 EntitlementState.OWNED,
@@ -118,17 +154,15 @@ class DeviceDefaultTonesViewModelTest {
                 )
                 advanceUntilIdle()
 
-                val maybeInterstitial = withTimeoutOrNull(200) {
-                    viewModel.events.filterIsInstance<DeviceDefaultTonesEvent.ShowInterstitialThenInfo>()
-                        .first()
-                }
-                assertNull(maybeInterstitial)
+                val completion = requireNotNull(viewModel.state.value.pendingAdCompletion)
+                assertTrue(completion.isReady)
+                assertEquals(false, viewModel.tryStartCompletionAd(completion.id))
                 assertEquals(1, toneManager.appliedSelections.size)
             }
         }
 
     @Test
-    fun `successful apply emits everything set info dialog event`() = runViewModelTest { dispatcher ->
+    fun `successful apply records everything set feedback`() = runViewModelTest { dispatcher ->
         val toneManager = FakeDeviceDefaultToneManager(canWrite = true)
         val viewModel = createViewModel(
             toneManager = toneManager,
@@ -143,9 +177,8 @@ class DeviceDefaultTonesViewModelTest {
         )
         advanceUntilIdle()
 
-        val event = withTimeout(1_000) {
-            viewModel.events.filterIsInstance<DeviceDefaultTonesEvent.ShowInfoById>().first()
-        }
+        val event = requireNotNull(viewModel.state.value.pendingAdCompletion)
+        assertTrue(event.isReady)
         assertEquals(R.string.everything_set, event.messageResId)
     }
 
@@ -352,7 +385,8 @@ class DeviceDefaultTonesViewModelTest {
             onError = {},
             toneManager = toneManager,
             entitlementState = MutableStateFlow(entitlement),
-            dispatchers = TestDispatcherProvider(dispatcher)
+            dispatchers = TestDispatcherProvider(dispatcher),
+            savedState = SavedStateHandle(),
         )
     }
 }

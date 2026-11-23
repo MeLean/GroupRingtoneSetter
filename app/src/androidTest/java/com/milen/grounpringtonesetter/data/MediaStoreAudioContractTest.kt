@@ -9,8 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
+import com.milen.grounpringtonesetter.testing.oneSecondSilentWav
 
 @RunWith(AndroidJUnit4::class)
 class MediaStoreAudioContractTest {
@@ -72,25 +71,5 @@ class MediaStoreAudioContractTest {
         }
     }
 
-    private fun oneSecondSilentWav(): ByteArray {
-        val sampleRate = 8_000
-        val audioSize = sampleRate
-        return ByteBuffer.allocate(44 + audioSize)
-            .order(ByteOrder.LITTLE_ENDIAN)
-            .put("RIFF".toByteArray(Charsets.US_ASCII))
-            .putInt(36 + audioSize)
-            .put("WAVE".toByteArray(Charsets.US_ASCII))
-            .put("fmt ".toByteArray(Charsets.US_ASCII))
-            .putInt(16)
-            .putShort(1.toShort())
-            .putShort(1.toShort())
-            .putInt(sampleRate)
-            .putInt(sampleRate)
-            .putShort(1.toShort())
-            .putShort(8.toShort())
-            .put("data".toByteArray(Charsets.US_ASCII))
-            .putInt(audioSize)
-            .put(ByteArray(audioSize))
-            .array()
-    }
+
 }

@@ -1,0 +1,947 @@
+--- a/app/src/androidTest/java/com/milen/grounpringtonesetter/testing/AudioFixtures.kt
++++ b/app/src/androidTest/java/com/milen/grounpringtonesetter/testing/AudioFixtures.kt
+@@ -24,3 +24,20 @@
+         .put(ByteArray(audioSize))
+         .array()
+ }
++
++/** 2.5 seconds of mono, 16-bit little-endian PCM; independent of emulator media/network. */
++internal fun pcmTestWav(frequencyHz: Double = 440.0): ByteArray {
++    val sampleRate = 16_000
++    val samples = sampleRate * 5 / 2
++    val dataSize = samples * 2
++    val buffer = ByteBuffer.allocate(44 + dataSize).order(ByteOrder.LITTLE_ENDIAN)
++    buffer.put("RIFF".toByteArray(Charsets.US_ASCII)).putInt(36 + dataSize)
++        .put("WAVEfmt ".toByteArray(Charsets.US_ASCII)).putInt(16)
++        .putShort(1.toShort()).putShort(1.toShort()).putInt(sampleRate)
++        .putInt(sampleRate * 2).putShort(2.toShort()).putShort(16.toShort())
++        .put("data".toByteArray(Charsets.US_ASCII)).putInt(dataSize)
++    repeat(samples) { index ->
++        buffer.putShort((kotlin.math.sin(2 * Math.PI * frequencyHz * index / sampleRate) * 4000).toInt().toShort())
++    }
++    return buffer.array()
++}
+--- a/app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0RingtoneLifecycleUiTest.kt
++++ b/app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0RingtoneLifecycleUiTest.kt
+@@ -1,21 +1,13 @@
+ package com.milen.grounpringtonesetter.ui
+ 
+ import android.app.Activity
+-import android.content.ContentValues
+-import android.provider.MediaStore
+-import com.milen.grounpringtonesetter.testing.oneSecondSilentWav
+-import androidx.test.uiautomator.UiScrollable
+-import androidx.test.uiautomator.UiSelector
+-import android.os.Build
+-import android.os.ParcelFileDescriptor
+-import android.os.SystemClock
+ import androidx.recyclerview.widget.RecyclerView
+ import androidx.test.espresso.Espresso.onView
+ import androidx.test.espresso.action.ViewActions.click
+ import androidx.test.espresso.assertion.ViewAssertions.matches
+ import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
+ import androidx.test.espresso.matcher.ViewMatchers.withText
+-import androidx.test.ext.junit.runners.AndroidJUnit4
++import org.junit.runners.Parameterized
+ import androidx.test.platform.app.InstrumentationRegistry
+ import androidx.test.uiautomator.By
+ import androidx.test.uiautomator.UiDevice
+@@ -24,15 +16,20 @@
+ import com.milen.grounpringtonesetter.customviews.ui.ads.InterstitialAdShowResult
+ import com.milen.grounpringtonesetter.ui.defaulttones.DeviceDefaultToneType
+ import org.junit.Assert.*
+-import org.junit.Rule
+ import org.junit.Test
+ import org.junit.runner.RunWith
+ import java.lang.ref.WeakReference
+ 
+ /** Real external Android picker + Activity Result routing. Repository/ad gateways remain deterministic. */
+-@RunWith(AndroidJUnit4::class)
+-class P0RingtoneLifecycleUiTest {
+-    @get:Rule val permissions = contactsPermissionRule
++@RunWith(Parameterized::class)
++class P0RingtoneLifecycleUiTest(private val destroyActivities: Boolean) {
++    companion object {
++        @JvmStatic
++        @Parameterized.Parameters(name = "keepActivitiesDestroyed={0}")
++        fun activityModes(): List<Array<Boolean>> = listOf(arrayOf(false), arrayOf(true))
++    }
++    private lateinit var environment: P0UiEnvironment
++    private lateinit var tones: List<P0UiEnvironment.Tone>
+     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
+     private val device get() = UiDevice.getInstance(instrumentation)
+     private val app get() = regressionApp()
+@@ -53,14 +50,15 @@
+                 }
+                 clickRoundedButton(button)
+                 onView(withText(R.string.ringtone_source_system)).perform(click())
+-                chooseRealTone()
++                environment.selectSystemTone(tones[index % 2])
+                 awaitApp()
+                 onView(withText(R.string.everything_set)).check(matches(isDisplayed()))
+                 assertEquals(index + 1, app.fakeDefaultTones.appliedTones.size)
+                 assertEquals(type, app.fakeDefaultTones.appliedTones.last().first)
+-                assertNotNull(app.fakeDefaultTones.appliedTones.last().second)
++                assertEquals(tones[index % 2].uri, app.fakeDefaultTones.appliedTones.last().second)
+                 if (destroy) assertTrue(host[0]?.get()?.isDestroyed != false)
+                 onView(withText(R.string.ok)).perform(click())
++                onView(withText(R.string.everything_set)).check(androidx.test.espresso.assertion.ViewAssertions.doesNotExist())
+             }
+             assertEquals(3, app.fakeInterstitial.showCalls)
+         }
+@@ -81,13 +79,15 @@
+                 }
+                 clickRoundedButton(R.id.crb_choose_ringtone)
+                 onView(withText(R.string.ringtone_source_system)).perform(click())
+-                chooseRealTone()
++                environment.selectSystemTone(tones[index % 2])
+                 awaitApp()
+                 onView(withText(R.string.everything_set)).check(matches(isDisplayed()))
+                 assertEquals(index + 1, app.fakeContacts.ringtoneUpdates.size)
++                assertEquals(tones[index % 2].uri.toString(), app.fakeContacts.ringtoneUpdates.last().second)
+                 assertEquals(index + 1, app.fakeInterstitial.showCalls)
+                 if (destroy) assertTrue(host[0]?.get()?.isDestroyed != false)
+                 onView(withText(R.string.ok)).perform(click())
++                onView(withText(R.string.everything_set)).check(androidx.test.espresso.assertion.ViewAssertions.doesNotExist())
+             }
+         }
+     }
+@@ -101,7 +101,10 @@
+             listOf(R.string.ringtone_source_system, R.string.ringtone_source_file).forEach { source ->
+                 clickRoundedButton(R.id.crbChangeDefaultAlarm)
+                 onView(withText(source)).perform(click())
+-                await { device.currentPackageName != app.packageName }
++                environment.await("actual external picker before cancellation") {
++                    if (source == R.string.ringtone_source_file) device.currentPackageName?.contains("documentsui") == true
++                    else device.currentPackageName != app.packageName && device.hasObject(By.res("android", "button1"))
++                }
+                 device.pressBack()
+                 awaitApp()
+                 onView(withText(R.string.device_default_tones_title)).check(matches(isDisplayed()))
+@@ -113,84 +116,49 @@
+ 
+     @Test
+     fun realFilePickerSelectionReturnsToCorrectToneTargetWithKeepActivitiesOffAndOn() = withActivityModes { destroy ->
+-        assertTrue("File-provider fixture requires API 29 or newer", Build.VERSION.SDK_INT >= 29)
+         app.resetUiScenario()
+-        val resolver = app.contentResolver
+-        val title = "codex-p0-${System.nanoTime()}"
+-        val uri = requireNotNull(resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, ContentValues().apply {
+-            put(MediaStore.Audio.Media.DISPLAY_NAME, "$title.wav")
+-            put(MediaStore.Audio.Media.TITLE, title)
+-            put(MediaStore.Audio.Media.MIME_TYPE, "audio/wav")
+-            put(MediaStore.Audio.Media.RELATIVE_PATH, "Ringtones/LabelRingtoneSetterTests")
+-            put(MediaStore.Audio.Media.IS_PENDING, 1)
+-        }))
+-        try {
+-            requireNotNull(resolver.openOutputStream(uri)).use { it.write(oneSecondSilentWav()) }
+-            resolver.update(uri, ContentValues().apply { put(MediaStore.Audio.Media.IS_PENDING, 0) }, null, null)
+-            launchMain().use { scenario ->
+-                scenario.navigate(R.id.action_home_to_deviceDefaultTones)
++        launchMain().use { scenario ->
++            scenario.navigate(R.id.action_home_to_deviceDefaultTones)
++            scenario.onActivity { app.fakeBilling.state.value = EntitlementState.NOT_OWNED }
++            tones.forEachIndexed { index, tone ->
+                 val host = arrayOfNulls<WeakReference<Activity>>(1)
+-                scenario.onActivity {
+-                    host[0] = WeakReference(it)
+-                    app.fakeBilling.state.value = EntitlementState.NOT_OWNED
+-                }
++                scenario.onActivity { host[0] = WeakReference(it) }
+                 clickRoundedButton(R.id.crbChangeDefaultAlarm)
+                 onView(withText(R.string.ringtone_source_file)).perform(click())
+-                await { device.currentPackageName != app.packageName }
+-                if (device.findObject(By.textContains(title)) == null) {
+-                    UiScrollable(UiSelector().scrollable(true)).scrollIntoView(UiSelector().textContains(title))
+-                }
+-                requireNotNull(device.findObject(By.textContains(title))).click()
++                environment.selectFileTone(tone)
+                 awaitApp()
+                 onView(withText(R.string.everything_set)).check(matches(isDisplayed()))
+-                assertEquals(DeviceDefaultToneType.ALARM, app.fakeDefaultTones.appliedTones.single().first)
+-                assertNotNull(app.fakeDefaultTones.appliedTones.single().second)
+-                assertEquals(1, app.fakeInterstitial.showCalls)
++                assertEquals(index + 1, app.fakeDefaultTones.appliedTones.size)
++                assertEquals(DeviceDefaultToneType.ALARM, app.fakeDefaultTones.appliedTones.last().first)
++                currentToneMatches(tone, app.fakeDefaultTones.appliedTones.last().second)
++                assertEquals(index + 1, app.fakeInterstitial.showCalls)
+                 if (destroy) assertTrue(host[0]?.get()?.isDestroyed != false)
+                 onView(withText(R.string.ok)).perform(click())
++                onView(withText(R.string.everything_set)).check(androidx.test.espresso.assertion.ViewAssertions.doesNotExist())
+             }
+-        } finally {
+-            assertEquals(1, resolver.delete(uri, null, null))
++            assertNotEquals(tones[0].uri, tones[1].uri)
+         }
+     }
+ 
+-    private fun chooseRealTone() {
+-        await { device.currentPackageName != app.packageName && device.findObjects(By.res("android", "text1")).size > 2 }
+-        val rows = device.findObjects(By.res("android", "text1"))
+-        // Skip default/silent rows; require a real installed tone rather than masking absence.
+-        assertTrue("System picker needs at least three selectable rows", rows.size > 2)
+-        rows[2].click()
+-        requireNotNull(device.findObject(By.res("android", "button1"))).click()
++    private fun currentToneMatches(tone: P0UiEnvironment.Tone, selected: android.net.Uri?) {
++        val resolver = app.contentResolver
++        requireNotNull(resolver.openInputStream(requireNotNull(selected))).use { actual ->
++            requireNotNull(resolver.openInputStream(tone.uri)).use { expected ->
++                assertArrayEquals("Picker must return the known fixture ${tone.title} (${tone.uri})", expected.readBytes(), actual.readBytes())
++            }
++        }
+     }
+ 
+     private fun awaitApp() = await { device.currentPackageName == app.packageName }
+-    private fun await(condition: () -> Boolean) {
+-        val deadline = SystemClock.uptimeMillis() + 10_000L
+-        while (SystemClock.uptimeMillis() < deadline) {
+-            if (condition()) return
+-            SystemClock.sleep(50)
+-        }
+-        throw AssertionError("External picker/lifecycle condition timed out")
+-    }
+-
+-    private fun shell(command: String): String = ParcelFileDescriptor.AutoCloseInputStream(
+-        instrumentation.uiAutomation.executeShellCommand(command)
+-    ).use { it.readBytes().toString(Charsets.UTF_8).trim() }
++    private fun await(condition: () -> Boolean) = environment.await("external picker return", condition)
+ 
+     private fun withActivityModes(block: (Boolean) -> Unit) {
+-        // Do not change developer settings on a personal connected phone.
+-        assertTrue("Use a disposable emulator for the developer-option matrix", Build.MODEL.contains("sdk", true) || Build.FINGERPRINT.contains("generic"))
+-        val previous = shell("settings get global always_finish_activities")
+-        assertTrue(previous in listOf("null", "0", "1"))
+-        try {
+-            listOf(false, true).forEach { destroy ->
+-                shell("settings put global always_finish_activities ${if (destroy) 1 else 0}")
+-                assertEquals(if (destroy) "1" else "0", shell("settings get global always_finish_activities"))
+-                block(destroy)
+-            }
+-        } finally {
+-            if (previous == "null") shell("settings delete global always_finish_activities")
+-            else shell("settings put global always_finish_activities $previous")
++        P0UiEnvironment().use { current ->
++            environment = current
++            current.prepare()
++            tones = listOf(current.createTone(), current.createTone(second = true))
++            current.mode(destroyActivities)
++            block(destroyActivities)
+         }
+     }
+ }
+--- a/app/src/androidTest/java/com/milen/grounpringtonesetter/testing/RegressionTestApplication.kt
++++ b/app/src/androidTest/java/com/milen/grounpringtonesetter/testing/RegressionTestApplication.kt
+@@ -231,6 +231,13 @@
+     val appliedTones = mutableListOf<Pair<DeviceDefaultToneType, Uri?>>()
+     val deletedImportedTones = mutableListOf<Uri>()
+ 
++    fun reset() {
++        canWrite = true
++        selectedTones.clear()
++        appliedTones.clear()
++        deletedImportedTones.clear()
++    }
++
+     override fun canWriteSystemSettings(): Boolean = canWrite
+ 
+     override fun createManageWriteSettingsIntent(): Intent = Intent("test.manage.write.settings")
+--- a/app/src/androidTest/java/com/milen/grounpringtonesetter/ui/UiTestFixtures.kt
++++ b/app/src/androidTest/java/com/milen/grounpringtonesetter/ui/UiTestFixtures.kt
+@@ -46,9 +46,7 @@
+     fakeAds.setCanLoadAds(false)
+     fakeAds.setPrivacyOptionsRequired(false)
+     fakeInterstitial.reset()
+-    fakeDefaultTones.canWrite = true
+-    fakeDefaultTones.appliedTones.clear()
+-    fakeDefaultTones.deletedImportedTones.clear()
++    fakeDefaultTones.reset()
+ }
+ 
+ internal fun launchMain(): ActivityScenario<MainActivity> =
+--- /dev/null
++++ b/app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0UiEnvironment.kt
+@@ -0,0 +1,185 @@
++package com.milen.grounpringtonesetter.ui
++
++import android.Manifest
++import android.content.ContentValues
++import android.content.pm.PackageManager
++import android.media.RingtoneManager
++import android.net.Uri
++import android.os.Build
++import android.os.Environment
++import android.os.ParcelFileDescriptor
++import android.os.SystemClock
++import android.provider.MediaStore
++import android.util.Log
++import androidx.test.platform.app.InstrumentationRegistry
++import androidx.test.uiautomator.By
++import androidx.test.uiautomator.UiDevice
++import androidx.test.uiautomator.UiScrollable
++import androidx.test.uiautomator.UiSelector
++import com.milen.grounpringtonesetter.testing.pcmTestWav
++import org.junit.Assert.*
++import java.io.File
++
++/** Test APK only. The host runner restores runtime grants after instrumentation has exited. */
++internal class P0UiEnvironment : AutoCloseable {
++    init {
++        check(Build.MODEL.contains("sdk", true) || Build.FINGERPRINT.contains("generic")) { "SETUP: dedicated emulator required" }
++    }
++    private val instrumentation = InstrumentationRegistry.getInstrumentation()
++    private val context = instrumentation.targetContext
++    val device: UiDevice = UiDevice.getInstance(instrumentation)
++    private val owned = mutableListOf<Pair<Uri, File?>>()
++    private val previousMode = shell("settings get global always_finish_activities")
++    private val originalTones = listOf(RingtoneManager.TYPE_RINGTONE, RingtoneManager.TYPE_NOTIFICATION, RingtoneManager.TYPE_ALARM)
++        .associateWith { RingtoneManager.getActualDefaultRingtoneUri(context, it) }
++
++    data class Tone(val title: String, val uri: Uri)
++
++    fun prepare(grantAudio: Boolean = true) {
++        assertTrue("SETUP: dedicated emulator required", Build.MODEL.contains("sdk", true) || Build.FINGERPRINT.contains("generic"))
++        assertTrue("SETUP: invalid developer setting '$previousMode'", previousMode in listOf("null", "0", "1"))
++        val permissions = listOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS) +
++            if (grantAudio) audioPermissions() else emptyList()
++        permissions.forEach { permission ->
++            instrumentation.uiAutomation.grantRuntimePermission(context.packageName, permission)
++            assertEquals("SETUP: permission not granted: $permission", PackageManager.PERMISSION_GRANTED,
++                context.checkSelfPermission(permission))
++        }
++        // No WRITE_SETTINGS app-op is changed: this suite deliberately uses the fake tone manager.
++        regressionApp().resetUiScenario()
++    }
++
++    fun createTone(second: Boolean = false): Tone {
++        val title = if (second) "GRS_P0_Test_Tone_2" else "GRS_P0_Test_Tone"
++        val legacyFile = if (Build.VERSION.SDK_INT < 29) {
++            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "GRS_P0/$title.wav").also {
++                check(it.parentFile?.mkdirs() == true || it.parentFile?.isDirectory == true) { "SETUP: cannot create audio directory" }
++                check(!it.exists()) { "SETUP: refusing to overwrite existing file $it" }
++            }
++        } else null
++        val values = ContentValues().apply {
++            put(MediaStore.Audio.Media.DISPLAY_NAME, "$title.wav")
++            put(MediaStore.Audio.Media.TITLE, title)
++            put(MediaStore.Audio.Media.MIME_TYPE, "audio/wav")
++            put(MediaStore.Audio.Media.ARTIST, "GRS instrumentation fixture")
++            put(MediaStore.Audio.Media.DURATION, 2500)
++            put(MediaStore.Audio.Media.IS_RINGTONE, 1)
++            put(MediaStore.Audio.Media.IS_NOTIFICATION, 1)
++            put(MediaStore.Audio.Media.IS_ALARM, 1)
++            put(MediaStore.Audio.Media.IS_MUSIC, 1)
++            if (Build.VERSION.SDK_INT >= 29) {
++                put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/GRS_P0")
++                put(MediaStore.Audio.Media.IS_PENDING, 1)
++            } else put(MediaStore.Audio.Media.DATA, requireNotNull(legacyFile).absolutePath)
++        }
++        val resolver = context.contentResolver
++        val uri = requireNotNull(resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)) { "SETUP: MediaStore insert failed" }
++        owned += uri to legacyFile // Register cleanup before any subsequent operation can fail.
++        val bytes = pcmTestWav(if (second) 660.0 else 440.0)
++        requireNotNull(resolver.openOutputStream(uri)) { "SETUP: audio output unavailable" }.use { it.write(bytes) }
++        if (Build.VERSION.SDK_INT >= 29) assertEquals("SETUP: publication failed", 1,
++            resolver.update(uri, ContentValues().apply { put(MediaStore.Audio.Media.IS_PENDING, 0) }, null, null))
++        requireNotNull(resolver.openInputStream(uri)) { "SETUP: fixture unreadable: $uri" }.use {
++            assertArrayEquals("SETUP: WAV contents differ", bytes, it.readBytes())
++        }
++        resolver.query(uri, arrayOf(MediaStore.Audio.Media.DISPLAY_NAME), null, null, null).use {
++            assertTrue("SETUP: published row unavailable", it?.moveToFirst() == true)
++            assertEquals("$title.wav", it?.getString(0))
++        }
++        return Tone(title, uri)
++    }
++
++    fun mode(destroy: Boolean) {
++        shell("settings put global always_finish_activities ${if (destroy) 1 else 0}")
++        assertEquals("SETUP: developer option not applied", if (destroy) "1" else "0", shell("settings get global always_finish_activities"))
++        Log.i("GRS_P0_TEST", "always_finish_activities=${if (destroy) 1 else 0}")
++    }
++
++    fun selectSystemTone(tone: Tone) {
++        await("system ringtone picker") { device.currentPackageName != context.packageName && device.hasObject(By.res("android", "button1")) }
++        findTone(tone).click()
++        requireNotNull(device.findObject(By.res("android", "button1"))) { "SETUP: system picker confirmation missing" }.click()
++    }
++
++    fun selectFileTone(tone: Tone) {
++        await("DocumentsUI picker") { device.currentPackageName?.contains("documentsui") == true }
++        val pkg = requireNotNull(device.currentPackageName)
++        val resources = context.packageManager.getResourcesForApplication(pkg)
++        val audioId = resources.getIdentifier("root_audio", "string", pkg)
++        check(audioId != 0) { "SETUP: DocumentsUI audio root resource unavailable ($pkg)" }
++        val audioTitle = resources.getString(audioId)
++        // GET_CONTENT may reopen Recents or a previous folder; always choose the shared Audio root.
++        val drawer = device.findObject(By.res("android", "home"))
++            ?: device.findObject(By.res(pkg, "toolbar").hasChild(By.clickable(true)))?.children?.firstOrNull { it.isClickable }
++        requireNotNull(drawer) { "SETUP: DocumentsUI navigation drawer unavailable" }.click()
++        await("DocumentsUI shared Audio root '$audioTitle'") { device.hasObject(By.text(audioTitle)) }
++        requireNotNull(device.findObject(By.text(audioTitle))).click()
++        // Audio root presents artist/album folders on some releases; use its actual search UI.
++        val search = device.wait(androidx.test.uiautomator.Until.findObject(By.res(pkg, "menu_search")), 5_000)
++        requireNotNull(search) { "SETUP: Audio-root search unavailable" }.click()
++        await("DocumentsUI search input") { device.hasObject(By.res("android", "search_src_text")) }
++        requireNotNull(device.findObject(By.res("android", "search_src_text"))).text = tone.title
++        device.pressEnter()
++        findTone(tone).click()
++    }
++
++    private fun findTone(tone: Tone): androidx.test.uiautomator.UiObject2 {
++        val selector = By.textContains(tone.title)
++        if (device.wait(androidx.test.uiautomator.Until.hasObject(selector), 3_000) != true) {
++            val scroll = UiScrollable(UiSelector().scrollable(true))
++            check(scroll.exists() && scroll.scrollIntoView(UiSelector().textContains(tone.title))) {
++                "SETUP: published fixture ${tone.title}.wav (${tone.uri}) not locatable in ${device.currentPackageName}"
++            }
++        }
++        return requireNotNull(device.findObject(selector)) { "SETUP: fixture row missing: ${tone.title}" }
++    }
++
++    fun await(description: String, condition: () -> Boolean) {
++        val deadline = SystemClock.uptimeMillis() + 15_000
++        while (SystemClock.uptimeMillis() < deadline) {
++            if (condition()) return
++            SystemClock.sleep(50)
++        }
++        error("UI prerequisite/transition failed: $description; foreground=${device.currentPackageName}")
++    }
++
++    override fun close() {
++        // Run every cleanup even when another cleanup fails; preserve the original test exception via use().
++        val failures = mutableListOf<Throwable>()
++        fun cleanup(action: () -> Unit) { runCatching(action).exceptionOrNull()?.let(failures::add) }
++        cleanup {
++            val foreground = device.currentPackageName
++            if (foreground?.contains("documentsui") == true || foreground?.contains("soundpicker") == true) {
++                shell("am force-stop $foreground")
++            }
++            device.pressHome()
++        }
++        owned.asReversed().forEach { (uri, file) -> cleanup {
++            assertEquals("CLEANUP: fixture delete failed: $uri", 1, context.contentResolver.delete(uri, null, null))
++            if (file?.exists() == true) check(file.delete())
++        } }
++        cleanup {
++            if (previousMode == "null") shell("settings delete global always_finish_activities")
++            else if (previousMode in listOf("0", "1")) shell("settings put global always_finish_activities $previousMode")
++            assertEquals("CLEANUP: developer setting not restored", previousMode, shell("settings get global always_finish_activities"))
++        }
++        cleanup { originalTones.forEach { (type, original) ->
++            assertEquals("System tone unexpectedly changed; fake gateway must not write settings", original,
++                RingtoneManager.getActualDefaultRingtoneUri(context, type))
++        } }
++        if (failures.isNotEmpty()) throw AssertionError("P0 cleanup failed", failures.first()).apply {
++            failures.drop(1).forEach(::addSuppressed)
++        }
++    }
++
++    companion object {
++        fun audioPermissions(): List<String> = when {
++            Build.VERSION.SDK_INT >= 33 -> listOf(Manifest.permission.READ_MEDIA_AUDIO)
++            Build.VERSION.SDK_INT >= 29 -> listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
++            else -> listOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
++        }
++        fun shell(command: String): String = ParcelFileDescriptor.AutoCloseInputStream(
++            InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command)
++        ).use { it.readBytes().toString(Charsets.UTF_8).trim() }
++    }
++}
+--- /dev/null
++++ b/app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0AudioPermissionUiTest.kt
+@@ -0,0 +1,81 @@
++package com.milen.grounpringtonesetter.ui
++
++import android.content.pm.PackageManager
++import androidx.test.espresso.Espresso.onView
++import androidx.test.espresso.action.ViewActions.click
++import androidx.test.espresso.assertion.ViewAssertions.matches
++import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
++import androidx.test.espresso.matcher.ViewMatchers.withText
++import androidx.test.ext.junit.runners.AndroidJUnit4
++import androidx.test.uiautomator.By
++import androidx.test.uiautomator.Until
++import com.milen.grounpringtonesetter.R
++import org.junit.Assert.*
++import org.junit.Test
++import org.junit.runner.RunWith
++
++/** Denied cases are launched separately by run-p0-ui.py: revoking our own grant kills instrumentation. */
++@RunWith(AndroidJUnit4::class)
++class P0AudioPermissionUiTest {
++    @Test fun grantedAudioOpensSourceWithoutPermissionDialog() = P0UiEnvironment().use { env ->
++        env.prepare()
++        env.mode(false)
++        seedGroup()
++        launchMain().use {
++            clickRoundedButton(R.id.crb_choose_ringtone)
++            onView(withText(R.string.select_ringtone_source)).check(matches(isDisplayed()))
++            assertFalse(env.device.hasObject(By.res("com.android.permissioncontroller", "permission_allow_button")))
++        }
++    }
++
++    @Test fun deniedAudioDoesNotAssignOrAdvertise() = exerciseDeniedAudio(requestAgain = false)
++
++    @Test fun deniedAudioCanBeRequestedAgainAndGranted() = exerciseDeniedAudio(requestAgain = true)
++
++    private fun exerciseDeniedAudio(requestAgain: Boolean) = P0UiEnvironment().use { env ->
++        env.prepare(grantAudio = false)
++        env.mode(false)
++        val app = regressionApp()
++        P0UiEnvironment.audioPermissions().forEach {
++            assertEquals("SETUP: use run-p0-ui.py to start this case with audio permission denied", PackageManager.PERMISSION_DENIED,
++                app.checkSelfPermission(it))
++        }
++        seedGroup()
++        launchMain().use {
++            clickRoundedButton(R.id.crb_choose_ringtone)
++            permissionButton(env, "permission_deny_button").click()
++            onView(withText(R.string.audio_permission_rationale)).check(matches(isDisplayed()))
++            assertTrue(app.fakeContacts.ringtoneUpdates.isEmpty())
++            assertEquals(0, app.fakeInterstitial.showCalls)
++            if (requestAgain) {
++                onView(withText(R.string.confirm)).perform(click())
++                permissionButton(env, "permission_allow_button").click()
++                onView(withText(R.string.select_ringtone_source)).check(matches(isDisplayed()))
++                P0UiEnvironment.audioPermissions().forEach { permission ->
++                    assertEquals(PackageManager.PERMISSION_GRANTED, app.checkSelfPermission(permission))
++                }
++            } else {
++                onView(withText(R.string.cancel)).perform(click())
++                P0UiEnvironment.audioPermissions().forEach { permission ->
++                    assertEquals(PackageManager.PERMISSION_DENIED, app.checkSelfPermission(permission))
++                }
++            }
++            assertTrue(app.fakeContacts.ringtoneUpdates.isEmpty())
++            assertEquals(0, app.fakeInterstitial.showCalls)
++        }
++    }
++
++    private fun permissionButton(env: P0UiEnvironment, id: String): androidx.test.uiautomator.UiObject2 {
++        // AOSP and Google images use the same resource names with different package names.
++        val selector = By.res(java.util.regex.Pattern.compile(".*:id/$id"))
++        return requireNotNull(env.device.wait(Until.findObject(selector), 10_000)) {
++            "SETUP: expected Android runtime permission control $id in ${env.device.currentPackageName}"
++        }
++    }
++
++    private fun seedGroup() {
++        val person = contact(1, "P0 permission contact")
++        regressionApp().resetUiScenario(listOf(person), listOf(group("p0-permission", "P0 permission group", listOf(person))))
++        regressionApp().fakeBilling.state.value = com.milen.grounpringtonesetter.billing.EntitlementState.NOT_OWNED
++    }
++}
+--- /dev/null
++++ b/tools/run-p0-ui.py
+@@ -0,0 +1,127 @@
++#!/usr/bin/env python3
++"""Dedicated emulator only. Restore grants outside instrumentation (revocation kills its process)."""
++import argparse
++import os
++from pathlib import Path
++import re
++import subprocess
++import sys
++
++ROOT = Path(__file__).resolve().parents[1]
++PACKAGE = "com.milen.grounpringtonesetter"
++CLASS = PACKAGE + ".ui."
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--serial", default="emulator-5554")
++    parser.add_argument("--output", type=Path, default=Path("/private/tmp/grs-p0-ui-self-contained"))
++    args = parser.parse_args()
++    args.output.mkdir(parents=True, exist_ok=True)
++
++    def adb(*cmd):
++        result = subprocess.run(["adb", "-s", args.serial, *cmd], text=True, stdout=subprocess.PIPE,
++                                stderr=subprocess.PIPE, timeout=30)
++        if result.returncode:
++            raise RuntimeError(f"adb -s {args.serial} {' '.join(cmd)}\n{result.stderr}{result.stdout}")
++        return result.stdout.strip()
++
++    if not args.serial.startswith("emulator-") or adb("shell", "getprop", "ro.kernel.qemu") != "1":
++        raise RuntimeError("Refusing to run: select a dedicated Android emulator, never a physical phone")
++    if adb("shell", "getprop", "sys.boot_completed") != "1":
++        raise RuntimeError("SETUP: emulator is not fully booted")
++    sdk = int(adb("shell", "getprop", "ro.build.version.sdk"))
++    audio = ["READ_MEDIA_AUDIO"] if sdk >= 33 else ["READ_EXTERNAL_STORAGE"]
++    if sdk < 29:
++        audio.append("WRITE_EXTERNAL_STORAGE")
++    permissions = ["android.permission." + p for p in ["READ_CONTACTS", "WRITE_CONTACTS", *audio]]
++    original_mode = adb("shell", "settings", "get", "global", "always_finish_activities")
++    if original_mode not in ("null", "0", "1"):
++        raise RuntimeError(f"SETUP: invalid developer setting: {original_mode}")
++    # Assemble/install first. Never install on other connected devices. Do not uninstall to repair signatures.
++    env = {**os.environ, "ANDROID_SERIAL": args.serial}
++    with (args.output / "build.log").open("w") as output:
++        result = subprocess.run(["./gradlew", ":app:assembleDebug", ":app:assembleDebugAndroidTest"],
++                                cwd=ROOT, env=env, stdout=output, stderr=subprocess.STDOUT)
++    if result.returncode:
++        raise RuntimeError(f"Build blocked/failed: see {args.output / 'build.log'}")
++    for apk in [ROOT / "app/build/outputs/apk/debug/app-debug.apk",
++                ROOT / "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"]:
++        output = adb("install", "-r", "-t", str(apk))
++        if "Success" not in output:
++            raise RuntimeError(f"SETUP: installation failed: {output}")
++    package_dump = adb("shell", "dumpsys", "package", PACKAGE)
++    (args.output / "original-package-state.txt").write_text(package_dump)
++    grants = {}
++    for permission in permissions:
++        match = re.search(re.escape(permission) + r": granted=(true|false), flags=\[([^\]]*)\]", package_dump)
++        if not match:
++            raise RuntimeError(f"SETUP: cannot snapshot runtime grant {permission}")
++        grants[permission] = (match[1] == "true", match[2])
++    failures = []
++    logcat = None
++    try:
++        logcat_file = (args.output / "logcat.txt").open("w")
++        logcat = subprocess.Popen(["adb", "-s", args.serial, "logcat", "-v", "threadtime", "-T", "1"],
++                                  stdout=logcat_file, stderr=subprocess.STDOUT)
++        cases = ["P0RingtoneLifecycleUiTest",
++                 "P0AudioPermissionUiTest#grantedAudioOpensSourceWithoutPermissionDialog",
++                 "P0AudioPermissionUiTest#deniedAudioDoesNotAssignOrAdvertise",
++                 "P0AudioPermissionUiTest#deniedAudioCanBeRequestedAgainAndGranted"]
++        for index, case in enumerate(cases):
++            # Each permission test starts fresh; functional cases grant and verify in their setup.
++            adb("shell", "am", "force-stop", PACKAGE)
++            if "#denied" in case:
++                for permission in ["android.permission." + p for p in audio]:
++                    adb("shell", "pm", "revoke", PACKAGE, permission)
++                    adb("shell", "pm", "clear-permission-flags", PACKAGE, permission, "user-set", "user-fixed")
++            command = ["adb", "-s", args.serial, "shell", "am", "instrument", "-w", "-r", "-e", "class",
++                       CLASS + case, PACKAGE + ".test/com.milen.grounpringtonesetter.testing.RegressionTestRunner"]
++            with (args.output / f"instrumentation-{index}.txt").open("w") as output:
++                run = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, timeout=1200)
++            report = (args.output / f"instrumentation-{index}.txt").read_text()
++            expected_count = 8 if case == "P0RingtoneLifecycleUiTest" else 1
++            if run.returncode or "FAILURES!!!" in report or not re.search(r"OK \(" + str(expected_count) + r" tests?\)", report):
++                failures.append(case)
++            print(f"{'FAILED' if case in failures else 'PASSED'}: {case}", flush=True)
++    finally:
++        # Every cleanup is attempted even if one fails; retain original test failures as well.
++        cleanups = [("home", lambda: adb("shell", "input", "keyevent", "KEYCODE_HOME")),
++                    ("stop app", lambda: adb("shell", "am", "force-stop", PACKAGE)),
++                    ("developer option", lambda: adb("shell", "settings", "delete", "global", "always_finish_activities")
++                     if original_mode == "null" else adb("shell", "settings", "put", "global", "always_finish_activities", original_mode))]
++        for permission, (granted, flags) in grants.items():
++            cleanups.append((permission, lambda p=permission, g=granted: adb("shell", "pm", "grant" if g else "revoke", PACKAGE, p)))
++            cleanups.append((permission + " flags", lambda p=permission: adb("shell", "pm", "clear-permission-flags", PACKAGE, p, "user-set", "user-fixed")))
++            saved_flags = [flag for flag in ["user-set", "user-fixed"] if flag.upper().replace("-", "_") in flags]
++            if saved_flags:
++                cleanups.append((permission + " restore flags", lambda p=permission, f=saved_flags: adb("shell", "pm", "set-permission-flags", PACKAGE, p, *f)))
++        for label, cleanup in cleanups:
++            try:
++                cleanup()
++            except Exception as error:
++                failures.append(f"CLEANUP {label}: {error}")
++        if logcat:
++            logcat.terminate()
++            logcat.wait(timeout=10)
++            logcat_file.close()
++        restored = adb("shell", "dumpsys", "package", PACKAGE)
++        (args.output / "restored-package-state.txt").write_text(restored)
++        for permission, (granted, flags) in grants.items():
++            match = re.search(re.escape(permission) + r": granted=(true|false), flags=\[([^\]]*)\]", restored)
++            if not match or (match[1] == "true") != granted:
++                failures.append(f"CLEANUP: grant restoration mismatch: {permission}")
++            elif any((flag in flags) != (flag in match[2]) for flag in ("USER_SET", "USER_FIXED")):
++                failures.append(f"CLEANUP: permission flag restoration mismatch: {permission}")
++        if adb("shell", "settings", "get", "global", "always_finish_activities") != original_mode:
++            failures.append("CLEANUP: developer option restoration mismatch")
++    if failures:
++        raise RuntimeError("\n".join(failures))
++
++
++if __name__ == "__main__":
++    try:
++        main()
++    except (RuntimeError, subprocess.TimeoutExpired) as error:
++        print(error, file=sys.stderr)
++        sys.exit(1)
+--- /dev/null
++++ b/tools/tests/test_run_p0_ui.py
+@@ -0,0 +1,90 @@
++"""Host-runner safety checks; these do not execute or claim Android UI coverage."""
++import importlib.util
++import contextlib
++import io
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++
++spec = importlib.util.spec_from_file_location("p0_runner", Path(__file__).resolve().parents[1] / "run-p0-ui.py")
++runner = importlib.util.module_from_spec(spec)
++spec.loader.exec_module(runner)
++
++
++class HostRunnerTest(unittest.TestCase):
++    def test_physical_device_is_rejected_before_any_adb_or_build_command(self):
++        with patch.object(sys, "argv", ["run-p0-ui.py", "--serial", "physical-phone"]), \
++                patch.object(runner.subprocess, "run") as execute, tempfile.TemporaryDirectory() as output:
++            sys.argv += ["--output", output]
++            with self.assertRaisesRegex(RuntimeError, "Refusing to run"):
++                runner.main()
++            execute.assert_not_called()
++
++    def exercise_cleanup(self, instrumentation_fails):
++        permissions = ["android.permission." + p for p in ("READ_CONTACTS", "WRITE_CONTACTS", "READ_MEDIA_AUDIO")]
++        grants = {p: False for p in permissions}
++        flags = {p: set() for p in permissions}
++        # Preserve a mixed starting state, including a user-set flag and developer option ON.
++        grants[permissions[0]] = True
++        flags[permissions[0]].add("USER_SET")
++        original = (grants.copy(), {p: f.copy() for p, f in flags.items()})
++        mode = ["1"]
++        executed = []
++
++        def run(command, **kwargs):
++            executed.append(command)
++            text = ""
++            if command[0] == "adb":
++                self.assertEqual(command[1:3], ["-s", "emulator-5554"])
++                args = command[3:]
++                if args[:2] == ["shell", "getprop"]:
++                    text = {"ro.kernel.qemu": "1", "sys.boot_completed": "1", "ro.build.version.sdk": "35"}[args[2]]
++                elif args[:3] == ["shell", "settings", "get"]:
++                    text = mode[0]
++                elif args[:3] == ["shell", "settings", "put"]:
++                    mode[0] = args[-1]
++                elif args[:3] == ["shell", "dumpsys", "package"]:
++                    text = "\n".join(f"{p}: granted={str(grants[p]).lower()}, flags=[{'|'.join(flags[p])}]" for p in permissions)
++                elif args[0] == "install":
++                    text = "Success"
++                elif args[:2] == ["shell", "pm"]:
++                    operation, permission = args[2], args[4]
++                    if operation in ("grant", "revoke"):
++                        grants[permission] = operation == "grant"
++                    elif operation == "clear-permission-flags":
++                        flags[permission].difference_update(f.upper().replace("-", "_") for f in args[5:])
++                    elif operation == "set-permission-flags":
++                        flags[permission].update(f.upper().replace("-", "_") for f in args[5:])
++                elif args[:3] == ["shell", "am", "instrument"]:
++                    mode[0] = "0"
++                    grants.update({p: True for p in permissions})
++                    flags[permissions[-1]].add("USER_SET")
++                    count = 8 if args[-2].endswith("P0RingtoneLifecycleUiTest") else 1
++                    kwargs["stdout"].write("FAILURES!!!" if instrumentation_fails else f"OK ({count} tests)")
++            return subprocess.CompletedProcess(command, 0, text, "")
++
++        with tempfile.TemporaryDirectory() as output, \
++                patch.object(sys, "argv", ["run-p0-ui.py", "--output", output]), \
++                patch.object(runner.subprocess, "run", side_effect=run), \
++                patch.object(runner.subprocess, "Popen"), contextlib.redirect_stdout(io.StringIO()):
++            if instrumentation_fails:
++                with self.assertRaisesRegex(RuntimeError, "P0RingtoneLifecycleUiTest"):
++                    runner.main()
++            else:
++                runner.main()
++        self.assertEqual(mode[0], "1")
++        self.assertEqual((grants, flags), original)
++        self.assertEqual(sum(c[:6] == ["adb", "-s", "emulator-5554", "shell", "am", "instrument"] for c in executed), 4)
++
++    def test_success_restores_original_grants_flags_and_developer_option(self):
++        self.exercise_cleanup(False)
++
++    def test_failure_is_reported_and_still_restores_original_state(self):
++        self.exercise_cleanup(True)
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- /dev/null
++++ b/docs/review/p0-ui-environment/REVIEW.md
+@@ -0,0 +1,64 @@
++# Self-contained P0 UI test environment
++
++Production code, production manifests, dependencies and existing staged work were not changed by this task. All changes remain local. This is test infrastructure, not confirmation that the P0 application defects are resolved.
++
++## Confirmed infrastructure gaps
++
++- P0 previously granted contacts permission only. Home checks SDK-specific audio access before opening the ringtone source selector; the test did not satisfy this prerequisite.
++- The system picker test selected the third row rather than a known fixture.
++- File selection inserted a fixture but searched whichever DocumentsUI location happened to be open.
++- OFF and ON previously ran inside each test method. A failure during OFF prevented ON from executing for that method.
++- The fake tone manager's selected-tone map survived `resetUiScenario()`, although its operation history was cleared.
++
++These are source-confirmed gaps. The user's observed permission stalls and missing-file behavior have not been reproduced here because device execution is blocked.
++
++## Changes in this task
++
++- `P0UiEnvironment`: emulator-only guard; verified contacts and SDK-appropriate audio grants; known fake state; original developer-option snapshot/restoration; readable, published MediaStore fixtures; explicit setup errors; bounded synchronization; real system picker selection by fixture title; DocumentsUI Audio-root navigation and search; exact owned-URI cleanup in `use`, including failed scenarios. Known external picker tasks are closed. No WRITE_SETTINGS app-op or real system tone is changed; original system tones are checked unchanged during cleanup.
++- `AudioFixtures`: adds two distinguishable 2.5-second, mono, 16-bit PCM WAV signals (440/660 Hz). Existing contract-test generator is retained.
++- `P0RingtoneLifecycleUiTest`: separate parameterized OFF/ON cases (8 total); known system fixture URI assertions; two successive file selections with byte-for-byte comparison to the known MediaStore fixture; existing operation-count, advertisement-count and Activity-destruction assertions retained; no completion dialog remains after acknowledgement. DocumentsUI may return a document URI rather than the MediaStore URI, so file assertions compare readable contents, not incompatible URI representations.
++- `P0AudioPermissionUiTest`: three independent cases for granted audio access, denial without assignment/advertising, and denial followed by another request and grant. These use real permission-controller UI. Contact permission is granted and verified as a functional prerequisite. Existing component coverage for fake WRITE_SETTINGS denial remains unchanged.
++- Fake tone-manager reset now clears selected values as well as history.
++- `tools/run-p0-ui.py`: single-command build/install/run on the selected booted emulator only; no uninstall/signature workaround; captures instrumentation and Logcat; runs denied permission cases in separate instrumentation processes with known permission flags; restores original grants, user-set/user-fixed flags and developer option outside the app process. Android runtime permission revocation can kill the app process, so it must not be performed by the running instrumentation itself. Use this wrapper when permission restoration is required, rather than invoking the test class directly.
++- Three host-runner safety tests cover physical-device rejection, restoration after success and restoration after failed instrumentation. They mock subprocesses; their success does not indicate Android tests passed.
++
++Fake contacts/groups never write personal/provider contact rows. The suite uses fake advertisement and default-tone gateways; it does not display real Google ads or change real default ringtone/notification/alarm settings. The real external picker, MediaStore fixture publication/readback and Activity Result lifecycle journeys are retained.
++
++## Run on the dedicated emulator
++
++```bash
++python3 tools/run-p0-ui.py --serial emulator-5554
++```
++
++Requires an already booted disposable emulator and Android SDK/Gradle tooling. No manual audio files, contacts, grants or Developer Options preparation is required by the runner. Output defaults to `/private/tmp/grs-p0-ui-self-contained`. It refuses physical-device serials. A build/install or prerequisite error aborts explicitly. A signature mismatch requires a separate decision about the disposable emulator; the runner never uninstalls existing app data.
++
++The functional class can still be targeted with the normal Gradle class filter, but use the wrapper for permission snapshot/restoration and the separate initially-denied tests. Each parameterized functional case snapshots/restores `always_finish_activities` in guaranteed cleanup, so a failed OFF case does not suppress its ON counterpart.
++
++## Actual verification
++
++- `git diff --check`: passed.
++- `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/tests -v`: 3 passed. Mocked host commands only.
++- Supplemental direct Kotlin compilation of all Android-test sources against installed cached artifacts: passed (one existing deprecated `getParcelableExtra` warning). This is not a Gradle build, APK installation or UI execution.
++- Executed the compiled PCM generator and inspected both files with Python's WAV decoder: both are 40,000 frames at 16,000 Hz, mono, 16-bit PCM, 2.5 seconds, nonzero signal, with distinct contents. The first standalone Java invocation lacked Kotlin stdlib on its runtime classpath; after supplying it, this check passed.
++- `./gradlew :app:compileDebugAndroidTestKotlin`: BLOCKED before compilation by the Gradle wrapper lock permission error recorded in `verification.txt`.
++- `python3 tools/run-p0-ui.py --serial emulator-5554`: BLOCKED at the first ADB emulator check by `Operation not permitted` creating the ADB socket listener. No build, install, grant, mode change or instrumentation was performed by this attempt. No retries/restart loop was used.
++
++| Scenario | Don't keep activities | Result |
++| --- | --- | --- |
++| Default ringtone/notification/alarm system picker | OFF and ON | BLOCKED / UNVERIFIED |
++| Six repeated group operations / available-unavailable fake ad gateway | OFF and ON | BLOCKED / UNVERIFIED |
++| System and file cancellation | OFF and ON | BLOCKED / UNVERIFIED |
++| Two distinct custom audio selections | OFF and ON | BLOCKED / UNVERIFIED |
++| Granted / denied / requested-again audio UI | OFF | BLOCKED / UNVERIFIED |
++
++Neither developer-option value was exercised by this execution attempt. No device tests passed or failed; they did not start. Real Google Mobile Ads rendering/impressions, real system tone writes and physical-device behavior remain outside the fake-gateway suite.
++
++## Remaining limits and risks
++
++- Clean-emulator acceptance is UNVERIFIED. DocumentsUI Audio-root/search resources and system ringtone-picker layout must be validated on the target AVD; unsupported picker variants fail explicitly rather than selecting another file or skipping assertions.
++- System picker fixture discovery after MediaStore publication needs actual device verification. Readback and published-row checks are implemented, but are not substitutes for a successful real picker journey.
++- Normal exception/assertion cleanup is guaranteed by `use` and the host runner's `finally`. If the emulator, host or test process is forcibly killed, fixture cleanup may not execute; the test never performs broad media/contact deletion. Permission/developer-option restoration needs a reachable emulator. Failures are reported rather than concealed.
++- Original runtime permissions and user-set/user-fixed flags are restored after instrumentation. Install/system-managed permission flags are not rewritten. Special WRITE_SETTINGS permission is neither granted nor changed by this fake-tone suite.
++- Existing ringtone/ad/consent changes and contact-count UI changes are pre-existing local work and are included in the full review snapshot, not authored by this infrastructure task.
++
++`task.patch` contains only this task's changes relative to its starting working tree. `full-review.patch` contains the complete current source/test/tool/document changes relative to HEAD, including untracked text files, excluding generated review patch files themselves to avoid recursive inclusion. No binaries, audio artifacts or private configuration are included. Git status/stat are in `git-state.txt`; normal git statistics omit untracked files.
+--- /dev/null
++++ b/docs/review/p0-ui-environment/verification.txt
+@@ -0,0 +1,46 @@
++Gradle Android-test compilation
++Exception in thread "main" java.io.FileNotFoundException: /Users/md/.gradle/wrapper/dists/gradle-9.6.1-all/4xnwe4ed5w7qqynisxnnvegss/gradle-9.6.1-all.zip.lck (Operation not permitted)
++	at java.base/java.io.RandomAccessFile.open0(Native Method)
++	at java.base/java.io.RandomAccessFile.open(RandomAccessFile.java:344)
++	at java.base/java.io.RandomAccessFile.<init>(RandomAccessFile.java:259)
++	at java.base/java.io.RandomAccessFile.<init>(RandomAccessFile.java:213)
++	at org.gradle.wrapper.Install.createDist(SourceFile:24)
++	at org.gradle.wrapper.GradleWrapperMain.lambda$prepareWrapper$0(SourceFile:2)
++	at org.gradle.wrapper.GradleWrapperMain.main(SourceFile:2)
++
++
++Emulator execution attempt
++adb -s emulator-5554 shell getprop ro.kernel.qemu
++* daemon not running; starting now at tcp:5037
++ADB server didn't ACK
++Full server startup log: /var/folders/sc/247c6x957yb50qm8v3rwhlcw0000gp/T//adb.502.log
++Server had pid: 58922
++--- adb starting (pid 58922) ---
++11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 Android Debug Bridge version 1.0.41
++11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 Version 36.0.2-14143358
++11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 Installed as /Users/md/Library/Android/sdk/platform-tools/adb
++11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 Running on Darwin 25.5.0 (arm64)
++11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 
++11-23 23:43:26.798 58922 33371395 F adb     : main.cpp:165 could not install *smartsocket* listener: Operation not permitted
++
++* failed to start daemon
++adb: cannot connect to daemon
++
++
++
++Host runner tests (mocked commands)
++test_failure_is_reported_and_still_restores_original_state (test_run_p0_ui.HostRunnerTest) ... ok
++test_physical_device_is_rejected_before_any_adb_or_build_command (test_run_p0_ui.HostRunnerTest) ... ok
++test_success_restores_original_grants_flags_and_developer_option (test_run_p0_ui.HostRunnerTest) ... ok
++
++----------------------------------------------------------------------
++Ran 3 tests in 0.009s
++
++OK
++
++
++Supplemental Kotlin compilation
++app/src/androidTest/java/com/milen/grounpringtonesetter/billing/BillingAppComponentFactoryInstrumentedTest.kt:111:30: warning: 'fun <T : Parcelable!> getParcelableExtra(p0: String!): T?' is deprecated. Deprecated in Java.
++            validBuyIntent().getParcelableExtra<PendingIntent>("BUY_INTENT"),
++                             ^^^^^^^^^^^^^^^^^^
++
+--- /dev/null
++++ b/docs/review/p0-ui-environment/git-state.txt
+@@ -0,0 +1,73 @@
++git status --short
++ M app/build.gradle.kts
++ M app/src/androidTest/java/com/milen/grounpringtonesetter/data/MediaStoreAudioContractTest.kt
++ M app/src/androidTest/java/com/milen/grounpringtonesetter/testing/RegressionTestApplication.kt
++A  app/src/androidTest/java/com/milen/grounpringtonesetter/ui/DefaultToneCompletionLifecycleTest.kt
++ M app/src/androidTest/java/com/milen/grounpringtonesetter/ui/UiTestFixtures.kt
++A  app/src/androidTest/java/com/milen/grounpringtonesetter/ui/home/GroupCountLayoutTest.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/App.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdBannerView.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdLoadingHelper.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdGateway.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicy.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/texts/CircleWIthText.kt
++A  app/src/main/java/com/milen/grounpringtonesetter/ui/RingtoneCompletion.kt
++AM app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DefaultToneCompletionDialog.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesScreen.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesState.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DeviceDefaultTonesViewModel.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DeviceDefaultTonesViewModelFactory.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/GroupsAdapter.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreenState.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModel.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModelFactory.kt
++ M app/src/main/res/layout/item_group_entity.xml
++AM app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdRuntimeRegressionTest.kt
++ M app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicyTest.kt
++ M app/src/test/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DeviceDefaultTonesViewModelTest.kt
++ M app/src/test/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModelFlowTest.kt
++A  docs/review/admob-followup/REVIEW.md
++A  docs/review/admob-followup/full-review.patch
++A  docs/review/admob-followup/git-state.txt
++A  docs/review/admob-optimization/REVIEW.md
++A  docs/review/admob-optimization/git-state.txt
++A  docs/review/admob-optimization/task.patch
++A  docs/review/admob-optimization/working-tree.patch
++A  docs/review/contact-count/QA.md
++?? app/src/androidTest/java/com/milen/grounpringtonesetter/testing/AudioFixtures.kt
++?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0AudioPermissionUiTest.kt
++?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0RingtoneLifecycleUiTest.kt
++?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0UiEnvironment.kt
++?? app/src/test/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DefaultToneRestorationTest.kt
++?? docs/review/p0-ringtone-ads-recovery/
++?? docs/review/p0-ui-environment/
++?? tools/
++
++git diff --stat (unstaged tracked files only)
++ app/build.gradle.kts                               |   4 +-
++ .../data/MediaStoreAudioContractTest.kt            |  25 +-
++ .../testing/RegressionTestApplication.kt           |  28 ++-
++ .../grounpringtonesetter/ui/UiTestFixtures.kt      |   5 +-
++ .../java/com/milen/grounpringtonesetter/App.kt     |   6 +-
++ .../customviews/ui/ads/AdBannerView.kt             |  69 ++++--
++ .../customviews/ui/ads/AdLoadingHelper.kt          | 259 +++++++++++++--------
++ .../customviews/ui/ads/InterstitialAdGateway.kt    |   5 +
++ .../customviews/ui/ads/InterstitialAdPolicy.kt     |  16 +-
++ .../customviews/ui/texts/CircleWIthText.kt         |   6 +-
++ .../ui/defaulttones/DefaultToneCompletionDialog.kt |   3 +-
++ .../ui/defaulttones/DeviceDefaultTonesScreen.kt    |  85 +++----
++ .../ui/defaulttones/DeviceDefaultTonesState.kt     |   6 +-
++ .../viewmodel/DeviceDefaultTonesViewModel.kt       | 151 +++++++++++-
++ .../DeviceDefaultTonesViewModelFactory.kt          |   7 +-
++ .../grounpringtonesetter/ui/home/GroupsAdapter.kt  |  15 --
++ .../grounpringtonesetter/ui/home/HomeScreen.kt     |  30 ++-
++ .../ui/home/HomeScreenState.kt                     |   2 +
++ .../ui/home/viewmodel/HomeViewModel.kt             | 132 +++++++----
++ .../ui/home/viewmodel/HomeViewModelFactory.kt      |   7 +-
++ app/src/main/res/layout/item_group_entity.xml      |  38 ++-
++ .../customviews/ui/ads/AdRuntimeRegressionTest.kt  | 204 +++++++++++++---
++ .../customviews/ui/ads/InterstitialAdPolicyTest.kt |  54 ++---
++ .../viewmodel/DeviceDefaultTonesViewModelTest.kt   |  66 ++++--
++ .../ui/home/viewmodel/HomeViewModelFlowTest.kt     |   2 +
++ 25 files changed, 847 insertions(+), 378 deletions(-)

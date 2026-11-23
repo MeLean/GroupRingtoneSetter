@@ -1,5 +1,6 @@
 package com.milen.grounpringtonesetter.ui.home.viewmodel
 
+import androidx.lifecycle.SavedStateHandle
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.data.accounts.AccountId
@@ -243,6 +244,7 @@ class HomeViewModelFlowTest {
                 contactsRepo = contacts,
                 sourceRepo = sources,
                 homePreferencesStore = HomePreferencesStore(InMemoryHomePreferencesDataSource()),
+                savedState = SavedStateHandle(),
             )
             val stateJob = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
                 viewModel.state.collect {}

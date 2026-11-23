@@ -1,0 +1,73 @@
+git status --short
+ M app/build.gradle.kts
+ M app/src/androidTest/java/com/milen/grounpringtonesetter/data/MediaStoreAudioContractTest.kt
+ M app/src/androidTest/java/com/milen/grounpringtonesetter/testing/RegressionTestApplication.kt
+A  app/src/androidTest/java/com/milen/grounpringtonesetter/ui/DefaultToneCompletionLifecycleTest.kt
+ M app/src/androidTest/java/com/milen/grounpringtonesetter/ui/UiTestFixtures.kt
+A  app/src/androidTest/java/com/milen/grounpringtonesetter/ui/home/GroupCountLayoutTest.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/App.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdBannerView.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdLoadingHelper.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdGateway.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicy.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/texts/CircleWIthText.kt
+A  app/src/main/java/com/milen/grounpringtonesetter/ui/RingtoneCompletion.kt
+AM app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DefaultToneCompletionDialog.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesScreen.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesState.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DeviceDefaultTonesViewModel.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DeviceDefaultTonesViewModelFactory.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/GroupsAdapter.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreenState.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModel.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModelFactory.kt
+ M app/src/main/res/layout/item_group_entity.xml
+AM app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdRuntimeRegressionTest.kt
+ M app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicyTest.kt
+ M app/src/test/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DeviceDefaultTonesViewModelTest.kt
+ M app/src/test/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModelFlowTest.kt
+A  docs/review/admob-followup/REVIEW.md
+A  docs/review/admob-followup/full-review.patch
+A  docs/review/admob-followup/git-state.txt
+A  docs/review/admob-optimization/REVIEW.md
+A  docs/review/admob-optimization/git-state.txt
+A  docs/review/admob-optimization/task.patch
+A  docs/review/admob-optimization/working-tree.patch
+A  docs/review/contact-count/QA.md
+?? app/src/androidTest/java/com/milen/grounpringtonesetter/testing/AudioFixtures.kt
+?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0AudioPermissionUiTest.kt
+?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0RingtoneLifecycleUiTest.kt
+?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/P0UiEnvironment.kt
+?? app/src/test/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DefaultToneRestorationTest.kt
+?? docs/review/p0-ringtone-ads-recovery/
+?? docs/review/p0-ui-environment/
+?? tools/
+
+git diff --stat (unstaged tracked files only)
+ app/build.gradle.kts                               |   4 +-
+ .../data/MediaStoreAudioContractTest.kt            |  25 +-
+ .../testing/RegressionTestApplication.kt           |  28 ++-
+ .../grounpringtonesetter/ui/UiTestFixtures.kt      |   5 +-
+ .../java/com/milen/grounpringtonesetter/App.kt     |   6 +-
+ .../customviews/ui/ads/AdBannerView.kt             |  69 ++++--
+ .../customviews/ui/ads/AdLoadingHelper.kt          | 259 +++++++++++++--------
+ .../customviews/ui/ads/InterstitialAdGateway.kt    |   5 +
+ .../customviews/ui/ads/InterstitialAdPolicy.kt     |  16 +-
+ .../customviews/ui/texts/CircleWIthText.kt         |   6 +-
+ .../ui/defaulttones/DefaultToneCompletionDialog.kt |   3 +-
+ .../ui/defaulttones/DeviceDefaultTonesScreen.kt    |  85 +++----
+ .../ui/defaulttones/DeviceDefaultTonesState.kt     |   6 +-
+ .../viewmodel/DeviceDefaultTonesViewModel.kt       | 151 +++++++++++-
+ .../DeviceDefaultTonesViewModelFactory.kt          |   7 +-
+ .../grounpringtonesetter/ui/home/GroupsAdapter.kt  |  15 --
+ .../grounpringtonesetter/ui/home/HomeScreen.kt     |  30 ++-
+ .../ui/home/HomeScreenState.kt                     |   2 +
+ .../ui/home/viewmodel/HomeViewModel.kt             | 132 +++++++----
+ .../ui/home/viewmodel/HomeViewModelFactory.kt      |   7 +-
+ app/src/main/res/layout/item_group_entity.xml      |  38 ++-
+ .../customviews/ui/ads/AdRuntimeRegressionTest.kt  | 204 +++++++++++++---
+ .../customviews/ui/ads/InterstitialAdPolicyTest.kt |  54 ++---
+ .../viewmodel/DeviceDefaultTonesViewModelTest.kt   |  66 ++++--
+ .../ui/home/viewmodel/HomeViewModelFlowTest.kt     |   2 +
+ 25 files changed, 847 insertions(+), 378 deletions(-)

@@ -45,9 +45,8 @@ internal fun RegressionTestApplication.resetUiScenario(
     fakeBilling.state.value = com.milen.grounpringtonesetter.billing.EntitlementState.OWNED
     fakeAds.setCanLoadAds(false)
     fakeAds.setPrivacyOptionsRequired(false)
-    fakeDefaultTones.canWrite = true
-    fakeDefaultTones.appliedTones.clear()
-    fakeDefaultTones.deletedImportedTones.clear()
+    fakeInterstitial.reset()
+    fakeDefaultTones.reset()
 }
 
 internal fun launchMain(): ActivityScenario<MainActivity> =

@@ -4,9 +4,11 @@ import androidx.annotation.StringRes
 import com.milen.grounpringtonesetter.billing.EntitlementState
 import com.milen.grounpringtonesetter.data.LabelItem
 import com.milen.grounpringtonesetter.data.sources.ContactSource
+import com.milen.grounpringtonesetter.ui.RingtoneCompletion
 
 internal data class HomeScreenState(
     val isLoading: Boolean = false,
+    val pendingRingtoneCompletion: RingtoneCompletion? = null,
     val labelItems: List<LabelItem> = emptyList(),
     val displayPreferences: HomeDisplayPreferences = HomeDisplayPreferences(),
     val groupSearchQuery: String = "",

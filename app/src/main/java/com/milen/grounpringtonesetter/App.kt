@@ -85,10 +85,14 @@ open class App : Application(), Configuration.Provider {
     internal open fun provideDefaultToneManager(): DeviceDefaultToneManager =
         AndroidDeviceDefaultToneManager(this)
 
+    private val interstitialGateways = mutableMapOf<String, AdLoadingHelper>()
+
     internal open fun provideInterstitialAdGateway(
         activity: Activity,
         placement: String,
-    ): InterstitialAdGateway = AdLoadingHelper(activity, placement)
+    ): InterstitialAdGateway = interstitialGateways.getOrPut(placement) {
+        AdLoadingHelper(activity, placement)
+    }.also { it.updateActivity(activity) }
 
     @Volatile
     private var activeThemeOption: HomeThemeOption? = null

@@ -4,8 +4,9 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.AttributeSet
+import android.view.View
 import android.widget.FrameLayout
-import androidx.core.view.doOnLayout
+import androidx.core.view.isVisible
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
@@ -13,6 +14,7 @@ import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.OnPaidEventListener
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.billing.EntitlementState
 
 internal class AdBannerView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
@@ -32,6 +34,7 @@ internal class AdBannerView @JvmOverloads constructor(
     private var placement: String = "unknown"
     private var bannerRetryAttempt = 0
     private var pendingRetry: Runnable? = null
+    private var pendingLayout: OnLayoutChangeListener? = null
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
@@ -40,11 +43,16 @@ internal class AdBannerView @JvmOverloads constructor(
 
     fun destroyBanner() {
         cancelPendingRetry()
+        pendingLayout?.let(::removeOnLayoutChangeListener)
+        pendingLayout = null
         bannerLoaded = false
         isBannerLoading = false
         bannerRetryAttempt = 0
-        bannerAdView?.destroy()
+        val obsoleteAdView = bannerAdView
         bannerAdView = null
+        obsoleteAdView?.adListener = object : AdListener() {}
+        obsoleteAdView?.onPaidEventListener = null
+        obsoleteAdView?.destroy()
         removeAllViews()
     }
 
@@ -70,12 +78,23 @@ internal class AdBannerView @JvmOverloads constructor(
         maybeLoadBanner()
     }
 
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        if (visibility == VISIBLE) maybeLoadBanner()
+    }
+
     private fun maybeLoadBanner() {
         if (!isBannerRequestAllowed()) return
-        if (bannerLoaded || isBannerLoading) return
+        if (bannerLoaded || isBannerLoading || pendingRetry != null) return
 
         if (width == 0) {
-            doOnLayout { maybeLoadBanner() }
+            if (pendingLayout == null) {
+                pendingLayout = OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                    pendingLayout?.let(::removeOnLayoutChangeListener)
+                    pendingLayout = null
+                    maybeLoadBanner()
+                }.also(::addOnLayoutChangeListener)
+            }
             return
         }
 
@@ -84,6 +103,11 @@ internal class AdBannerView @JvmOverloads constructor(
             setAdSize(resolveAdaptiveSize())
             adListener = object : AdListener() {
                 override fun onAdLoaded() {
+                    if (bannerAdView !== this@apply) return
+                    if (!isBannerEligible()) {
+                        destroyBanner()
+                        return
+                    }
                     cancelPendingRetry()
                     isBannerLoading = false
                     bannerLoaded = true
@@ -96,6 +120,11 @@ internal class AdBannerView @JvmOverloads constructor(
                 }
 
                 override fun onAdFailedToLoad(loadAdError: com.google.android.gms.ads.LoadAdError) {
+                    if (bannerAdView !== this@apply) return
+                    if (!isBannerEligible()) {
+                        destroyBanner()
+                        return
+                    }
                     isBannerLoading = false
                     bannerLoaded = false
                     AdDiagnostics.logLoadFailure(
@@ -108,6 +137,7 @@ internal class AdBannerView @JvmOverloads constructor(
                 }
 
                 override fun onAdImpression() {
+                    if (bannerAdView !== this@apply) return
                     AdDiagnostics.logDebugEvent(
                         format = "banner",
                         placement = placement,
@@ -116,6 +146,7 @@ internal class AdBannerView @JvmOverloads constructor(
                 }
 
                 override fun onAdClicked() {
+                    if (bannerAdView !== this@apply) return
                     AdDiagnostics.logDebugEvent(
                         format = "banner",
                         placement = placement,
@@ -124,6 +155,7 @@ internal class AdBannerView @JvmOverloads constructor(
                 }
             }
             onPaidEventListener = OnPaidEventListener { adValue ->
+                if (bannerAdView !== this@apply) return@OnPaidEventListener
                 AdDiagnostics.trackPaidEvent(
                     tracker = tracker,
                     format = "banner",
@@ -159,24 +191,25 @@ internal class AdBannerView @JvmOverloads constructor(
         }
     }
 
-    private fun isBannerRequestAllowed(): Boolean {
-        if (!isAttachedToWindow) return false
-        if (!isBannerEnabled) return false
-        if (!adsManager.canLoadAds.value) return false
-        if (visibility != VISIBLE) return false
-        if (!isShown) return false
-        return true
-    }
+    private fun isBannerEligible(): Boolean =
+        isBannerEnabled && adsManager.canLoadAds.value &&
+            (context.applicationContext as App).billingManager.state.value == EntitlementState.NOT_OWNED
+
+    private fun isBannerRequestAllowed(): Boolean =
+        isAttachedToWindow && isBannerEligible() && isVisible && isShown
 
     private fun scheduleBannerRetry() {
-        if (!isBannerRequestAllowed()) return
+        if (!isAttachedToWindow || !isBannerEligible()) return
         if (pendingRetry != null) return
 
         val retryDelayMs = RETRY_DELAYS_MS[bannerRetryAttempt.coerceAtMost(RETRY_DELAYS_MS.lastIndex)]
         bannerRetryAttempt += 1
-        pendingRetry = Runnable {
-            pendingRetry = null
-            maybeLoadBanner()
+        pendingRetry = object : Runnable {
+            override fun run() {
+                if (pendingRetry !== this) return
+                pendingRetry = null
+                maybeLoadBanner()
+            }
         }.also { runnable ->
             retryHandler.postDelayed(runnable, retryDelayMs)
         }
@@ -194,11 +227,13 @@ internal class AdBannerView @JvmOverloads constructor(
 
     private fun replaceBannerView(adView: AdView) {
         val previousBannerView = bannerAdView
+        bannerAdView = adView
         removeAllViews()
         if (previousBannerView !== adView) {
+            previousBannerView?.adListener = object : AdListener() {}
+            previousBannerView?.onPaidEventListener = null
             previousBannerView?.destroy()
         }
-        bannerAdView = adView
         addView(adView)
     }
 

@@ -11,6 +11,7 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.milen.grounpringtonesetter.App
 import com.milen.grounpringtonesetter.R
+import com.milen.grounpringtonesetter.billing.EntitlementState
 import java.lang.ref.WeakReference
 
 internal enum class InterstitialAdShowResult {
@@ -40,9 +41,26 @@ internal class AdLoadingHelper(
     private var isLoadingInterstitialAd = false
     private val loadCallbacks = mutableListOf<(Boolean) -> Unit>()
     private var activityRef = WeakReference(activity)
+    private var isHostActive = true
+    private var activeShowCompletion: ((InterstitialAdShowResult) -> Unit)? = null
 
     override fun updateActivity(activity: Activity) {
+        if (activityRef.get() !== activity) activeShowCompletion?.invoke(InterstitialAdShowResult.SKIPPED)
         activityRef = WeakReference(activity)
+        isHostActive = true
+    }
+
+    override fun setHostActive(active: Boolean) {
+        isHostActive = active
+    }
+
+    override fun release() {
+        isHostActive = false
+        activityRef.clear()
+        finishLoading(false)
+        activeShowCompletion?.invoke(InterstitialAdShowResult.SKIPPED)
+        if (!isAdEligible()) clearCachedInterstitial()
+        // Inventory and the in-flight request belong to the application/placement, not this view.
     }
 
     fun currentActivityOrNull(): Activity? =
@@ -51,13 +69,21 @@ internal class AdLoadingHelper(
     fun loadInterstitialAd(
         onAdLoadingFinished: (Boolean) -> Unit = {},
     ) {
+        if (!isAdEligible() || !isHostActive) {
+            if (!isAdEligible()) clearCachedInterstitial()
+            onAdLoadingFinished(false)
+            return
+        }
+        val nowMs = SystemClock.elapsedRealtime()
+        clearExpiredInterstitialIfNeeded(nowMs)
         if (interstitialAd != null) {
+            logDebug("cache reused")
             onAdLoadingFinished(true)
             return
         }
 
-        if (!adsManager.canLoadAds.value) {
-            onAdLoadingFinished(false)
+        if (isLoadingInterstitialAd) {
+            loadCallbacks += onAdLoadingFinished
             return
         }
 
@@ -74,7 +100,6 @@ internal class AdLoadingHelper(
             return
         }
 
-        val nowMs = SystemClock.elapsedRealtime()
         if (!policy.canLoad(nowMs)) {
             onAdLoadingFinished(false)
             AdDiagnostics.logDebugEvent(
@@ -86,61 +111,82 @@ internal class AdLoadingHelper(
         }
 
         loadCallbacks += onAdLoadingFinished
-        if (isLoadingInterstitialAd) return
-
         isLoadingInterstitialAd = true
         val adRequest = AdRequest.Builder().build()
-        val adUnitId = activity.getString(R.string.admob_interstitial_unit_id)
+        val adUnitId = app.getString(R.string.admob_interstitial_unit_id)
         AdDiagnostics.logDebugEvent(
             format = "interstitial",
             placement = placement,
             message = "requesting unit=$adUnitId"
         )
-        InterstitialAd.load(
-            activity,
-            adUnitId,
-            adRequest,
-            object : InterstitialAdLoadCallback() {
-                override fun onAdLoaded(ad: InterstitialAd) {
-                    isLoadingInterstitialAd = false
-                    policy.onLoadSucceeded()
-                    interstitialAd = ad
-                    interstitialLoadedAtMs = SystemClock.elapsedRealtime()
-                    ad.onPaidEventListener = OnPaidEventListener { adValue ->
-                        AdDiagnostics.trackPaidEvent(
-                            tracker = tracker,
+        var requestCompleted = false
+        runCatching {
+            InterstitialAd.load(
+                app,
+                adUnitId,
+                adRequest,
+                object : InterstitialAdLoadCallback() {
+                    override fun onAdLoaded(ad: InterstitialAd) {
+                        if (requestCompleted) return
+                        requestCompleted = true
+                        isLoadingInterstitialAd = false
+                        policy.onLoadSucceeded()
+                        if (!isAdEligible()) {
+                            logDebug("loaded ad discarded: eligibility changed")
+                            finishLoading(false)
+                            return
+                        }
+                        interstitialAd = ad
+                        interstitialLoadedAtMs = SystemClock.elapsedRealtime()
+                        ad.onPaidEventListener = OnPaidEventListener { adValue ->
+                            AdDiagnostics.trackPaidEvent(
+                                tracker = tracker,
+                                format = "interstitial",
+                                placement = placement,
+                                adUnitId = ad.adUnitId,
+                                adValue = adValue,
+                                responseInfo = ad.responseInfo
+                            )
+                        }
+                        AdDiagnostics.logDebugEvent(
                             format = "interstitial",
                             placement = placement,
-                            adUnitId = ad.adUnitId,
-                            adValue = adValue,
-                            responseInfo = ad.responseInfo
+                            message = "loaded unit=${ad.adUnitId} responseId=${ad.responseInfo.responseId.orEmpty()}"
                         )
+                        finishLoading(true)
                     }
-                    AdDiagnostics.logDebugEvent(
-                        format = "interstitial",
-                        placement = placement,
-                        message = "loaded unit=${ad.adUnitId} responseId=${ad.responseInfo.responseId.orEmpty()}"
-                    )
-                    val callbacks = loadCallbacks.toList()
-                    loadCallbacks.clear()
-                    callbacks.forEach { it(true) }
-                }
 
-                override fun onAdFailedToLoad(adError: LoadAdError) {
-                    isLoadingInterstitialAd = false
-                    clearCachedInterstitial()
-                    policy.onLoadFailed(SystemClock.elapsedRealtime())
-                    AdDiagnostics.logLoadFailure(
-                        format = "interstitial",
-                        placement = placement,
-                        adUnitId = adUnitId,
-                        error = adError
-                    )
-                    val callbacks = loadCallbacks.toList()
-                    loadCallbacks.clear()
-                    callbacks.forEach { it(false) }
-                }
-            })
+                    override fun onAdFailedToLoad(adError: LoadAdError) {
+                        if (requestCompleted) return
+                        requestCompleted = true
+                        isLoadingInterstitialAd = false
+                        clearCachedInterstitial()
+                        policy.onLoadFailed(SystemClock.elapsedRealtime())
+                        AdDiagnostics.logLoadFailure(
+                            format = "interstitial",
+                            placement = placement,
+                            adUnitId = adUnitId,
+                            error = adError
+                        )
+                        finishLoading(false)
+                    }
+                },
+            )
+        }.onFailure { throwable ->
+            if (requestCompleted) return@onFailure
+            requestCompleted = true
+            isLoadingInterstitialAd = false
+            policy.onLoadFailed(SystemClock.elapsedRealtime())
+            AdDiagnostics.trackUnexpectedState(
+                tracker = tracker,
+                format = "interstitial",
+                placement = placement,
+                stage = "load",
+                reason = "interstitial_load_threw",
+                throwable = throwable,
+            )
+            finishLoading(false)
+        }
     }
 
     override fun preloadInterstitialAd() {
@@ -150,7 +196,9 @@ internal class AdLoadingHelper(
     override fun showInterstitialAd(
         onAdLoadingFinished: (InterstitialAdShowResult) -> Unit,
     ) {
-        if (!adsManager.canLoadAds.value) {
+        if (!isAdEligible()) {
+            clearCachedInterstitial()
+            logDebug("show skipped consent, SDK readiness or entitlement")
             onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
             return
         }
@@ -158,37 +206,16 @@ internal class AdLoadingHelper(
         val nowMs = SystemClock.elapsedRealtime()
         clearExpiredInterstitialIfNeeded(nowMs)
 
-        if (!policy.canShow(nowMs)) {
-            AdDiagnostics.logDebugEvent(
-                format = "interstitial",
-                placement = placement,
-                message = "show skipped due to frequency cap"
-            )
+        if (!isHostActive || !policy.canShow()) {
+            logDebug("show skipped: host inactive or fullscreen already showing")
             onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
             return
         }
-
-        if (interstitialAd == null && !policy.canLoad(nowMs)) {
-            AdDiagnostics.logDebugEvent(
-                format = "interstitial",
-                placement = placement,
-                message = "show skipped load backoffUntil=${policy.nextAllowedLoadAtMs()}"
-            )
-            onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
-            return
-        }
-
         if (interstitialAd == null) {
-            loadInterstitialAd(
-                onAdLoadingFinished = { isSuccessfulLoaded ->
-                    if (isSuccessfulLoaded) {
-                        showInterstitialAd(onAdLoadingFinished)
-                    } else {
-                        onAdLoadingFinished(InterstitialAdShowResult.LOAD_FAILED)
-                    }
-                }
-            )
-
+            // An operation never waits on a network request or displays later on another screen.
+            logDebug("show skipped: cache unavailable")
+            preloadInterstitialAd()
+            onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
             return
         }
 
@@ -218,21 +245,48 @@ internal class AdLoadingHelper(
             return
         }
 
-        interstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+        val ad = interstitialAd ?: run {
+            policy.onFullscreenAdClosed()
+            onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
+            return
+        }
+        // Consume this ad before invoking the SDK so reentrant calls cannot reuse it.
+        interstitialAd = null
+        interstitialLoadedAtMs = 0L
+        var completed = false
+        var clientCallback: ((InterstitialAdShowResult) -> Unit)? = onAdLoadingFinished
+        fun completeClient(result: InterstitialAdShowResult) {
+            activeShowCompletion = null
+            val callback = clientCallback
+            clientCallback = null
+            callback?.invoke(result)
+        }
+        fun complete(result: InterstitialAdShowResult) {
+            if (completed) return
+            completed = true
+            ad.fullScreenContentCallback = null
+            policy.onFullscreenAdClosed()
+            completeClient(result)
+        }
+        // Releasing a screen resolves its operation, but the SDK still owns the full-screen
+        // lease until dismissal/failure. Clearing that callback early could unlock two ads.
+        activeShowCompletion = ::completeClient
+        logDebug("show attempted")
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdShowedFullScreenContent() {
                 AdDiagnostics.logDebugEvent(
                     format = "interstitial",
                     placement = placement,
-                    message = "shown unit=${interstitialAd?.adUnitId.orEmpty()}"
+                    message = "shown unit=${ad.adUnitId}"
                 )
             }
 
             override fun onAdImpression() {
-                policy.onAdImpression(SystemClock.elapsedRealtime())
+                if (completed) return
                 AdDiagnostics.logDebugEvent(
                     format = "interstitial",
                     placement = placement,
-                    message = "impression unit=${interstitialAd?.adUnitId.orEmpty()}"
+                    message = "impression unit=${ad.adUnitId}"
                 )
             }
 
@@ -240,41 +294,35 @@ internal class AdLoadingHelper(
                 AdDiagnostics.logDebugEvent(
                     format = "interstitial",
                     placement = placement,
-                    message = "clicked unit=${interstitialAd?.adUnitId.orEmpty()}"
+                    message = "clicked unit=${ad.adUnitId}"
                 )
             }
 
             override fun onAdDismissedFullScreenContent() {
-                policy.onFullscreenAdClosed()
-                clearCachedInterstitial()
-                onAdLoadingFinished(InterstitialAdShowResult.SHOWN)
-                if (adsManager.canLoadAds.value) {
-                    preloadInterstitialAd()
-                }
+                if (completed) return
+                logDebug("dismissed")
+                complete(InterstitialAdShowResult.SHOWN)
+                preloadInterstitialAd()
             }
 
             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
-                val adUnitId = interstitialAd?.adUnitId.orEmpty()
+                if (completed) return
+                val adUnitId = ad.adUnitId
                 AdDiagnostics.logShowFailure(
                     format = "interstitial",
                     placement = placement,
                     adUnitId = adUnitId,
                     error = adError
                 )
-                policy.onFullscreenAdClosed()
-                clearCachedInterstitial()
-                onAdLoadingFinished(InterstitialAdShowResult.SHOW_FAILED)
-                if (adsManager.canLoadAds.value) {
-                    preloadInterstitialAd()
-                }
+                complete(InterstitialAdShowResult.SHOW_FAILED)
+                preloadInterstitialAd()
             }
         }
 
         runCatching {
-            interstitialAd?.show(activity)
+            ad.show(activity)
         }.onFailure { throwable ->
-            policy.onFullscreenAdClosed()
-            clearCachedInterstitial()
+            if (completed) return@onFailure
             AdDiagnostics.trackUnexpectedState(
                 tracker = tracker,
                 format = "interstitial",
@@ -283,12 +331,26 @@ internal class AdLoadingHelper(
                 reason = "interstitial_show_threw",
                 throwable = throwable
             )
-            onAdLoadingFinished(InterstitialAdShowResult.SHOW_FAILED)
+            complete(InterstitialAdShowResult.SHOW_FAILED)
+            preloadInterstitialAd()
         }
+    }
+
+    private fun isAdEligible(): Boolean =
+        adsManager.canLoadAds.value && app.billingManager.state.value == EntitlementState.NOT_OWNED
+
+    private fun logDebug(message: String) =
+        AdDiagnostics.logDebugEvent("interstitial", placement, message)
+
+    private fun finishLoading(success: Boolean) {
+        val callbacks = loadCallbacks.toList()
+        loadCallbacks.clear()
+        callbacks.forEach { it(success) }
     }
 
     private fun clearCachedInterstitial() {
         interstitialAd?.fullScreenContentCallback = null
+        interstitialAd?.onPaidEventListener = null
         interstitialAd = null
         interstitialLoadedAtMs = 0L
     }
@@ -297,8 +359,7 @@ internal class AdLoadingHelper(
         val hasInterstitial = interstitialAd != null
         val isExpired =
             hasInterstitial &&
-                    interstitialLoadedAtMs > 0L &&
-                    nowMs - interstitialLoadedAtMs > INTERSTITIAL_EXPIRATION_MS
+                    nowMs - interstitialLoadedAtMs >= INTERSTITIAL_EXPIRATION_MS
         if (!isExpired) return false
 
         AdDiagnostics.logDebugEvent(

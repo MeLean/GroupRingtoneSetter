@@ -6,51 +6,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class InterstitialAdPolicyTest {
-
     @Test
-    fun `show is blocked until cooldown expires after impression`() {
+    fun `many consecutive operations may show without a display cooldown or session cap`() {
         val policy = InterstitialAdPolicy()
-        val firstImpressionAt = 1_000L
-
-        policy.onAdImpression(firstImpressionAt)
-
-        assertFalse(policy.canShow(firstImpressionAt + 30_000L))
-        assertTrue(
-            policy.canShow(
-                firstImpressionAt + InterstitialAdPolicy.MIN_INTERSTITIAL_INTERVAL_MS
-            )
-        )
-    }
-
-    @Test
-    fun `show is blocked after max session impressions`() {
-        val policy = InterstitialAdPolicy()
-        var nowMs = 0L
-
-        repeat(InterstitialAdPolicy.MAX_INTERSTITIALS_PER_SESSION) {
-            policy.onAdImpression(nowMs)
-            nowMs += InterstitialAdPolicy.MIN_INTERSTITIAL_INTERVAL_MS
+        repeat(20) {
+            assertTrue(policy.canShow())
+            assertTrue(policy.tryMarkFullscreenAdShowing())
+            assertFalse(policy.canShow())
+            assertFalse(policy.tryMarkFullscreenAdShowing())
+            policy.onFullscreenAdClosed()
+            assertTrue(policy.canLoad(0L))
         }
-
-        assertFalse(policy.canShow(nowMs))
     }
 
     @Test
-    fun `load failures increase backoff and success resets it`() {
+    fun `failure backoff caps at five minutes and successful load resets it`() {
         val policy = InterstitialAdPolicy()
-        val firstFailureAt = 5_000L
-
-        policy.onLoadFailed(firstFailureAt)
-        assertEquals(35_000L, policy.nextAllowedLoadAtMs())
-        assertFalse(policy.canLoad(firstFailureAt + 29_999L))
-
-        val secondFailureAt = policy.nextAllowedLoadAtMs()
-        policy.onLoadFailed(secondFailureAt)
-        assertEquals(secondFailureAt + 60_000L, policy.nextAllowedLoadAtMs())
-
+        listOf(30_000L, 60_000L, 120_000L, 300_000L, 300_000L).forEach { delay ->
+            policy.onLoadFailed(1_000L)
+            assertEquals(1_000L + delay, policy.nextAllowedLoadAtMs())
+            assertFalse(policy.canLoad(1_000L + delay - 1L))
+            assertTrue(policy.canLoad(1_000L + delay))
+        }
         policy.onLoadSucceeded()
-
-        assertEquals(0L, policy.nextAllowedLoadAtMs())
-        assertTrue(policy.canLoad(secondFailureAt))
+        assertTrue(policy.canLoad(0L))
     }
 }

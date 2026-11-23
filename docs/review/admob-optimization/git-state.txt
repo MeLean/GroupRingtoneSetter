@@ -1,0 +1,35 @@
+Baseline: 63c029ad1372679f246e1cc705d816f513178662
+
+$ git diff --check
+PASS (no output)
+
+$ git status --short
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdBannerView.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdLoadingHelper.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicy.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/texts/CircleWIthText.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesScreen.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/GroupsAdapter.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModel.kt
+ M app/src/main/res/layout/item_group_entity.xml
+ M app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicyTest.kt
+?? .kotlin/
+?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/home/
+?? app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdRuntimeRegressionTest.kt
+?? docs/review/
+
+$ git diff --stat
+ .../customviews/ui/ads/AdBannerView.kt             |  47 ++++-
+ .../customviews/ui/ads/AdLoadingHelper.kt          | 210 ++++++++++++++-------
+ .../customviews/ui/ads/InterstitialAdPolicy.kt     |  18 +-
+ .../customviews/ui/texts/CircleWIthText.kt         |   6 +-
+ .../ui/defaulttones/DeviceDefaultTonesScreen.kt    |  27 ++-
+ .../grounpringtonesetter/ui/home/GroupsAdapter.kt  |  15 --
+ .../grounpringtonesetter/ui/home/HomeScreen.kt     |   7 +
+ .../ui/home/viewmodel/HomeViewModel.kt             |  10 +-
+ app/src/main/res/layout/item_group_entity.xml      |  40 +++-
+ .../customviews/ui/ads/InterstitialAdPolicyTest.kt |  44 +++++
+ 10 files changed, 298 insertions(+), 126 deletions(-)
+
+Normal git diff --stat excludes untracked files. The review patches explicitly include new source/test/documentation files.

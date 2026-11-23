@@ -6,6 +6,11 @@ import android.app.Activity
 internal interface InterstitialAdGateway {
     fun updateActivity(activity: Activity)
 
+    fun setHostActive(active: Boolean) = Unit
+
+    /** Detach the UI host; application-owned inventory may remain cached. */
+    fun release() = Unit
+
     fun preloadInterstitialAd()
 
     fun showInterstitialAd(

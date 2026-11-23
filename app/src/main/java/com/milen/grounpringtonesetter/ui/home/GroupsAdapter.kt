@@ -5,11 +5,8 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -82,18 +79,6 @@ internal class GroupsAdapter(
                             )
                         cwtContacts.isClickable = false
                         cwtContacts.isLongClickable = false
-                        ViewCompat.setAccessibilityDelegate(
-                            cwtContacts,
-                            object : androidx.core.view.AccessibilityDelegateCompat() {
-                                override fun onInitializeAccessibilityNodeInfo(
-                                    host: View,
-                                    info: AccessibilityNodeInfoCompat,
-                                ) {
-                                    super.onInitializeAccessibilityNodeInfo(host, info)
-                                    info.className = TextView::class.java.name
-                                }
-                            }
-                        )
                     }
 
                     val ringtoneText = HomeGroupCardAccessibilityText.resolveRingtoneText(

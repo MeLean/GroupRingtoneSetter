@@ -32,7 +32,7 @@ internal class RegressionTestApplication : App() {
     val fakeContacts = InstrumentationContactsRepository()
     val fakeSources = InstrumentationContactSourceRepository()
     val fakeDefaultTones = InstrumentationDefaultToneManager()
-    private val fakeInterstitial = InstrumentationInterstitialAdGateway()
+    val fakeInterstitial = InstrumentationInterstitialAdGateway()
 
     override fun createTelemetry(): Telemetry = InstrumentationTelemetry
 
@@ -99,15 +99,24 @@ internal class InstrumentationAdsGateway : AdsGateway {
 
 internal class InstrumentationInterstitialAdGateway : InterstitialAdGateway {
     var result = InterstitialAdShowResult.SKIPPED
+    var deferCompletion = false
+    var showCalls = 0
+    val pendingCallbacks = mutableListOf<(InterstitialAdShowResult) -> Unit>()
 
     override fun updateActivity(activity: Activity) = Unit
-
     override fun preloadInterstitialAd() = Unit
 
-    override fun showInterstitialAd(
-        onAdLoadingFinished: (InterstitialAdShowResult) -> Unit,
-    ) {
-        onAdLoadingFinished(result)
+    override fun showInterstitialAd(onAdLoadingFinished: (InterstitialAdShowResult) -> Unit) {
+        showCalls += 1
+        if (deferCompletion) pendingCallbacks += onAdLoadingFinished
+        else onAdLoadingFinished(result)
+    }
+
+    fun reset() {
+        result = InterstitialAdShowResult.SKIPPED
+        deferCompletion = false
+        showCalls = 0
+        pendingCallbacks.clear()
     }
 }
 
@@ -221,6 +230,13 @@ internal class InstrumentationDefaultToneManager : DeviceDefaultToneManager {
     private val selectedTones = mutableMapOf<DeviceDefaultToneType, Uri?>()
     val appliedTones = mutableListOf<Pair<DeviceDefaultToneType, Uri?>>()
     val deletedImportedTones = mutableListOf<Uri>()
+
+    fun reset() {
+        canWrite = true
+        selectedTones.clear()
+        appliedTones.clear()
+        deletedImportedTones.clear()
+    }
 
     override fun canWriteSystemSettings(): Boolean = canWrite
 

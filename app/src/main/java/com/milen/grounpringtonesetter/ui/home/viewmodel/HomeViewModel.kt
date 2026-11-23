@@ -2,6 +2,7 @@ package com.milen.grounpringtonesetter.ui.home.viewmodel
 
 import android.app.Activity
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
@@ -20,6 +21,7 @@ import com.milen.grounpringtonesetter.data.prefs.HomePreferencesStore
 import com.milen.grounpringtonesetter.data.repos.ContactsRepository
 import com.milen.grounpringtonesetter.data.sources.ContactSource
 import com.milen.grounpringtonesetter.data.sources.ContactSourceRepository
+import com.milen.grounpringtonesetter.ui.RingtoneCompletionStore
 import com.milen.grounpringtonesetter.ui.home.HomeDisplayPreferences
 import com.milen.grounpringtonesetter.ui.home.HomeEvent
 import com.milen.grounpringtonesetter.ui.home.HomeScreenState
@@ -36,11 +38,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
@@ -52,6 +56,7 @@ internal class HomeViewModel(
     private val contactsRepo: ContactsRepository,
     private val sourceRepo: ContactSourceRepository,
     private val homePreferencesStore: HomePreferencesStore,
+    private val savedState: SavedStateHandle,
 ) : ViewModel() {
     private companion object {
         const val PURCHASE_UI_GUARD_TIMEOUT_MS = 180_000L
@@ -64,7 +69,8 @@ internal class HomeViewModel(
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
     val events: Flow<HomeEvent> = _events.receiveAsFlow()
 
-    private val _state = MutableStateFlow(HomeScreenState(isLoading = true))
+    private val completions = RingtoneCompletionStore(savedState)
+    private val _state = MutableStateFlow(HomeScreenState(isLoading = true, pendingRingtoneCompletion = completions.current))
     val state: StateFlow<HomeScreenState> =
         combine(
             _state,
@@ -96,6 +102,9 @@ internal class HomeViewModel(
         )
 
     init {
+        if (savedState.remove<Boolean>("group_assignment_in_progress") == true) {
+            _events.trySend(HomeEvent.ShowErrorById(R.string.something_went_wrong))
+        }
         loadHomeDisplayPreferences()
     }
 
@@ -105,6 +114,9 @@ internal class HomeViewModel(
             ?: throw UninitializedPropertyAccessException("_selectingGroup not initialized")
         set(value) {
             _selectingGroup = value
+            savedState["ringtone_selection_consumed"] = false
+            savedState["ringtone_group_id"] = value.id
+            savedState["ringtone_source_key"] = sourceRepo.selected.value?.stableKey
         }
 
     fun onPermissionsGranted() {
@@ -253,19 +265,33 @@ internal class HomeViewModel(
     ) {
         tracker.trackEvent("onRingtoneChosen")
         adHelper.updateActivity(activity)
-        val group = _selectingGroup ?: return
-
-        if (group.contacts.isEmpty()) {
-            launch { _events.send(HomeEvent.ShowErrorById(R.string.no_contacts)) }
-            _selectingGroup = null
+        val selected = _selectingGroup
+        val groupId = savedState.remove<String>("ringtone_group_id") ?: selected?.id
+        if (groupId == null) {
+            if (savedState.get<Boolean>("ringtone_selection_consumed") != true) {
+                _events.trySend(HomeEvent.ShowErrorById(R.string.something_went_wrong))
+            }
             return
         }
-
-        // Validate ringtone format before processing
+        savedState["ringtone_selection_consumed"] = true
+        val sourceKey = savedState.remove<String>("ringtone_source_key")
+        _selectingGroup = null // Claim this picker result exactly once, before asynchronous work.
+        val context = activity.applicationContext
         viewModelScope.launch {
-            if (activity.isDestroyed) {
-                tracker.trackEvent("ringtone_validation_activity_unavailable")
-                _selectingGroup = null
+            val group = try {
+                if (sourceKey != null && sourceRepo.selected.value?.stableKey != sourceKey) {
+                    _events.trySend(HomeEvent.ShowErrorById(R.string.something_went_wrong))
+                    return@launch
+                }
+                if (selected == null && contactsRepo.labelsFlow.value.none { it.id == groupId }) contactsRepo.loadAccountLabels()
+                contactsRepo.labelsFlow.value.find { it.id == groupId } ?: selected
+            } catch (error: Throwable) {
+                if (error is CancellationException) throw error
+                handleError(error)
+                return@launch
+            }
+            if (group == null || group.contacts.isEmpty()) {
+                _events.trySend(HomeEvent.ShowErrorById(if (group == null) R.string.something_went_wrong else R.string.no_contacts))
                 return@launch
             }
 
@@ -285,13 +311,13 @@ internal class HomeViewModel(
             if (shouldValidateFormat) {
                 val errorResId = withContext(DispatchersProvider.io) {
                     RingtoneFormatValidator.validateRingtoneFormat(
-                        context = activity,
+                        context = context,
                         uri = uri
                     )
                 }
 
                 if (errorResId != null) {
-                    val mimeType = runCatching { activity.contentResolver.getType(uri) }.getOrNull() ?: "unknown"
+                    val mimeType = runCatching { context.contentResolver.getType(uri) }.getOrNull() ?: "unknown"
                     tracker.trackEvent(
                         "ringtone_format_rejected",
                         mapOf(
@@ -307,16 +333,21 @@ internal class HomeViewModel(
 
             showLoading()
             try {
+                savedState["group_assignment_in_progress"] = true
                 contactsRepo.setGroupRingtone(
                     group = group,
                     uriStr = uri.toString(),
                     fileName = fileName
                 )
                 _selectingGroup = null
-                showInterstitialAdIfNeededAndManageLoading()
+                savedState.remove<Boolean>("group_assignment_in_progress")
+                val completion = completions.record(billing.state.value == EntitlementState.NOT_OWNED)
+                _state.update { it.copy(pendingRingtoneCompletion = completion) }
+                refreshContactsSilently()
             } catch (e: CancellationException) {
                 throw e
             } catch (t: Throwable) {
+                savedState.remove<Boolean>("group_assignment_in_progress")
                 handleError(t)
             } finally {
                 hideLoading()
@@ -447,11 +478,20 @@ internal class HomeViewModel(
 
     fun onHomeResumed(activity: Activity) {
         adHelper.updateActivity(activity)
-        if (_state.value.entitlement == EntitlementState.NOT_OWNED) {
-            adHelper.preloadInterstitialAd()
-        }
         if (_state.value.isPurchaseInProgress) {
             releasePurchaseUiGuard("home_resumed")
+        }
+    }
+
+    fun interstitialPreloadEligibility(readiness: StateFlow<Boolean>): Flow<Boolean> =
+        combine(billing.state, readiness) { entitlement, ready ->
+            entitlement == EntitlementState.NOT_OWNED && ready
+        }.distinctUntilChanged()
+
+    fun onAdsReady(activity: Activity) {
+        adHelper.updateActivity(activity)
+        if (billing.state.value == EntitlementState.NOT_OWNED) {
+            adHelper.preloadInterstitialAd()
         }
     }
 
@@ -669,36 +709,42 @@ internal class HomeViewModel(
         tracker.trackEvent("contacts_permission_lost")
     }
 
-    private fun showInterstitialAdIfNeededAndManageLoading() {
-        when (state.value.entitlement) {
-            EntitlementState.OWNED -> {
-                hideLoading()
-                showDoneMessage()
-            }
-            EntitlementState.NOT_OWNED ->
-                adHelper.showInterstitialAd { result ->
-                    hideLoading()
-                    when (result) {
-                        InterstitialAdShowResult.SHOWN -> showDoneMessage()
-                        InterstitialAdShowResult.SKIPPED -> showDoneMessage()
-                        InterstitialAdShowResult.LOAD_FAILED,
-                        InterstitialAdShowResult.SHOW_FAILED -> {
-                            tracker.trackEvent(
-                                "ringtone_interstitial_unavailable",
-                                mapOf("reason" to result.name.lowercase())
-                            )
-                            _events.trySend(HomeEvent.ShowAdUnavailableDialog)
-                        }
-                    }
+    fun presentRingtoneCompletion(activity: Activity, id: Long) {
+        if (!completions.tryStartAd(id)) return
+        adHelper.updateActivity(activity)
+        if (billing.state.value != EntitlementState.NOT_OWNED) {
+            finishRingtoneCompletion(id)
+            return
+        }
+        val model = WeakReference(this)
+        adHelper.showInterstitialAd { result ->
+            model.get()?.let { viewModel ->
+                if (result == InterstitialAdShowResult.LOAD_FAILED || result == InterstitialAdShowResult.SHOW_FAILED) {
+                    viewModel.tracker.trackEvent("ringtone_interstitial_unavailable", mapOf("reason" to result.name.lowercase()))
                 }
-
-            EntitlementState.UNKNOWN, EntitlementState.PENDING -> {
-                hideLoading()
-                showDoneMessage()
+                viewModel.finishRingtoneCompletion(id)
             }
         }
+    }
 
-        refreshContactsSilently()
+    private fun finishRingtoneCompletion(id: Long) {
+        completions.finishAd(id)
+        _state.update { it.copy(pendingRingtoneCompletion = completions.current) }
+    }
+
+    fun onRingtoneCompletionDismissed(id: Long) {
+        completions.acknowledge(id)
+        _state.update { it.copy(pendingRingtoneCompletion = completions.current) }
+    }
+
+    fun onHomeStopped() = adHelper.setHostActive(false)
+    fun onHomeViewDestroyed() = adHelper.release()
+
+    fun cancelRingtoneSelection() {
+        savedState["ringtone_selection_consumed"] = true
+        _selectingGroup = null
+        savedState.remove<String>("ringtone_group_id")
+        savedState.remove<String>("ringtone_source_key")
     }
 
     private fun showDoneMessage() {

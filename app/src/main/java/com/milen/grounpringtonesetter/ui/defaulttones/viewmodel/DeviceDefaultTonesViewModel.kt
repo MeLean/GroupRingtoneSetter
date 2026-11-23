@@ -1,16 +1,19 @@
 package com.milen.grounpringtonesetter.ui.defaulttones.viewmodel
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.milen.grounpringtonesetter.R
 import com.milen.grounpringtonesetter.billing.EntitlementState
+import com.milen.grounpringtonesetter.ui.RingtoneCompletionStore
 import com.milen.grounpringtonesetter.ui.defaulttones.DefaultToneImportException
 import com.milen.grounpringtonesetter.ui.defaulttones.DefaultToneImportFailureReason
 import com.milen.grounpringtonesetter.ui.defaulttones.DeviceDefaultToneManager
 import com.milen.grounpringtonesetter.ui.defaulttones.DeviceDefaultToneType
 import com.milen.grounpringtonesetter.ui.defaulttones.DeviceDefaultTonesEvent
 import com.milen.grounpringtonesetter.ui.defaulttones.DeviceDefaultTonesState
+import com.milen.grounpringtonesetter.ui.defaulttones.TonePickerKind
 import com.milen.grounpringtonesetter.ui.defaulttones.TonePickerLaunchConfig
 import com.milen.grounpringtonesetter.utils.DispatcherProvider
 import com.milen.grounpringtonesetter.utils.DispatchersProvider
@@ -22,12 +25,14 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 internal class DeviceDefaultTonesViewModel(
     private val onError: (Throwable) -> Unit,
     private val toneManager: DeviceDefaultToneManager,
     private val entitlementState: StateFlow<EntitlementState>,
     private val dispatchers: DispatcherProvider = DispatchersProvider,
+    private val savedState: SavedStateHandle,
 ) : ViewModel() {
 
     private data class PendingToneSelection(
@@ -36,17 +41,118 @@ internal class DeviceDefaultTonesViewModel(
         val cleanupImportedOnDiscard: Boolean,
     )
 
-    private val _state = MutableStateFlow(DeviceDefaultTonesState())
+    private val completions = RingtoneCompletionStore(savedState)
+    private val _state = MutableStateFlow(DeviceDefaultTonesState(pendingAdCompletion = completions.current))
     val state: StateFlow<DeviceDefaultTonesState> = _state
 
     private val _events = Channel<DeviceDefaultTonesEvent>(Channel.BUFFERED)
     val events: Flow<DeviceDefaultTonesEvent> = _events.receiveAsFlow()
 
-    private var pendingToneSelection: PendingToneSelection? = null
-    private var openedWriteSettingsForPendingSelection: Boolean = false
+    private var pendingToneSelection: PendingToneSelection? = restoreSelection()
+    private var openedWriteSettingsForPendingSelection: Boolean
+        get() = savedState[SETTINGS_OPENED] ?: false
+        set(value) { savedState[SETTINGS_OPENED] = value }
 
     init {
+        val phase = savedState.get<String>(PHASE)
+        if (phase == "applying") {
+            val selection = pendingToneSelection
+            pendingToneSelection = null
+            viewModelScope.launch {
+                val applied = selection != null && runCatching {
+                    withContext(dispatchers.io) { toneManager.getCurrentDefaultUri(selection.toneType) == selection.uri }
+                }.onFailure { error ->
+                    if (error is CancellationException) throw error
+                    onError(error)
+                }.getOrDefault(false)
+                clearSelection()
+                if (applied) recordSuccess(allowAd = false)
+                else _events.trySend(DeviceDefaultTonesEvent.ShowApplyFailedDialog)
+            }
+        } else if (phase == "importing" || phase == "validating") {
+            // No safe proof of a completed write or a durable external URI grant.
+            pendingToneSelection = null
+            clearSelection()
+            _events.trySend(DeviceDefaultTonesEvent.ShowErrorById(R.string.default_tone_import_failed))
+        }
         refreshToneNames()
+    }
+
+    fun rememberPicker(kind: TonePickerKind, type: DeviceDefaultToneType) {
+        savedState["picker_${kind.name}"] = type.name
+        savedState["picker_${kind.name}_consumed"] = false
+    }
+
+    fun consumePicker(kind: TonePickerKind): DeviceDefaultToneType? {
+        val name = savedState.remove<String>("picker_${kind.name}") ?: return null
+        val type = DeviceDefaultToneType.entries.find { it.name == name }
+        savedState["picker_${kind.name}_consumed"] = type != null
+        return type
+    }
+
+    fun onSystemPickerResult(accepted: Boolean, uri: Uri?) {
+        val type = consumePicker(TonePickerKind.SYSTEM)
+        if (type == null) {
+            if (accepted && savedState.get<Boolean>("picker_SYSTEM_consumed") != true) {
+                _events.trySend(DeviceDefaultTonesEvent.ShowApplyFailedDialog)
+            }
+            return
+        }
+        if (!accepted) return
+        if (uri == null && !type.allowSilentSelection) {
+            _events.trySend(DeviceDefaultTonesEvent.ShowApplyFailedDialog)
+            return
+        }
+        onTonePicked(type, uri)
+    }
+
+    fun onFilePickerResult(uri: Uri?) {
+        val type = consumePicker(TonePickerKind.FILE)
+        if (type == null) {
+            if (uri != null && savedState.get<Boolean>("picker_FILE_consumed") != true) {
+                _events.trySend(DeviceDefaultTonesEvent.ShowErrorById(R.string.default_tone_import_failed))
+            }
+            return
+        }
+        if (uri != null) onCustomTonePicked(type, uri)
+    }
+
+    fun tryStartCompletionAd(id: Long): Boolean = completions.tryStartAd(id)
+
+    fun onInterstitialFinished(completionId: Long) {
+        completions.finishAd(completionId)
+        _state.update { it.copy(pendingAdCompletion = completions.current) }
+    }
+
+    fun onCompletionDismissed(completionId: Long) {
+        completions.acknowledge(completionId)
+        _state.update { it.copy(pendingAdCompletion = completions.current) }
+    }
+
+    private fun recordSuccess(allowAd: Boolean = true) {
+        val completion = completions.record(allowAd && entitlementState.value == EntitlementState.NOT_OWNED)
+        _state.update { it.copy(pendingAdCompletion = completion) }
+    }
+
+    private fun restoreSelection(): PendingToneSelection? =
+        savedState.get<String>(SELECTION_TYPE)?.let { name ->
+            DeviceDefaultToneType.entries.find { it.name == name }?.let { type ->
+                PendingToneSelection(type, savedState.get<String>(SELECTION_URI)?.let(Uri::parse), savedState[SELECTION_IMPORTED] ?: false)
+            }
+        }
+
+    private fun saveSelection(selection: PendingToneSelection) {
+        savedState[SELECTION_TYPE] = selection.toneType.name
+        savedState[SELECTION_URI] = selection.uri?.toString()
+        savedState[SELECTION_IMPORTED] = selection.cleanupImportedOnDiscard
+        savedState[PHASE] = "waiting_for_settings"
+    }
+
+    private fun clearSelection() {
+        savedState.remove<String>(SELECTION_TYPE)
+        savedState.remove<String>(SELECTION_URI)
+        savedState.remove<Boolean>(SELECTION_IMPORTED)
+        savedState.remove<String>(PHASE)
     }
 
     fun onScreenResumed() {
@@ -60,7 +166,10 @@ internal class DeviceDefaultTonesViewModel(
                 withContext(dispatchers.io) {
                     toneManager.getCurrentDefaultUri(type)
                 }
-            }.onFailure { onError(it) }
+            }.onFailure {
+                if (it is CancellationException) throw it
+                onError(it)
+            }
                 .getOrNull()
 
             _events.trySend(
@@ -75,6 +184,7 @@ internal class DeviceDefaultTonesViewModel(
     }
 
     fun onTonePicked(type: DeviceDefaultToneType, pickedUri: Uri?) {
+        savedState[PHASE] = "validating"
         viewModelScope.launch {
             val validationResult = runCatching {
                 withContext(dispatchers.io) {
@@ -88,8 +198,11 @@ internal class DeviceDefaultTonesViewModel(
                     uri = pickedUri,
                     cleanupImportedOnDiscard = false
                 )
+                pendingToneSelection?.let(::saveSelection)
                 applyPendingSelectionIfAllowed()
             }.onFailure { error ->
+                if (error is CancellationException) throw error
+                clearSelection()
                 val messageResId = mapToneErrorToMessage(error)
                 if (error !is DefaultToneImportException ||
                     error.reason == DefaultToneImportFailureReason.IMPORT_FAILED
@@ -102,6 +215,7 @@ internal class DeviceDefaultTonesViewModel(
     }
 
     fun onCustomTonePicked(type: DeviceDefaultToneType, sourceUri: Uri) {
+        savedState[PHASE] = "importing"
         viewModelScope.launch {
             showLoading()
 
@@ -119,8 +233,11 @@ internal class DeviceDefaultTonesViewModel(
                     uri = importedCustomTone.uri,
                     cleanupImportedOnDiscard = importedCustomTone.wasNewlyCreated
                 )
+                pendingToneSelection?.let(::saveSelection)
                 applyPendingSelectionIfAllowed()
             }.onFailure { error ->
+                if (error is CancellationException) throw error
+                clearSelection()
                 val messageResId = mapToneErrorToMessage(error)
                 if (error !is DefaultToneImportException ||
                     error.reason == DefaultToneImportFailureReason.IMPORT_FAILED
@@ -172,12 +289,14 @@ internal class DeviceDefaultTonesViewModel(
         }
 
         pendingToneSelection = null
+        savedState[PHASE] = "applying"
         applyToneSelection(pending)
     }
 
     private fun discardPendingSelection() {
         val pending = pendingToneSelection ?: return
         pendingToneSelection = null
+        clearSelection()
         if (!pending.cleanupImportedOnDiscard) return
         val uri = pending.uri ?: return
 
@@ -200,14 +319,11 @@ internal class DeviceDefaultTonesViewModel(
 
             setResult.onSuccess {
                 refreshToneNamesInternal()
-                if (entitlementState.value == EntitlementState.NOT_OWNED) {
-                    _events.trySend(
-                        DeviceDefaultTonesEvent.ShowInterstitialThenInfo(R.string.everything_set)
-                    )
-                } else {
-                    _events.trySend(DeviceDefaultTonesEvent.ShowInfoById(R.string.everything_set))
-                }
+                clearSelection()
+                recordSuccess()
             }.onFailure { error ->
+                if (error is CancellationException) throw error
+                clearSelection()
                 onError(error)
                 _events.trySend(DeviceDefaultTonesEvent.ShowApplyFailedDialog)
             }
@@ -233,7 +349,10 @@ internal class DeviceDefaultTonesViewModel(
                     toneManager.getCurrentDisplayName(DeviceDefaultToneType.ALARM)
                 )
             }
-        }.onFailure { onError(it) }
+        }.onFailure {
+                if (it is CancellationException) throw it
+                onError(it)
+            }
             .getOrNull()
 
         if (names == null) {
@@ -269,4 +388,12 @@ internal class DeviceDefaultTonesViewModel(
             null -> R.string.default_tone_import_failed
         }
     }
+    private companion object {
+        const val SELECTION_TYPE = "pending_tone_type"
+        const val SELECTION_URI = "pending_tone_uri"
+        const val SELECTION_IMPORTED = "pending_tone_imported"
+        const val PHASE = "pending_tone_phase"
+        const val SETTINGS_OPENED = "pending_tone_settings_opened"
+    }
+
 }

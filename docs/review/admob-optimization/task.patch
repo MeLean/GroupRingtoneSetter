@@ -1,0 +1,1406 @@
+diff --git a/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdBannerView.kt b/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdBannerView.kt
+index 0011279..fafbf26 100644
+--- a/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdBannerView.kt
++++ b/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdBannerView.kt
+@@ -5,7 +5,6 @@ import android.os.Handler
+ import android.os.Looper
+ import android.util.AttributeSet
+ import android.widget.FrameLayout
+-import androidx.core.view.doOnLayout
+ import com.google.android.gms.ads.AdListener
+ import com.google.android.gms.ads.AdRequest
+ import com.google.android.gms.ads.AdSize
+@@ -13,6 +12,7 @@ import com.google.android.gms.ads.AdView
+ import com.google.android.gms.ads.OnPaidEventListener
+ import com.milen.grounpringtonesetter.App
+ import com.milen.grounpringtonesetter.R
++import com.milen.grounpringtonesetter.billing.EntitlementState
+ 
+ internal class AdBannerView @JvmOverloads constructor(
+     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
+@@ -32,6 +32,7 @@ internal class AdBannerView @JvmOverloads constructor(
+     private var placement: String = "unknown"
+     private var bannerRetryAttempt = 0
+     private var pendingRetry: Runnable? = null
++    private var pendingLayout: OnLayoutChangeListener? = null
+ 
+     override fun onDetachedFromWindow() {
+         super.onDetachedFromWindow()
+@@ -40,11 +41,16 @@ internal class AdBannerView @JvmOverloads constructor(
+ 
+     fun destroyBanner() {
+         cancelPendingRetry()
++        pendingLayout?.let(::removeOnLayoutChangeListener)
++        pendingLayout = null
+         bannerLoaded = false
+         isBannerLoading = false
+         bannerRetryAttempt = 0
+-        bannerAdView?.destroy()
++        val obsoleteAdView = bannerAdView
+         bannerAdView = null
++        obsoleteAdView?.adListener = object : AdListener() {}
++        obsoleteAdView?.onPaidEventListener = null
++        obsoleteAdView?.destroy()
+         removeAllViews()
+     }
+ 
+@@ -72,10 +78,16 @@ internal class AdBannerView @JvmOverloads constructor(
+ 
+     private fun maybeLoadBanner() {
+         if (!isBannerRequestAllowed()) return
+-        if (bannerLoaded || isBannerLoading) return
++        if (bannerLoaded || isBannerLoading || pendingRetry != null) return
+ 
+         if (width == 0) {
+-            doOnLayout { maybeLoadBanner() }
++            if (pendingLayout == null) {
++                pendingLayout = OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
++                    pendingLayout?.let(::removeOnLayoutChangeListener)
++                    pendingLayout = null
++                    maybeLoadBanner()
++                }.also(::addOnLayoutChangeListener)
++            }
+             return
+         }
+ 
+@@ -84,6 +96,11 @@ internal class AdBannerView @JvmOverloads constructor(
+             setAdSize(resolveAdaptiveSize())
+             adListener = object : AdListener() {
+                 override fun onAdLoaded() {
++                    if (bannerAdView !== this@apply) return
++                    if (!isBannerRequestAllowed()) {
++                        destroyBanner()
++                        return
++                    }
+                     cancelPendingRetry()
+                     isBannerLoading = false
+                     bannerLoaded = true
+@@ -96,6 +113,11 @@ internal class AdBannerView @JvmOverloads constructor(
+                 }
+ 
+                 override fun onAdFailedToLoad(loadAdError: com.google.android.gms.ads.LoadAdError) {
++                    if (bannerAdView !== this@apply) return
++                    if (!isBannerRequestAllowed()) {
++                        destroyBanner()
++                        return
++                    }
+                     isBannerLoading = false
+                     bannerLoaded = false
+                     AdDiagnostics.logLoadFailure(
+@@ -108,6 +130,7 @@ internal class AdBannerView @JvmOverloads constructor(
+                 }
+ 
+                 override fun onAdImpression() {
++                    if (bannerAdView !== this@apply) return
+                     AdDiagnostics.logDebugEvent(
+                         format = "banner",
+                         placement = placement,
+@@ -116,6 +139,7 @@ internal class AdBannerView @JvmOverloads constructor(
+                 }
+ 
+                 override fun onAdClicked() {
++                    if (bannerAdView !== this@apply) return
+                     AdDiagnostics.logDebugEvent(
+                         format = "banner",
+                         placement = placement,
+@@ -124,6 +148,7 @@ internal class AdBannerView @JvmOverloads constructor(
+                 }
+             }
+             onPaidEventListener = OnPaidEventListener { adValue ->
++                if (bannerAdView !== this@apply) return@OnPaidEventListener
+                 AdDiagnostics.trackPaidEvent(
+                     tracker = tracker,
+                     format = "banner",
+@@ -163,6 +188,7 @@ internal class AdBannerView @JvmOverloads constructor(
+         if (!isAttachedToWindow) return false
+         if (!isBannerEnabled) return false
+         if (!adsManager.canLoadAds.value) return false
++        if ((context.applicationContext as App).billingManager.state.value != EntitlementState.NOT_OWNED) return false
+         if (visibility != VISIBLE) return false
+         if (!isShown) return false
+         return true
+@@ -174,9 +200,12 @@ internal class AdBannerView @JvmOverloads constructor(
+ 
+         val retryDelayMs = RETRY_DELAYS_MS[bannerRetryAttempt.coerceAtMost(RETRY_DELAYS_MS.lastIndex)]
+         bannerRetryAttempt += 1
+-        pendingRetry = Runnable {
+-            pendingRetry = null
+-            maybeLoadBanner()
++        pendingRetry = object : Runnable {
++            override fun run() {
++                if (pendingRetry !== this) return
++                pendingRetry = null
++                maybeLoadBanner()
++            }
+         }.also { runnable ->
+             retryHandler.postDelayed(runnable, retryDelayMs)
+         }
+@@ -194,11 +223,13 @@ internal class AdBannerView @JvmOverloads constructor(
+ 
+     private fun replaceBannerView(adView: AdView) {
+         val previousBannerView = bannerAdView
++        bannerAdView = adView
+         removeAllViews()
+         if (previousBannerView !== adView) {
++            previousBannerView?.adListener = object : AdListener() {}
++            previousBannerView?.onPaidEventListener = null
+             previousBannerView?.destroy()
+         }
+-        bannerAdView = adView
+         addView(adView)
+     }
+ 
+diff --git a/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdLoadingHelper.kt b/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdLoadingHelper.kt
+index 08a50e0..66554a0 100644
+--- a/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdLoadingHelper.kt
++++ b/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdLoadingHelper.kt
+@@ -11,6 +11,7 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
+ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+ import com.milen.grounpringtonesetter.App
+ import com.milen.grounpringtonesetter.R
++import com.milen.grounpringtonesetter.billing.EntitlementState
+ import java.lang.ref.WeakReference
+ 
+ internal enum class InterstitialAdShowResult {
+@@ -51,13 +52,27 @@ internal class AdLoadingHelper(
+     fun loadInterstitialAd(
+         onAdLoadingFinished: (Boolean) -> Unit = {},
+     ) {
++        if (!isAdEligible()) {
++            clearCachedInterstitial()
++            onAdLoadingFinished(false)
++            return
++        }
++        val nowMs = SystemClock.elapsedRealtime()
++        clearExpiredInterstitialIfNeeded(nowMs)
++        if (policy.isSessionCapReached()) {
++            clearCachedInterstitial()
++            logDebug("load skipped session_cap")
++            onAdLoadingFinished(false)
++            return
++        }
+         if (interstitialAd != null) {
++            logDebug("cache reused")
+             onAdLoadingFinished(true)
+             return
+         }
+ 
+-        if (!adsManager.canLoadAds.value) {
+-            onAdLoadingFinished(false)
++        if (isLoadingInterstitialAd) {
++            loadCallbacks += onAdLoadingFinished
+             return
+         }
+ 
+@@ -74,7 +89,6 @@ internal class AdLoadingHelper(
+             return
+         }
+ 
+-        val nowMs = SystemClock.elapsedRealtime()
+         if (!policy.canLoad(nowMs)) {
+             onAdLoadingFinished(false)
+             AdDiagnostics.logDebugEvent(
+@@ -86,8 +100,6 @@ internal class AdLoadingHelper(
+         }
+ 
+         loadCallbacks += onAdLoadingFinished
+-        if (isLoadingInterstitialAd) return
+-
+         isLoadingInterstitialAd = true
+         val adRequest = AdRequest.Builder().build()
+         val adUnitId = activity.getString(R.string.admob_interstitial_unit_id)
+@@ -96,51 +108,74 @@ internal class AdLoadingHelper(
+             placement = placement,
+             message = "requesting unit=$adUnitId"
+         )
+-        InterstitialAd.load(
+-            activity,
+-            adUnitId,
+-            adRequest,
+-            object : InterstitialAdLoadCallback() {
+-                override fun onAdLoaded(ad: InterstitialAd) {
+-                    isLoadingInterstitialAd = false
+-                    policy.onLoadSucceeded()
+-                    interstitialAd = ad
+-                    interstitialLoadedAtMs = SystemClock.elapsedRealtime()
+-                    ad.onPaidEventListener = OnPaidEventListener { adValue ->
+-                        AdDiagnostics.trackPaidEvent(
+-                            tracker = tracker,
++        var requestCompleted = false
++        runCatching {
++            InterstitialAd.load(
++                activity,
++                adUnitId,
++                adRequest,
++                object : InterstitialAdLoadCallback() {
++                    override fun onAdLoaded(ad: InterstitialAd) {
++                        if (requestCompleted) return
++                        requestCompleted = true
++                        isLoadingInterstitialAd = false
++                        policy.onLoadSucceeded()
++                        if (!isAdEligible() || policy.isSessionCapReached() || currentActivityOrNull() == null) {
++                            logDebug("loaded ad discarded: eligibility, session cap or activity changed")
++                            finishLoading(false)
++                            return
++                        }
++                        interstitialAd = ad
++                        interstitialLoadedAtMs = SystemClock.elapsedRealtime()
++                        ad.onPaidEventListener = OnPaidEventListener { adValue ->
++                            AdDiagnostics.trackPaidEvent(
++                                tracker = tracker,
++                                format = "interstitial",
++                                placement = placement,
++                                adUnitId = ad.adUnitId,
++                                adValue = adValue,
++                                responseInfo = ad.responseInfo
++                            )
++                        }
++                        AdDiagnostics.logDebugEvent(
+                             format = "interstitial",
+                             placement = placement,
+-                            adUnitId = ad.adUnitId,
+-                            adValue = adValue,
+-                            responseInfo = ad.responseInfo
++                            message = "loaded unit=${ad.adUnitId} responseId=${ad.responseInfo.responseId.orEmpty()}"
+                         )
++                        finishLoading(true)
+                     }
+-                    AdDiagnostics.logDebugEvent(
+-                        format = "interstitial",
+-                        placement = placement,
+-                        message = "loaded unit=${ad.adUnitId} responseId=${ad.responseInfo.responseId.orEmpty()}"
+-                    )
+-                    val callbacks = loadCallbacks.toList()
+-                    loadCallbacks.clear()
+-                    callbacks.forEach { it(true) }
+-                }
+ 
+-                override fun onAdFailedToLoad(adError: LoadAdError) {
+-                    isLoadingInterstitialAd = false
+-                    clearCachedInterstitial()
+-                    policy.onLoadFailed(SystemClock.elapsedRealtime())
+-                    AdDiagnostics.logLoadFailure(
+-                        format = "interstitial",
+-                        placement = placement,
+-                        adUnitId = adUnitId,
+-                        error = adError
+-                    )
+-                    val callbacks = loadCallbacks.toList()
+-                    loadCallbacks.clear()
+-                    callbacks.forEach { it(false) }
+-                }
+-            })
++                    override fun onAdFailedToLoad(adError: LoadAdError) {
++                        if (requestCompleted) return
++                        requestCompleted = true
++                        isLoadingInterstitialAd = false
++                        clearCachedInterstitial()
++                        policy.onLoadFailed(SystemClock.elapsedRealtime())
++                        AdDiagnostics.logLoadFailure(
++                            format = "interstitial",
++                            placement = placement,
++                            adUnitId = adUnitId,
++                            error = adError
++                        )
++                        finishLoading(false)
++                    }
++                },
++            )
++        }.onFailure { throwable ->
++            if (requestCompleted) return@onFailure
++            requestCompleted = true
++            isLoadingInterstitialAd = false
++            policy.onLoadFailed(SystemClock.elapsedRealtime())
++            AdDiagnostics.trackUnexpectedState(
++                tracker = tracker,
++                format = "interstitial",
++                placement = placement,
++                stage = "load",
++                reason = "interstitial_load_threw",
++                throwable = throwable,
++            )
++            finishLoading(false)
++        }
+     }
+ 
+     override fun preloadInterstitialAd() {
+@@ -150,7 +185,9 @@ internal class AdLoadingHelper(
+     override fun showInterstitialAd(
+         onAdLoadingFinished: (InterstitialAdShowResult) -> Unit,
+     ) {
+-        if (!adsManager.canLoadAds.value) {
++        if (!isAdEligible()) {
++            clearCachedInterstitial()
++            logDebug("show skipped consent, SDK readiness or entitlement")
+             onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
+             return
+         }
+@@ -159,10 +196,11 @@ internal class AdLoadingHelper(
+         clearExpiredInterstitialIfNeeded(nowMs)
+ 
+         if (!policy.canShow(nowMs)) {
++            if (policy.isSessionCapReached()) clearCachedInterstitial()
+             AdDiagnostics.logDebugEvent(
+                 format = "interstitial",
+                 placement = placement,
+-                message = "show skipped due to frequency cap"
++                message = "show skipped: ${policy.showBlockReason(nowMs)}"
+             )
+             onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
+             return
+@@ -184,7 +222,12 @@ internal class AdLoadingHelper(
+                     if (isSuccessfulLoaded) {
+                         showInterstitialAd(onAdLoadingFinished)
+                     } else {
+-                        onAdLoadingFinished(InterstitialAdShowResult.LOAD_FAILED)
++                        val result = if (!isAdEligible() || currentActivityOrNull() == null || policy.isSessionCapReached()) {
++                            InterstitialAdShowResult.SKIPPED
++                        } else {
++                            InterstitialAdShowResult.LOAD_FAILED
++                        }
++                        onAdLoadingFinished(result)
+                     }
+                 }
+             )
+@@ -218,21 +261,40 @@ internal class AdLoadingHelper(
+             return
+         }
+ 
+-        interstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
++        val ad = interstitialAd ?: run {
++            policy.onFullscreenAdClosed()
++            onAdLoadingFinished(InterstitialAdShowResult.SKIPPED)
++            return
++        }
++        // Consume this ad before invoking the SDK so reentrant calls cannot reuse it.
++        interstitialAd = null
++        interstitialLoadedAtMs = 0L
++        var completed = false
++        fun complete(result: InterstitialAdShowResult) {
++            if (completed) return
++            completed = true
++            ad.fullScreenContentCallback = null
++            policy.onFullscreenAdClosed()
++            onAdLoadingFinished(result)
++        }
++        logDebug("show attempted")
++        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+             override fun onAdShowedFullScreenContent() {
+                 AdDiagnostics.logDebugEvent(
+                     format = "interstitial",
+                     placement = placement,
+-                    message = "shown unit=${interstitialAd?.adUnitId.orEmpty()}"
++                    message = "shown unit=${ad.adUnitId}"
+                 )
+             }
+ 
+             override fun onAdImpression() {
++                if (completed) return
+                 policy.onAdImpression(SystemClock.elapsedRealtime())
++                if (policy.isSessionCapReached()) logDebug("session cap reached")
+                 AdDiagnostics.logDebugEvent(
+                     format = "interstitial",
+                     placement = placement,
+-                    message = "impression unit=${interstitialAd?.adUnitId.orEmpty()}"
++                    message = "impression unit=${ad.adUnitId}"
+                 )
+             }
+ 
+@@ -240,41 +302,35 @@ internal class AdLoadingHelper(
+                 AdDiagnostics.logDebugEvent(
+                     format = "interstitial",
+                     placement = placement,
+-                    message = "clicked unit=${interstitialAd?.adUnitId.orEmpty()}"
++                    message = "clicked unit=${ad.adUnitId}"
+                 )
+             }
+ 
+             override fun onAdDismissedFullScreenContent() {
+-                policy.onFullscreenAdClosed()
+-                clearCachedInterstitial()
+-                onAdLoadingFinished(InterstitialAdShowResult.SHOWN)
+-                if (adsManager.canLoadAds.value) {
+-                    preloadInterstitialAd()
+-                }
++                if (completed) return
++                logDebug("dismissed")
++                complete(InterstitialAdShowResult.SHOWN)
++                preloadInterstitialAd()
+             }
+ 
+             override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+-                val adUnitId = interstitialAd?.adUnitId.orEmpty()
++                if (completed) return
++                val adUnitId = ad.adUnitId
+                 AdDiagnostics.logShowFailure(
+                     format = "interstitial",
+                     placement = placement,
+                     adUnitId = adUnitId,
+                     error = adError
+                 )
+-                policy.onFullscreenAdClosed()
+-                clearCachedInterstitial()
+-                onAdLoadingFinished(InterstitialAdShowResult.SHOW_FAILED)
+-                if (adsManager.canLoadAds.value) {
+-                    preloadInterstitialAd()
+-                }
++                complete(InterstitialAdShowResult.SHOW_FAILED)
++                preloadInterstitialAd()
+             }
+         }
+ 
+         runCatching {
+-            interstitialAd?.show(activity)
++            ad.show(activity)
+         }.onFailure { throwable ->
+-            policy.onFullscreenAdClosed()
+-            clearCachedInterstitial()
++            if (completed) return@onFailure
+             AdDiagnostics.trackUnexpectedState(
+                 tracker = tracker,
+                 format = "interstitial",
+@@ -283,12 +339,25 @@ internal class AdLoadingHelper(
+                 reason = "interstitial_show_threw",
+                 throwable = throwable
+             )
+-            onAdLoadingFinished(InterstitialAdShowResult.SHOW_FAILED)
++            complete(InterstitialAdShowResult.SHOW_FAILED)
+         }
+     }
+ 
++    private fun isAdEligible(): Boolean =
++        adsManager.canLoadAds.value && app.billingManager.state.value == EntitlementState.NOT_OWNED
++
++    private fun logDebug(message: String) =
++        AdDiagnostics.logDebugEvent("interstitial", placement, message)
++
++    private fun finishLoading(success: Boolean) {
++        val callbacks = loadCallbacks.toList()
++        loadCallbacks.clear()
++        callbacks.forEach { it(success) }
++    }
++
+     private fun clearCachedInterstitial() {
+         interstitialAd?.fullScreenContentCallback = null
++        interstitialAd?.onPaidEventListener = null
+         interstitialAd = null
+         interstitialLoadedAtMs = 0L
+     }
+@@ -297,8 +366,7 @@ internal class AdLoadingHelper(
+         val hasInterstitial = interstitialAd != null
+         val isExpired =
+             hasInterstitial &&
+-                    interstitialLoadedAtMs > 0L &&
+-                    nowMs - interstitialLoadedAtMs > INTERSTITIAL_EXPIRATION_MS
++                    nowMs - interstitialLoadedAtMs >= INTERSTITIAL_EXPIRATION_MS
+         if (!isExpired) return false
+ 
+         AdDiagnostics.logDebugEvent(
+diff --git a/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicy.kt b/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicy.kt
+index 8ec9401..c72b356 100644
+--- a/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicy.kt
++++ b/app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicy.kt
+@@ -7,13 +7,19 @@ internal class InterstitialAdPolicy {
+     private var nextAllowedLoadAtMs = 0L
+     private var isFullscreenAdShowing = false
+ 
+-    fun canLoad(nowMs: Long): Boolean = nowMs >= nextAllowedLoadAtMs
++    fun canLoad(nowMs: Long): Boolean =
++        !isSessionCapReached() && nowMs >= nextAllowedLoadAtMs
+ 
+-    fun canShow(nowMs: Long): Boolean {
+-        if (isFullscreenAdShowing) return false
+-        if (sessionInterstitialShows >= MAX_INTERSTITIALS_PER_SESSION) return false
+-        if (lastInterstitialImpressionAtMs == 0L) return true
+-        return nowMs - lastInterstitialImpressionAtMs >= MIN_INTERSTITIAL_INTERVAL_MS
++    fun isSessionCapReached(): Boolean = sessionInterstitialShows >= MAX_INTERSTITIALS_PER_SESSION
++
++    fun canShow(nowMs: Long): Boolean = showBlockReason(nowMs) == null
++
++    fun showBlockReason(nowMs: Long): String? = when {
++        isFullscreenAdShowing -> "fullscreen_showing"
++        isSessionCapReached() -> "session_cap"
++        sessionInterstitialShows > 0 &&
++            nowMs - lastInterstitialImpressionAtMs < MIN_INTERSTITIAL_INTERVAL_MS -> "cooldown"
++        else -> null
+     }
+ 
+     fun tryMarkFullscreenAdShowing(): Boolean {
+diff --git a/app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesScreen.kt b/app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesScreen.kt
+index 3acb358..d90ce7a 100644
+--- a/app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesScreen.kt
++++ b/app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesScreen.kt
+@@ -17,6 +17,7 @@ import androidx.activity.result.contract.ActivityResultContracts
+ import androidx.core.content.ContextCompat
+ import androidx.fragment.app.Fragment
+ import androidx.fragment.app.viewModels
++import androidx.lifecycle.Lifecycle
+ import androidx.navigation.fragment.findNavController
+ import com.milen.grounpringtonesetter.App
+ import com.milen.grounpringtonesetter.R
+@@ -38,6 +39,9 @@ import com.milen.grounpringtonesetter.utils.handleLoading
+ import com.milen.grounpringtonesetter.utils.launchRingtonePickerSafely
+ import com.milen.grounpringtonesetter.utils.manageVisibility
+ 
++import kotlinx.coroutines.flow.combine
++import java.lang.ref.WeakReference
++
+ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
+     private lateinit var binding: FragmentDeviceDefaultTonesBinding
+     private lateinit var dialogHandler: DialogHandler
+@@ -166,8 +170,15 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
+                 }
+ 
+                 is DeviceDefaultTonesEvent.ShowInterstitialThenInfo -> {
++                    val screenRef = WeakReference(this)
++                    val ownerRef = WeakReference(viewLifecycleOwner)
++                    val messageResId = event.messageResId
+                     adHelper.showInterstitialAd {
+-                        dialogHandler.showInfo(event.messageResId)
++                        val owner = ownerRef.get()
++                        if (owner != null && owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
++                            screenRef.get()?.takeIf { it.isAdded && it.view != null }
++                                ?.dialogHandler?.showInfo(messageResId)
++                        }
+                     }
+                 }
+ 
+@@ -180,16 +191,15 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
+         billing.state.collectStateIn(viewLifecycleOwner) { entitlement ->
+             currentEntitlement = entitlement
+             renderBannerVisibility()
+-            if (entitlement == EntitlementState.NOT_OWNED && canLoadAds) {
+-                adHelper.preloadInterstitialAd()
+-            }
+         }
+         adsManager.canLoadAds.collectStateIn(viewLifecycleOwner) { canLoadAds ->
+             this.canLoadAds = canLoadAds
+             renderBannerVisibility()
+-            if (currentEntitlement == EntitlementState.NOT_OWNED && canLoadAds) {
+-                adHelper.preloadInterstitialAd()
+-            }
++        }
++        combine(billing.state, adsManager.canLoadAds) { entitlement, ready ->
++            entitlement == EntitlementState.NOT_OWNED && ready
++        }.collectStateIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { eligible ->
++            if (eligible) adHelper.preloadInterstitialAd()
+         }
+     }
+ 
+@@ -197,9 +207,6 @@ internal class DeviceDefaultTonesScreen : Fragment(), ScreenInfoProvider {
+         super.onResume()
+         changeMainTitle(getString(R.string.device_default_tones_title))
+         viewModel.onScreenResumed()
+-        if (currentEntitlement == EntitlementState.NOT_OWNED && canLoadAds) {
+-            adHelper.preloadInterstitialAd()
+-        }
+     }
+ 
+     private fun renderBannerVisibility() {
+diff --git a/app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt b/app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
+index c944e65..d71df1b 100644
+--- a/app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
++++ b/app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
+@@ -78,6 +78,7 @@ import com.milen.grounpringtonesetter.utils.parcelableOrNull
+ import kotlinx.coroutines.Job
+ import kotlinx.coroutines.delay
+ import kotlinx.coroutines.flow.collectLatest
++import kotlinx.coroutines.flow.combine
+ import kotlinx.coroutines.launch
+ import kotlin.time.Duration.Companion.milliseconds
+ 
+@@ -355,6 +356,12 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
+             renderBannerVisibility()
+         }
+ 
++        combine(viewModel.state, adsManager.canLoadAds) { state, ready ->
++            state.entitlement == EntitlementState.NOT_OWNED && ready
++        }.collectStateIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { eligible ->
++            if (eligible) viewModel.onAdsReady(requireActivity())
++        }
++
+         viewModel.events.collectEventsIn(viewLifecycleOwner) { event ->
+             when (event) {
+                 is HomeEvent.AskSourceSelection ->
+diff --git a/app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModel.kt b/app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModel.kt
+index e2f933f..7c6b610 100644
+--- a/app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModel.kt
++++ b/app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModel.kt
+@@ -447,14 +447,18 @@ internal class HomeViewModel(
+ 
+     fun onHomeResumed(activity: Activity) {
+         adHelper.updateActivity(activity)
+-        if (_state.value.entitlement == EntitlementState.NOT_OWNED) {
+-            adHelper.preloadInterstitialAd()
+-        }
+         if (_state.value.isPurchaseInProgress) {
+             releasePurchaseUiGuard("home_resumed")
+         }
+     }
+ 
++    fun onAdsReady(activity: Activity) {
++        adHelper.updateActivity(activity)
++        if (billing.state.value == EntitlementState.NOT_OWNED) {
++            adHelper.preloadInterstitialAd()
++        }
++    }
++
+     private fun startPurchaseUiGuardTimeout() {
+         purchaseUiGuardTimeoutJob?.cancel()
+         purchaseUiGuardTimeoutJob = viewModelScope.launch {
+diff --git a/app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicyTest.kt b/app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicyTest.kt
+index 1bb47b4..193af12 100644
+--- a/app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicyTest.kt
++++ b/app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicyTest.kt
+@@ -7,6 +7,50 @@ import org.junit.Test
+ 
+ class InterstitialAdPolicyTest {
+ 
++    @Test
++    fun `impression at monotonic clock origin still starts cooldown`() {
++        val policy = InterstitialAdPolicy()
++        policy.onAdImpression(0L)
++        assertFalse(policy.canShow(89_999L))
++        assertTrue(policy.canShow(90_000L))
++    }
++
++    @Test
++    fun `preload remains allowed during impression cooldown`() {
++        val policy = InterstitialAdPolicy()
++        policy.onAdImpression(1_000L)
++        assertTrue(policy.canLoad(1_001L))
++        assertFalse(policy.canShow(1_001L))
++    }
++
++    @Test
++    fun `preload is blocked at session cap even after backoff resets`() {
++        val policy = InterstitialAdPolicy()
++        repeat(4) { policy.onAdImpression(1_000L + it * 90_000L) }
++        policy.onLoadSucceeded()
++        assertFalse(policy.canLoad(1_000_000L))
++    }
++
++    @Test
++    fun `fullscreen lock prevents overlapping shows and releases on close`() {
++        val policy = InterstitialAdPolicy()
++        assertTrue(policy.tryMarkFullscreenAdShowing())
++        assertFalse(policy.tryMarkFullscreenAdShowing())
++        assertFalse(policy.canShow(1_000L))
++        policy.onFullscreenAdClosed()
++        assertTrue(policy.canShow(1_000L))
++    }
++
++    @Test
++    fun `failure backoff caps at five minutes`() {
++        val policy = InterstitialAdPolicy()
++        listOf(30_000L, 60_000L, 120_000L, 300_000L, 300_000L).forEach { delay ->
++            policy.onLoadFailed(1_000L)
++            assertFalse(policy.canLoad(1_000L + delay - 1L))
++            assertTrue(policy.canLoad(1_000L + delay))
++        }
++    }
++
+     @Test
+     fun `show is blocked until cooldown expires after impression`() {
+         val policy = InterstitialAdPolicy()
+diff --git a/app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdRuntimeRegressionTest.kt b/app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdRuntimeRegressionTest.kt
+new file mode 100644
+index 0000000..572d319
+--- /dev/null
++++ b/app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdRuntimeRegressionTest.kt
+@@ -0,0 +1,442 @@
++package com.milen.grounpringtonesetter.customviews.ui.ads
++
++import android.app.Activity
++import android.content.Context
++import android.content.res.Resources
++import android.os.SystemClock
++import com.google.android.gms.ads.AdError
++import com.google.android.gms.ads.BaseAdView
++import com.google.android.gms.ads.AdRequest
++import com.google.android.gms.ads.FullScreenContentCallback
++import com.google.android.gms.ads.LoadAdError
++import com.google.android.gms.ads.OnPaidEventListener
++import com.google.android.gms.ads.ResponseInfo
++import com.google.android.gms.ads.interstitial.InterstitialAd
++import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
++import com.milen.grounpringtonesetter.App
++import com.milen.grounpringtonesetter.R
++import com.milen.grounpringtonesetter.billing.EntitlementState
++import com.milen.grounpringtonesetter.testing.FakeBillingGateway
++import com.milen.grounpringtonesetter.testing.RecordingTelemetry
++import com.milen.grounpringtonesetter.testing.FakeContactsRepository
++import com.milen.grounpringtonesetter.testing.FakeContactSourceRepository
++import com.milen.grounpringtonesetter.testing.FakeInterstitialAdGateway
++import com.milen.grounpringtonesetter.testing.InMemoryHomePreferencesDataSource
++import com.milen.grounpringtonesetter.testing.TestDispatcherProvider
++import com.milen.grounpringtonesetter.data.prefs.HomePreferencesStore
++import com.milen.grounpringtonesetter.ui.home.viewmodel.HomeViewModel
++import com.milen.grounpringtonesetter.utils.DispatchersProvider
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.ExperimentalCoroutinesApi
++import kotlinx.coroutines.test.StandardTestDispatcher
++import kotlinx.coroutines.test.advanceUntilIdle
++import kotlinx.coroutines.test.resetMain
++import kotlinx.coroutines.test.runTest
++import kotlinx.coroutines.test.setMain
++import kotlinx.coroutines.flow.MutableStateFlow
++import org.junit.Assert.*
++import org.junit.Before
++import org.junit.Test
++import org.junit.runner.RunWith
++import org.robolectric.Robolectric
++import org.robolectric.RobolectricTestRunner
++import org.robolectric.RuntimeEnvironment
++import org.robolectric.annotation.Config
++import org.robolectric.annotation.Implementation
++import org.robolectric.annotation.Implements
++import org.robolectric.annotation.RealObject
++import org.robolectric.Shadows
++import android.os.Looper
++import org.robolectric.util.ReflectionHelpers
++import java.time.Duration
++
++@RunWith(RobolectricTestRunner::class)
++@Config(sdk = [34], manifest = Config.NONE, application = AdRuntimeTestApplication::class,
++    shadows = [InterstitialLoadShadow::class, BannerLoadShadow::class])
++class AdRuntimeRegressionTest {
++    private val app get() = RuntimeEnvironment.getApplication() as AdRuntimeTestApplication
++
++    @Before
++    fun reset() {
++        InterstitialLoadShadow.requests.clear()
++        InterstitialLoadShadow.throwOnLoad = false
++        BannerLoadShadow.requests.clear()
++        app.ads.canLoadAds.value = true
++        app.billing.state.value = EntitlementState.NOT_OWNED
++    }
++
++    @Test
++    fun `banner enable emissions preserve scheduled backoff and cancellation rejects stale runnable`() {
++        val controller = Robolectric.buildActivity(AdRuntimeTestActivity::class.java).setup()
++        val banner = AdBannerView(controller.get())
++        controller.get().setContentView(banner)
++        banner.layout(0, 0, 320, 50)
++        banner.setAdsEnabled(true)
++        BannerLoadShadow.requests.last().adListener.onAdFailedToLoad(noFill())
++        val retry = field<Runnable>(banner, "pendingRetry")
++        repeat(5) { banner.setAdsEnabled(true) }
++        assertEquals(1, BannerLoadShadow.requests.size)
++        assertSame(retry, field<Runnable>(banner, "pendingRetry"))
++        assertEquals(1, field<Int>(banner, "bannerRetryAttempt"))
++        Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(29_999))
++        assertSame(retry, field<Runnable>(banner, "pendingRetry"))
++        banner.setAdsEnabled(false)
++        assertNull(field<Runnable?>(banner, "pendingRetry"))
++        retry.run()
++        assertNull(field<Runnable?>(banner, "pendingRetry"))
++        assertEquals(0, field<Int>(banner, "bannerRetryAttempt"))
++        banner.setAdsEnabled(true)
++        BannerLoadShadow.requests.last().adListener.onAdFailedToLoad(noFill())
++        assertNotNull(field<Runnable?>(banner, "pendingRetry"))
++        controller.pause().stop().destroy()
++        assertNull(field<Runnable?>(banner, "pendingRetry"))
++    }
++
++    @Test
++    fun `banner retry delays remain thirty sixty and capped one hundred twenty seconds`() {
++        val controller = Robolectric.buildActivity(AdRuntimeTestActivity::class.java).setup()
++        val banner = AdBannerView(controller.get())
++        controller.get().setContentView(banner)
++        banner.layout(0, 0, 320, 50)
++        banner.setAdsEnabled(true)
++        listOf(30L, 60L, 120L, 120L).forEach { seconds ->
++            val listener = BannerLoadShadow.requests.last().adListener
++            listener.onAdFailedToLoad(noFill())
++            val retry = field<Runnable>(banner, "pendingRetry")
++            val requestsBeforeRetry = BannerLoadShadow.requests.size
++            Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(seconds).minusMillis(1))
++            assertSame(retry, field<Runnable>(banner, "pendingRetry"))
++            assertEquals(requestsBeforeRetry, BannerLoadShadow.requests.size)
++            Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(1))
++            assertNull(field<Runnable?>(banner, "pendingRetry"))
++            assertEquals(requestsBeforeRetry + 1, BannerLoadShadow.requests.size)
++            // Late callbacks from the replaced SDK view cannot change the new request's state.
++            listener.onAdLoaded()
++            assertFalse(field<Boolean>(banner, "bannerLoaded"))
++            assertTrue(field<Boolean>(banner, "isBannerLoading"))
++        }
++        BannerLoadShadow.requests.last().adListener.onAdLoaded()
++        assertEquals(0, field<Int>(banner, "bannerRetryAttempt"))
++        assertTrue(field<Boolean>(banner, "bannerLoaded"))
++        controller.pause().stop().destroy()
++    }
++
++    @Test
++    fun `only confirmed entitlement and readiness permit a request`() = withHelper { helper ->
++        EntitlementState.entries.filter { it != EntitlementState.NOT_OWNED }.forEach { state ->
++            app.billing.state.value = state
++            helper.preloadInterstitialAd()
++            helper.showInterstitialAd { assertEquals(InterstitialAdShowResult.SKIPPED, it) }
++        }
++        app.billing.state.value = EntitlementState.NOT_OWNED
++        app.ads.canLoadAds.value = false
++        helper.preloadInterstitialAd()
++        assertTrue(InterstitialLoadShadow.requests.isEmpty())
++        app.ads.canLoadAds.value = true
++        repeat(5) { helper.preloadInterstitialAd() }
++        assertEquals(1, InterstitialLoadShadow.requests.size)
++    }
++
++    @Test
++    fun `late load is discarded after entitlement or readiness changes`() = withHelper { helper ->
++        val results = mutableListOf<Boolean>()
++        helper.loadInterstitialAd { results += it }
++        app.billing.state.value = EntitlementState.OWNED
++        InterstitialLoadShadow.requests.single().onAdLoaded(TestInterstitial())
++        assertEquals(listOf(false), results)
++        assertNull(field<InterstitialAd?>(helper, "interstitialAd"))
++    }
++
++    @Test
++    fun `purchase while waiting for a display resolves as skipped rather than ad unavailable`() = withHelper { helper ->
++        val results = mutableListOf<InterstitialAdShowResult>()
++        helper.showInterstitialAd { results += it }
++        app.billing.state.value = EntitlementState.OWNED
++        InterstitialLoadShadow.requests.single().onAdLoaded(TestInterstitial())
++        assertEquals(listOf(InterstitialAdShowResult.SKIPPED), results)
++    }
++
++    @Test
++    fun `duplicate load callers complete once and failure enforces backoff`() = withHelper { helper ->
++        val results = mutableListOf<Boolean>()
++        repeat(2) { helper.loadInterstitialAd { results += it } }
++        assertEquals(1, InterstitialLoadShadow.requests.size)
++        InterstitialLoadShadow.requests.single().onAdFailedToLoad(LoadAdError(3, "no fill", "test", null, null))
++        assertEquals(listOf(false, false), results)
++        helper.preloadInterstitialAd()
++        assertEquals(1, InterstitialLoadShadow.requests.size)
++        Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(30))
++        helper.preloadInterstitialAd()
++        assertEquals(2, InterstitialLoadShadow.requests.size)
++    }
++
++    @Test
++    fun `load path reuses fresh cache and expires it at fifty five minutes`() = withHelper { helper ->
++        seedCache(helper, TestInterstitial())
++        helper.loadInterstitialAd { assertTrue(it) }
++        assertTrue(InterstitialLoadShadow.requests.isEmpty())
++        Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMinutes(55))
++        helper.preloadInterstitialAd()
++        assertNull(field<InterstitialAd?>(helper, "interstitialAd"))
++        assertEquals(1, InterstitialLoadShadow.requests.size)
++    }
++
++    @Test
++    fun `fourth impression dismissal completes once without another preload`() = withHelper { helper ->
++        repeat(3) { app.ads.interstitialAdPolicy.onAdImpression(SystemClock.elapsedRealtime() - 90_000) }
++        val ad = TestInterstitial()
++        seedCache(helper, ad)
++        val results = mutableListOf<InterstitialAdShowResult>()
++        helper.showInterstitialAd { results += it }
++        val callback = requireNotNull(ad.callback)
++        callback.onAdImpression()
++        callback.onAdDismissedFullScreenContent()
++        callback.onAdFailedToShowFullScreenContent(AdError(0, "late", "test"))
++        assertEquals(listOf(InterstitialAdShowResult.SHOWN), results)
++        assertNull(ad.callback)
++        assertTrue(InterstitialLoadShadow.requests.isEmpty())
++        assertFalse(app.ads.interstitialAdPolicy.canLoad(Long.MAX_VALUE))
++    }
++
++    @Test
++    fun `display failure consumes cache releases fullscreen lock and completes once`() = withHelper { helper ->
++        val ad = TestInterstitial()
++        seedCache(helper, ad)
++        val results = mutableListOf<InterstitialAdShowResult>()
++        helper.showInterstitialAd { results += it }
++        val callback = requireNotNull(ad.callback)
++        helper.showInterstitialAd { assertEquals(InterstitialAdShowResult.SKIPPED, it) }
++        callback.onAdFailedToShowFullScreenContent(AdError(0, "failed", "test"))
++        callback.onAdDismissedFullScreenContent()
++        assertEquals(listOf(InterstitialAdShowResult.SHOW_FAILED), results)
++        assertNull(ad.callback)
++        assertTrue(app.ads.interstitialAdPolicy.canShow(SystemClock.elapsedRealtime()))
++        assertEquals(1, InterstitialLoadShadow.requests.size)
++    }
++
++    @Test
++    fun `expired ad is never displayed and replacement failure completes once`() = withHelper { helper ->
++        val expired = TestInterstitial()
++        seedCache(helper, expired)
++        Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMinutes(55))
++        val results = mutableListOf<InterstitialAdShowResult>()
++        helper.showInterstitialAd { results += it }
++        assertNull(expired.shownActivity)
++        InterstitialLoadShadow.requests.single().onAdFailedToLoad(noFill())
++        assertEquals(listOf(InterstitialAdShowResult.LOAD_FAILED), results)
++    }
++
++    @Test
++    fun `synchronous display exception releases lock and completes once`() = withHelper { helper ->
++        val ad = TestInterstitial().apply { throwOnShow = true }
++        seedCache(helper, ad)
++        val results = mutableListOf<InterstitialAdShowResult>()
++        helper.showInterstitialAd { results += it }
++        assertEquals(listOf(InterstitialAdShowResult.SHOW_FAILED), results)
++        assertNull(ad.callback)
++        assertNull(field<InterstitialAd?>(helper, "interstitialAd"))
++        assertTrue(app.ads.interstitialAdPolicy.canShow(SystemClock.elapsedRealtime()))
++    }
++
++    @Test
++    fun `synchronous request exception completes once and starts backoff`() = withHelper { helper ->
++        InterstitialLoadShadow.throwOnLoad = true
++        val results = mutableListOf<Boolean>()
++        helper.loadInterstitialAd { results += it }
++        assertEquals(listOf(false), results)
++        assertFalse(field<Boolean>(helper, "isLoadingInterstitialAd"))
++        assertFalse(app.ads.interstitialAdPolicy.canLoad(SystemClock.elapsedRealtime()))
++    }
++
++    @Test
++    fun `separate helpers cannot display fullscreen ads concurrently`() = withHelper { first ->
++        val firstAd = TestInterstitial()
++        seedCache(first, firstAd)
++        val second = AdLoadingHelper(requireNotNull(first.currentActivityOrNull()), "second")
++        val secondAd = TestInterstitial()
++        seedCache(second, secondAd)
++        first.showInterstitialAd {}
++        second.showInterstitialAd { assertEquals(InterstitialAdShowResult.SKIPPED, it) }
++        assertNull(secondAd.shownActivity)
++        requireNotNull(firstAd.callback).onAdDismissedFullScreenContent()
++    }
++
++    @Test
++    fun `late load after readiness loss or activity destruction is discarded`() {
++        withHelper { helper ->
++            val results = mutableListOf<Boolean>()
++            helper.loadInterstitialAd { results += it }
++            app.ads.canLoadAds.value = false
++            InterstitialLoadShadow.requests.last().onAdLoaded(TestInterstitial())
++            assertEquals(listOf(false), results)
++            assertNull(field<InterstitialAd?>(helper, "interstitialAd"))
++        }
++        app.ads.canLoadAds.value = true
++        val controller = Robolectric.buildActivity(AdRuntimeTestActivity::class.java).setup()
++        val helper = AdLoadingHelper(controller.get(), "test")
++        val results = mutableListOf<Boolean>()
++        helper.loadInterstitialAd { results += it }
++        controller.pause().stop().destroy()
++        InterstitialLoadShadow.requests.last().onAdLoaded(TestInterstitial())
++        assertEquals(listOf(false), results)
++        assertNull(helper.currentActivityOrNull())
++    }
++
++    @Test
++    fun `obsolete load callback cannot overwrite a newer in flight request`() = withHelper { helper ->
++        helper.preloadInterstitialAd()
++        val obsolete = InterstitialLoadShadow.requests.single()
++        obsolete.onAdFailedToLoad(noFill())
++        Shadows.shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(30))
++        helper.preloadInterstitialAd()
++        obsolete.onAdLoaded(TestInterstitial())
++        assertTrue(field<Boolean>(helper, "isLoadingInterstitialAd"))
++        assertNull(field<InterstitialAd?>(helper, "interstitialAd"))
++    }
++
++    @Test
++    fun `cached ad uses replacement activity after recreation`() {
++        val original = Robolectric.buildActivity(AdRuntimeTestActivity::class.java).setup()
++        val helper = AdLoadingHelper(original.get(), "test")
++        val ad = TestInterstitial()
++        seedCache(helper, ad)
++        original.pause().stop().destroy()
++        val replacement = Robolectric.buildActivity(AdRuntimeTestActivity::class.java).setup()
++        try {
++            helper.updateActivity(replacement.get())
++            helper.showInterstitialAd {}
++            assertSame(replacement.get(), ad.shownActivity)
++            requireNotNull(ad.callback).onAdDismissedFullScreenContent()
++        } finally { replacement.pause().stop().destroy() }
++    }
++
++    @OptIn(ExperimentalCoroutinesApi::class)
++    @Test
++    fun `home readiness uses current billing entitlement even before UI state subscription`() = runTest {
++        val dispatcher = StandardTestDispatcher(testScheduler)
++        val originalDispatchers = DispatchersProvider.delegate
++        Dispatchers.setMain(dispatcher)
++        DispatchersProvider.delegate = TestDispatcherProvider(dispatcher)
++        try {
++            withHelper { helper ->
++                val gateway = FakeInterstitialAdGateway()
++                val billing = FakeBillingGateway(EntitlementState.UNKNOWN)
++                val viewModel = HomeViewModel(
++                    adHelper = gateway,
++                    tracker = RecordingTelemetry(),
++                    billing = billing,
++                    contactsRepo = FakeContactsRepository(),
++                    sourceRepo = FakeContactSourceRepository(),
++                    homePreferencesStore = HomePreferencesStore(InMemoryHomePreferencesDataSource()),
++                )
++                val activity = requireNotNull(helper.currentActivityOrNull())
++                viewModel.onHomeResumed(activity)
++                viewModel.onAdsReady(activity)
++                assertEquals(0, gateway.preloadCalls)
++                billing.state.value = EntitlementState.NOT_OWNED
++                viewModel.onAdsReady(activity)
++                assertEquals(1, gateway.preloadCalls)
++                listOf(EntitlementState.OWNED, EntitlementState.PENDING, EntitlementState.UNKNOWN).forEach {
++                    billing.state.value = it
++                    viewModel.onAdsReady(activity)
++                }
++                assertEquals(1, gateway.preloadCalls)
++                assertEquals(0, gateway.showCalls)
++            }
++            advanceUntilIdle()
++        } finally {
++            DispatchersProvider.delegate = originalDispatchers
++            Dispatchers.resetMain()
++        }
++    }
++
++    private fun withHelper(block: (AdLoadingHelper) -> Unit) {
++        val controller = Robolectric.buildActivity(AdRuntimeTestActivity::class.java).setup()
++        try { block(AdLoadingHelper(controller.get(), "test")) }
++        finally { controller.pause().stop().destroy() }
++    }
++
++    private fun seedCache(helper: AdLoadingHelper, ad: TestInterstitial) {
++        ReflectionHelpers.setField(helper, "interstitialAd", ad)
++        ReflectionHelpers.setField(helper, "interstitialLoadedAtMs", SystemClock.elapsedRealtime())
++    }
++
++    private fun noFill() = LoadAdError(3, "no fill", "test", null, null)
++    private fun <T> field(target: Any, name: String): T = ReflectionHelpers.getField(target, name)
++}
++
++class AdRuntimeTestApplication : App() {
++    internal val ads = RuntimeAdsGateway()
++    internal val billing = FakeBillingGateway(EntitlementState.NOT_OWNED)
++    override fun onCreate() {
++        // Avoid production startup, encrypted storage, Billing and UMP in this test process.
++        ReflectionHelpers.setField(this, "billingManager", billing)
++    }
++    internal override fun createAdsGateway(): AdsGateway = ads
++    internal override fun createTelemetry() = RecordingTelemetry()
++}
++
++class AdRuntimeTestActivity : Activity() {
++    override fun getResources(): Resources {
++        val base = super.getResources()
++        return object : Resources(base.assets, base.displayMetrics, base.configuration) {
++            override fun getString(id: Int): String =
++                when (id) {
++                    R.string.admob_interstitial_unit_id -> "ca-app-pub-3940256099942544/1033173712"
++                    R.string.admob_banner_unit_id -> "ca-app-pub-3940256099942544/6300978111"
++                    else -> super.getString(id)
++                }
++        }
++    }
++}
++
++internal class RuntimeAdsGateway : AdsGateway {
++    override val interstitialAdPolicy = InterstitialAdPolicy()
++    override val canLoadAds = MutableStateFlow(true)
++    override val isPrivacyOptionsRequired = MutableStateFlow(false)
++    override fun initialize() = Unit
++    override fun requestConsent(activity: Activity) = Unit
++    override fun showPrivacyOptionsForm(activity: Activity) = Unit
++    override fun openAdInspector(activity: Activity) = Unit
++}
++
++@Implements(InterstitialAd::class)
++class InterstitialLoadShadow {
++    companion object {
++        val requests = mutableListOf<InterstitialAdLoadCallback>()
++        var throwOnLoad = false
++        @JvmStatic @Implementation
++        fun load(context: Context, id: String, request: AdRequest, callback: InterstitialAdLoadCallback) {
++            if (throwOnLoad) error("Synthetic SDK load exception")
++            requests += callback
++        }
++    }
++}
++
++@Implements(BaseAdView::class)
++class BannerLoadShadow : org.robolectric.shadows.ShadowViewGroup() {
++    @RealObject private lateinit var view: BaseAdView
++    @Implementation fun loadAd(request: AdRequest) { requests += view }
++    companion object { val requests = mutableListOf<BaseAdView>() }
++}
++
++private class TestInterstitial : InterstitialAd() {
++    var callback: FullScreenContentCallback? = null
++    var shownActivity: Activity? = null
++    var throwOnShow = false
++    private var paid: OnPaidEventListener? = null
++    private var placement = 0L
++    override fun getAdUnitId() = "test"
++    override fun show(activity: Activity) {
++        if (throwOnShow) error("Synthetic SDK show exception")
++        shownActivity = activity
++    }
++    override fun setFullScreenContentCallback(callback: FullScreenContentCallback?) { this.callback = callback }
++    override fun getFullScreenContentCallback() = callback
++    override fun setImmersiveMode(immersive: Boolean) = Unit
++    override fun getResponseInfo(): ResponseInfo = error("Not needed for seeded cache")
++    override fun setOnPaidEventListener(listener: OnPaidEventListener?) { paid = listener }
++    override fun getOnPaidEventListener() = paid
++    override fun getPlacementId() = placement
++    override fun setPlacementId(id: Long) { placement = id }
++}
+diff --git a/docs/review/admob-optimization/REVIEW.md b/docs/review/admob-optimization/REVIEW.md
+new file mode 100644
+index 0000000..2aaf1ed
+--- /dev/null
++++ b/docs/review/admob-optimization/REVIEW.md
+@@ -0,0 +1,206 @@
++# AdMob optimization — local independent review
++
++Date: 2026-11-23. Scope: CODEX TASK 1.
++Baseline: `63c029ad1372679f246e1cc705d816f513178662`. All changes remain local and uncommitted.
++No index writes, commits, pushes, merges, rebases, resets, branches, tags, releases,
++publication, deployment or dashboard changes were performed.
++
++## Confirmed causes and evidence
++
++| Finding | Repository evidence / regression signal | Change |
++| --- | --- | --- |
++| Banner backoff could be bypassed | `setAdsEnabled(true)` reenters `maybeLoadBanner()` after failure; the old guard omitted `pendingRetry`. Regression test repeatedly enables during backoff and checks that the request count stays at one. | Guard pending retry; retain one cancellable layout callback; reject callbacks from obsolete SDK views and cancelled retry runnables. |
++| Preloading ignored the session cap | `canLoad()` previously checked only backoff. The dismissal handler preloaded after impression four. | Include the four-impression cap in load eligibility, without using show eligibility or suppressing preload during cooldown. |
++| Home initial preloading was ineffective | `onHomeResumed()` read `_state.value.entitlement`, which stays UNKNOWN; billing is added to the public combined state. Readiness arriving after resume also had no preload observer. | Observe combined entitlement/readiness while the view is RESUMED, deduplicate Boolean eligibility through existing `collectStateIn`, and recheck authoritative `billing.state` in `onAdsReady()`. |
++| Expired caches could be reported as ready | `loadInterstitialAd()` returned true for any non-null cache before checking readiness or age; expiration was checked only on the show path. | Check eligibility and expiration before cache reuse. Expire at age >= 55 minutes, including timestamp zero. |
++| Automatic reloads and delayed callbacks lacked entitlement checks | The helper checked readiness, while entitlement was checked only by callers. A purchase during display/loading could therefore permit later requests. | Check current NOT_OWNED entitlement inside load/show and after loading. Eligibility loss resolves a waiting show as SKIPPED, preserving the normal operation completion path. |
++
++These are code-path findings, supported by deterministic tests, not measurements
++of production no-fill or country-specific revenue loss.
++
++Additional defensive fixes: terminal guards ignore obsolete/duplicate load and
++show completions; synchronous load exceptions release loading state and apply
++existing backoff; displayed ads are consumed before SDK show; dismissal and show
++failure release the global full-screen lock and clear the display callback.
++The policy now also enforces cooldown when the first impression timestamp is zero.
++Default Tones completion uses weak references and rejects a destroyed originating
++view rather than retaining the Fragment through a delayed ad completion.
++No actual duplicate SDK callback, memory leak or SDK exception was observed in
++production; tests exercise those defensive paths synthetically.
++
++## Hypotheses and observable signals
++
++| Investigation hypothesis | One observable signal | Outcome |
++| --- | --- | --- |
++| Repeated enable calls defeat banner delay | A second request before the first 30-second timer expires | Confirmed reachable in previous code; protected by a regression test. |
++| Session-capped users trigger useless preload | Request after the fourth impression is dismissed | Confirmed previous control flow; regression asserts zero replacement requests. |
++| Late readiness misses Home preload | No preload when eligibility becomes true after resume | Missing observer and incorrect base-state entitlement confirmed; lifecycle observation added. On-device lifecycle journey remains pending. |
++| Preload reuses expired inventory | Successful cache return at age 55 minutes | Confirmed missing load-path expiration; load/show expiry regression tests added. |
++| Two placement helpers waste meaningful inventory | Both helpers successfully load but only one ad is consumed before navigation/expiration | Two caches confirmed, but frequency and financial significance are unmeasured. Shared cache deferred. |
++
++## Changed files and methods
++
++All production paths below are under `app/src/main/java/com/milen/grounpringtonesetter/`.
++
++| File | Methods / behavior |
++| --- | --- |
++| `customviews/ui/ads/AdBannerView.kt` | `maybeLoadBanner`, `destroyBanner`, retry scheduling, view replacement and SDK callbacks: pending-backoff guard, cancellation, identity checks, authoritative eligibility. Adaptive size calculation unchanged. |
++| `customviews/ui/ads/InterstitialAdPolicy.kt` | `canLoad`, `canShow`, new `isSessionCapReached` / `showBlockReason`: cap-aware preload, unchanged cooldown/backoff, debug skip reasons. |
++| `customviews/ui/ads/AdLoadingHelper.kt` | `loadInterstitialAd`, `showInterstitialAd`, expiration/cache cleanup, completion helpers: eligibility, stale callback protection, request deduplication, cache consumption and terminal cleanup. |
++| `ui/home/HomeScreen.kt` | `onViewCreated`: RESUMED, view-lifecycle-aware combined readiness/entitlement observer. |
++| `ui/home/viewmodel/HomeViewModel.kt` | `onHomeResumed` and `onAdsReady`: move preload into readiness path and read current billing entitlement. Purchase guard behavior is unchanged. |
++| `ui/defaulttones/DeviceDefaultTonesScreen.kt` | `onViewCreated` / `onResume`: consolidate redundant preload triggers into one RESUMED observer; weak completion references and originating-view destruction guard. Existing ad-then-success-dialog ordering remains. |
++
++`AdsManager`, UMP, Billing implementation, contact/ringtone operations, backup,
++permissions, production IDs, dependencies and build configuration are unchanged.
++There are no new user-facing strings or placements. Existing SDK-load Activity
++context and the helper's WeakReference Activity ownership are preserved.
++
++## Tests and actual verification
++
++Changed `InterstitialAdPolicyTest.kt`: added five tests (eight total), covering
++preload during cooldown, cap enforcement after success/reset, global full-screen
++locking, capped failure backoff and timestamp-zero cooldown. Existing show/cap
++and load-success reset tests remain.
++
++New `AdRuntimeRegressionTest.kt`: 17 Robolectric tests, with SDK loads intercepted
++by test-only shadows. Coverage includes banner 30/60/120/120-second retries, repeated
++enable emissions, success reset, disable/detach cancellation, stale SDK/runnable
++callbacks, eligible entitlement/readiness, delayed eligibility loss, request
++coalescing and backoff, stale load callbacks, load/show expiration, fourth-impression
++dismissal, failed/throwing display, throwing load, cross-helper full-screen exclusion,
++Activity replacement/destruction and Home's authoritative entitlement check.
++No live ads or production services are used by these tests.
++
++| Command / check | Actual result |
++| --- | --- |
++| `./gradlew :app:testDebugUnitTest --tests '*InterstitialAdPolicyTest'` | Blocked before test execution: normal Gradle wrapper cache lock is outside writable roots. |
++| `./gradlew :app:testDebugUnitTest` | PASS on the final normal-environment run: 230 tests, zero failures/errors/skips, including all 25 ad regressions. |
++| `./gradlew :app:compileDebugKotlin` | PASS (also compiled during the full unit test run). Final explicit invocation was combined with lint. |
++| `./gradlew :app:lintDebug` | PASS. SARIF reports 66 warnings and no errors; none point to the changed ad/Home/Default Tones files or new ad test. Existing AGP/Kotlin deprecation warnings remain. |
++| Isolated installed Gradle, `GRADLE_USER_HOME=/private/tmp/grs-admob-gradle`, `--offline --no-daemon :app:testDebugUnitTest :app:compileDebugKotlin :app:lintDebug` | Blocked before build startup: `FileLockContentionHandler` cannot create a socket, `java.net.SocketException: Operation not permitted`. |
++| Supplemental cached Kotlin 2.4.10 compiler | PASS: changed production sources, ad sources, test doubles and ad tests compiled against local Android/dependency jars and existing debug output. This is not a clean Gradle build or dependency-resolution validation. Warnings: unchanged adaptive-size API and test Resources constructor are deprecated. |
++| Supplemental JUnit 4.13.2 / Robolectric 4.15, API 34 | PASS: `OK (25 tests)` across `InterstitialAdPolicyTest` and `AdRuntimeRegressionTest` (8 + 17). Cached GMA API 25.3.0 and coroutines 1.11.0 match project configuration. |
++| `adb devices` | Initially blocked by local socket permissions; later found emulator-5554, API 35 (`Gate3_API_35_Pixel9`). Device access subsequently became unreliable. |
++| Selected `:app:connectedDebugAndroidTest` run (HomeFunctionalityUiTest + DefaultTonesAndBackupUiTest) | Built APKs and started 19 tests. First reported result: `searchClearAndActivityRecreationRestoreTheCompleteGroupList` FAILED with Espresso `RootViewWithoutFocusException` (no window focus for 10 seconds). Progress then stalled at 1/19; stopped this attempt with Ctrl-C (exit 130). The other 18 tests are unverified, not passed. |
++| Isolated recreation-test rerun | FAILED before executing the test: ddmlib property fetch timed out; device skipped with Unknown API Level, followed by No compatible devices connected. This did not establish whether the recreation failure reproduces. |
++| `git diff --check` | PASS after implementation. |
++
++Initial restricted-environment attempts failed before Gradle/ADB could run. A later
++normal-environment retry became available and the full Gradle unit/compile/lint
++checks succeeded. A selected Android run was attempted but could not complete; its
++window-focus failure remains unresolved, and the isolated retry was blocked by
++device property-fetch failure. The supplemental results above are retained as separate evidence;
++they are not counted as additional distinct tests and do not substitute for Gradle.
++Initial targeted tests were written before the policy fix, but that Gradle red run
++was blocked. No successful red run is claimed.
++
++Reproduce selected Android checks (no code or configuration changes required):
++
++```bash
++./gradlew :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.milen.grounpringtonesetter.ui.HomeFunctionalityUiTest,com.milen.grounpringtonesetter.ui.DefaultTonesAndBackupUiTest'
++./gradlew :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.milen.grounpringtonesetter.ui.HomeFunctionalityUiTest#searchClearAndActivityRecreationRestoreTheCompleteGroupList'
++```
++
++### Remaining verification matrix
++
++| Scenario | Evidence / remaining check |
++| --- | --- |
++| Consent pending / allowed / denied or restricted | Readiness false/true gates tested; actual UMP forms and geographic states require device testing. No UMP logic changed. |
++| Remove Ads owned / pending / unknown / not owned | All entitlement gates and purchase-while-loading tested. Real purchase/restore still requires existing release smoke checks. |
++| Banner backoff, cancellation, success reset, stale callbacks | Deterministic Robolectric coverage; visually verify adaptive banners, hiding and reattachment on device. |
++| Interstitial preload, cap, cooldown, failure backoff | Policy and helper regressions pass; preload remains allowed during cooldown. |
++| Failure, dismissal and exactly-once completion | Synthetic callback/throw tests pass, including obsolete terminal callbacks. Real SDK presentation needs smoke testing. |
++| Background/foreground and navigation | RESUMED observers audited and compiled; request deduplication tested. Full Fragment background/navigation journeys were attempted but not completed. |
++| Recreation / destroyed Activity | Replacement Activity and delayed completion rejection pass in Robolectric. The device recreation test failed on window focus; isolated rerun could not access device properties. Full device/process recreation remains unverified. |
++| Cache expiration | Load and show paths tested at the 55-minute boundary. |
++| Ringtone completion while ads unavailable | Eligibility-loss show result is tested as SKIPPED; existing Home and Default Tones success routes inspected. The selected ringtone/default-tone UI suite did not complete, so these device operations are not claimed verified. |
++
++## Diagnostics
++
++Existing `AdDiagnostics` / `Tracker` infrastructure is reused. Request, load
++success/failure, impression, click, show failure and paid-event tracking remain.
++New debug-only messages distinguish cache reuse, cap-blocked loads, discarded
++late loads, readiness/entitlement skips, cooldown/cap/full-screen show skips,
++show attempt, dismissal and reaching the session cap. Existing expiration logs
++remain. All added routine messages pass through the existing BuildConfig.DEBUG
++gate; no duplicate analytics or personal data logging was added. Existing
++`CODEX_DEBUG` prefix is retained behind that debug gate as requested.
++
++## Expected benefit and measurement
++
++Expected: fewer premature banner requests during no-fill/network failures, zero
++new Interstitial loads once the process cap has been reached, fresh cache reuse,
++and improved readiness at existing legitimate Home completion opportunities.
++No revenue percentage or Match Rate improvement can be claimed from local tests.
++The 90-second cooldown, maximum four impressions per process, existing placements
++and all display triggers remain intact. Readiness resolution only preloads.
++
++After separate review and any independently authorized rollout, compare matched
++14–28-day periods by app version, country and format. Track requests per active
++user, matched requests, impressions, show rate, eCPM, total revenue and revenue per
++active user together. Keep floor settings and placements stable. Check existing
++`ad_paid_event` coverage and debug request-to-dismiss traces on test devices.
++Interpret an increase in legitimate Home preloads separately from eliminated
++wasted requests. Low country Show Rate and the reported ~45% Match Rate may still
++reflect demand, user navigation, eligibility or traffic mix. No dashboard access
++or configuration changes were made or assumed necessary.
++
++## Shared Interstitial cache assessment — deferred
++
++Home owns a helper through its ViewModel; Default Tones creates a helper for its
++view. Both use the same production unit and app-process display policy, so two
++loaded ads can coexist. A request started on a screen that is then left cannot
++be cancelled through the current SDK API. Actual waste depends on navigation,
++consumption and expiration; neither production counts nor a revenue impact were
++established here.
++
++Potential benefit of one cache: coalesce cross-screen loads, reuse one fresh ad
++across natural breaks and avoid stranded per-screen inventory. Appropriate owner:
++an application-scoped cache with request/backoff/expiration state, no strong
++Activity/Fragment references, and an explicit consumption/owner token. A current
++valid Activity should be supplied only for display, with the existing process
++full-screen lock and frequency policy remaining authoritative.
++
++Risks: simultaneous consumers and double show, callback transfer after navigation,
++process-wide loading failure/backoff interaction, attribution to request versus
++show placement, entitlement/consent changes during load, and SDK/adapter context
++retention. The GMA API accepts Activity or application context for loading, but
++Google notes that mediated networks can require an Activity. Preserve adapter
++compatibility before changing context ownership in any future design.
++[Interstitial API](https://developers.google.com/admob/android/reference/com/google/android/gms/ads/interstitial/InterstitialAd),
++[mediation context guidance](https://developers.google.com/admob/android/mediation#initialize_your_ad_object_with_an_activity_instance).
++
++Minimal alternatives implemented now: session-cap-aware loads, authoritative
++eligibility checks, deduplicated lifecycle triggers, expiration before reuse and
++per-helper in-flight request coalescing. A global loading lock by itself is not a
++shared cache: it could starve the foreground screen while another helper owns the
++loaded result. No shared-cache refactor, new mediation integration, dashboard
++experiment or SDK migration was implemented. These require separate scope/review.
++
++## Risks and review scope
++
++- Full unit suite, compile and lint pass. Connected testing is incomplete: one recreation test reported a window-focus failure; the run was stopped after progress stalled, and the isolated retry failed device property discovery. This failure has not been attributed to or excluded as an app regression. The fixture uses owned entitlement/disabled ads, so a direct ad show is not expected, but that alone is not proof of an environmental cause. No unrelated production fix was made.
++- Real UMP/Billing/live-ad journeys and the complete Android suite remain unverified. Rerun the two selected classes, especially recreation and ringtone/default-tone completion, on a stable emulator/device.
++- Lifecycle collection now starts preloading only at RESUMED. Verify returning
++  from consent, billing, pickers and full-screen ads, especially Fragment view
++  recreation. Repeated true eligibility while already loaded/in flight reuses
++  cache/coalesces requests.
++- Default Tones intentionally suppresses an old success-dialog callback after its
++  originating view is destroyed. Verify success-dialog behavior on live dismissal
++  and rotation. Weak references avoid prolonging Fragment lifetime.
++- Separate placement caches remain; process-wide request coalescing is deferred.
++- No evidence ties the reported country revenue metrics to a specific defect.
++
++Pre-existing work was preserved: `CircleWIthText.kt`, `GroupsAdapter.kt`,
++`item_group_entity.xml`, `GroupCountLayoutTest.kt`, `docs/review/contact-count/QA.md`
++and `.kotlin/`. These were present before Task 1 edits and are not attributed to
++this implementation.
++
++`task.patch` contains all Task 1 production/test changes, including the new
++untracked regression file and this report. `working-tree.patch` additionally
++contains the pre-existing tracked edits and untracked contact-count source/test
++and review document. Both are generated without staging. Generated caches,
++binaries and patch files themselves are excluded. `git-state.txt` records the
++requested final status and diff stat; Git's normal diff stat excludes untracked
++files, which are explicitly included in the patches.
+diff --git a/docs/review/admob-optimization/git-state.txt b/docs/review/admob-optimization/git-state.txt
+new file mode 100644
+index 0000000..e18a09b
+--- /dev/null
++++ b/docs/review/admob-optimization/git-state.txt
+@@ -0,0 +1,35 @@
++Baseline: 63c029ad1372679f246e1cc705d816f513178662
++
++$ git diff --check
++PASS (no output)
++
++$ git status --short
++ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdBannerView.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdLoadingHelper.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicy.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/texts/CircleWIthText.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesScreen.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/GroupsAdapter.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
++ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModel.kt
++ M app/src/main/res/layout/item_group_entity.xml
++ M app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicyTest.kt
++?? .kotlin/
++?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/home/
++?? app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdRuntimeRegressionTest.kt
++?? docs/review/
++
++$ git diff --stat
++ .../customviews/ui/ads/AdBannerView.kt             |  47 ++++-
++ .../customviews/ui/ads/AdLoadingHelper.kt          | 210 ++++++++++++++-------
++ .../customviews/ui/ads/InterstitialAdPolicy.kt     |  18 +-
++ .../customviews/ui/texts/CircleWIthText.kt         |   6 +-
++ .../ui/defaulttones/DeviceDefaultTonesScreen.kt    |  27 ++-
++ .../grounpringtonesetter/ui/home/GroupsAdapter.kt  |  15 --
++ .../grounpringtonesetter/ui/home/HomeScreen.kt     |   7 +
++ .../ui/home/viewmodel/HomeViewModel.kt             |  10 +-
++ app/src/main/res/layout/item_group_entity.xml      |  40 +++-
++ .../customviews/ui/ads/InterstitialAdPolicyTest.kt |  44 +++++
++ 10 files changed, 298 insertions(+), 126 deletions(-)
++
++Normal git diff --stat excludes untracked files. The review patches explicitly include new source/test/documentation files.

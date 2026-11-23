@@ -1,0 +1,47 @@
+Baseline: 63c029ad1372679f246e1cc705d816f513178662
+
+$ git diff --check
+PASS (no output)
+
+$ git status --short
+ M app/src/androidTest/java/com/milen/grounpringtonesetter/testing/RegressionTestApplication.kt
+ M app/src/androidTest/java/com/milen/grounpringtonesetter/ui/UiTestFixtures.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdBannerView.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdLoadingHelper.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicy.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/customviews/ui/texts/CircleWIthText.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesScreen.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DeviceDefaultTonesState.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DeviceDefaultTonesViewModel.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/GroupsAdapter.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/HomeScreen.kt
+ M app/src/main/java/com/milen/grounpringtonesetter/ui/home/viewmodel/HomeViewModel.kt
+ M app/src/main/res/layout/item_group_entity.xml
+ M app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/InterstitialAdPolicyTest.kt
+ M app/src/test/java/com/milen/grounpringtonesetter/ui/defaulttones/viewmodel/DeviceDefaultTonesViewModelTest.kt
+?? .kotlin/
+?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/DefaultToneCompletionLifecycleTest.kt
+?? app/src/androidTest/java/com/milen/grounpringtonesetter/ui/home/
+?? app/src/main/java/com/milen/grounpringtonesetter/ui/defaulttones/DefaultToneCompletionDialog.kt
+?? app/src/test/java/com/milen/grounpringtonesetter/customviews/ui/ads/AdRuntimeRegressionTest.kt
+?? docs/review/
+
+$ git diff --stat
+ .../testing/RegressionTestApplication.kt           |  21 ++-
+ .../grounpringtonesetter/ui/UiTestFixtures.kt      |   1 +
+ .../customviews/ui/ads/AdBannerView.kt             |  69 +++++--
+ .../customviews/ui/ads/AdLoadingHelper.kt          | 210 ++++++++++++++-------
+ .../customviews/ui/ads/InterstitialAdPolicy.kt     |  18 +-
+ .../customviews/ui/texts/CircleWIthText.kt         |   6 +-
+ .../ui/defaulttones/DeviceDefaultTonesScreen.kt    |  32 +++-
+ .../ui/defaulttones/DeviceDefaultTonesState.kt     |   9 +-
+ .../viewmodel/DeviceDefaultTonesViewModel.kt       |  24 ++-
+ .../grounpringtonesetter/ui/home/GroupsAdapter.kt  |  15 --
+ .../grounpringtonesetter/ui/home/HomeScreen.kt     |   4 +
+ .../ui/home/viewmodel/HomeViewModel.kt             |  16 +-
+ app/src/main/res/layout/item_group_entity.xml      |  40 +++-
+ .../customviews/ui/ads/InterstitialAdPolicyTest.kt |  44 +++++
+ .../viewmodel/DeviceDefaultTonesViewModelTest.kt   |  38 ++++
+ 15 files changed, 404 insertions(+), 143 deletions(-)
+
+Normal Git diff stat excludes untracked files. New source/test/review files are explicitly included in full-review.patch. Generated caches/binaries and patch artifacts are excluded.

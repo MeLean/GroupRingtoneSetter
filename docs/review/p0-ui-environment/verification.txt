@@ -1,0 +1,46 @@
+Gradle Android-test compilation
+Exception in thread "main" java.io.FileNotFoundException: /Users/md/.gradle/wrapper/dists/gradle-9.6.1-all/4xnwe4ed5w7qqynisxnnvegss/gradle-9.6.1-all.zip.lck (Operation not permitted)
+	at java.base/java.io.RandomAccessFile.open0(Native Method)
+	at java.base/java.io.RandomAccessFile.open(RandomAccessFile.java:344)
+	at java.base/java.io.RandomAccessFile.<init>(RandomAccessFile.java:259)
+	at java.base/java.io.RandomAccessFile.<init>(RandomAccessFile.java:213)
+	at org.gradle.wrapper.Install.createDist(SourceFile:24)
+	at org.gradle.wrapper.GradleWrapperMain.lambda$prepareWrapper$0(SourceFile:2)
+	at org.gradle.wrapper.GradleWrapperMain.main(SourceFile:2)
+
+
+Emulator execution attempt
+adb -s emulator-5554 shell getprop ro.kernel.qemu
+* daemon not running; starting now at tcp:5037
+ADB server didn't ACK
+Full server startup log: /var/folders/sc/247c6x957yb50qm8v3rwhlcw0000gp/T//adb.502.log
+Server had pid: 58922
+--- adb starting (pid 58922) ---
+11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 Android Debug Bridge version 1.0.41
+11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 Version 36.0.2-14143358
+11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 Installed as /Users/md/Library/Android/sdk/platform-tools/adb
+11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 Running on Darwin 25.5.0 (arm64)
+11-23 23:43:26.275 58922 33371395 I adb     : main.cpp:66 
+11-23 23:43:26.798 58922 33371395 F adb     : main.cpp:165 could not install *smartsocket* listener: Operation not permitted
+
+* failed to start daemon
+adb: cannot connect to daemon
+
+
+
+Host runner tests (mocked commands)
+test_failure_is_reported_and_still_restores_original_state (test_run_p0_ui.HostRunnerTest) ... ok
+test_physical_device_is_rejected_before_any_adb_or_build_command (test_run_p0_ui.HostRunnerTest) ... ok
+test_success_restores_original_grants_flags_and_developer_option (test_run_p0_ui.HostRunnerTest) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.009s
+
+OK
+
+
+Supplemental Kotlin compilation
+app/src/androidTest/java/com/milen/grounpringtonesetter/billing/BillingAppComponentFactoryInstrumentedTest.kt:111:30: warning: 'fun <T : Parcelable!> getParcelableExtra(p0: String!): T?' is deprecated. Deprecated in Java.
+            validBuyIntent().getParcelableExtra<PendingIntent>("BUY_INTENT"),
+                             ^^^^^^^^^^^^^^^^^^
+

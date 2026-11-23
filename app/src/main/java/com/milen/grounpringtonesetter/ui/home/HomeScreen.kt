@@ -361,17 +361,24 @@ internal class HomeScreen : Fragment(), GroupsAdapter.GroupItemsInteractor, Scre
             renderBannerVisibility()
         }
 
-        viewModel.interstitialPreloadEligibility(adsManager.canLoadAds).collectStateIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { eligible ->
-            if (eligible) viewModel.onAdsReady(requireActivity())
-        }
+        viewModel.interstitialPreloadEligibility(adsManager.canLoadAds)
+            .collectStateIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { eligible ->
+                if (eligible) viewModel.onAdsReady(requireActivity())
+            }
 
-        childFragmentManager.setFragmentResultListener(DefaultToneCompletionDialog.RESULT_KEY, viewLifecycleOwner) { _, result ->
+        childFragmentManager.setFragmentResultListener(
+            DefaultToneCompletionDialog.RESULT_KEY,
+            viewLifecycleOwner
+        ) { _, result ->
             viewModel.onRingtoneCompletionDismissed(result.getLong(DefaultToneCompletionDialog.COMPLETION_ID))
         }
         viewModel.state.map { it.pendingRingtoneCompletion }
             .collectStateIn(viewLifecycleOwner, Lifecycle.State.RESUMED) { completion ->
                 if (completion?.isReady == true) DefaultToneCompletionDialog.show(this, completion)
-                else if (completion != null) viewModel.presentRingtoneCompletion(requireActivity(), completion.id)
+                else if (completion != null) viewModel.presentRingtoneCompletion(
+                    requireActivity(),
+                    completion.id
+                )
             }
 
         viewModel.events.collectEventsIn(viewLifecycleOwner) { event ->
